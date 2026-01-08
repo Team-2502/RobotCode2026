@@ -3,6 +3,19 @@
 version = 4
 
 [[package]]
+name = "RobotCode2026"
+version = "0.1.0"
+dependencies = [
+ "float-cmp",
+ "frcrs",
+ "nalgebra 0.34.1",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uom",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1244,19 +1257,6 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "robot-boilerplate"
-version = "0.1.0"
-dependencies = [
- "float-cmp",
- "frcrs",
- "nalgebra 0.34.1",
- "serde",
- "serde_json",
- "tokio",
- "uom",
 ]
 
 [[package]]

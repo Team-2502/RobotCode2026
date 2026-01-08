@@ -1,8 +1,8 @@
-LIB=PROJECT-NAME-HERE
+LIB=RobotCode2026
 OUT=target/arm-unknown-linux-gnueabi/release/$(LIB)
 DEPLOY=javastub/src/main/deploy/$(LIB)
 TEAM=25.02
-PATHS=auto/*
+PATHS=paths/*
 
 .PHONY: check
 check:
@@ -32,14 +32,3 @@ deploy-scp: $(OUT)
 .PHONY: deploy-paths
 deploy-paths:
 	scp -r $(PATHS) admin@10.$(TEAM).2:/home/lvuser/deploy/choreo/
-
-# Deploys the "deploy" directory and robotcode
-.PHONY: deploy
-deploy: $(OUT)
-	cd javastub; ./gradlew deploy
-	ssh lvuser@10.$(TEAM).2 cp robotCommand3 robotCommand
-	ssh lvuser@10.$(TEAM).2 chmod +x robotCommand
-
-.PHONY: deploy-static
-deploy-static:
-	cd javastub; ./gradlew deployfrcStaticFileDeployroborio
