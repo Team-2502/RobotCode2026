@@ -1,11 +1,11 @@
 #![warn(non_snake_case)]
 
+use RobotCode2026::auto::auto::Auto;
+use RobotCode2026::{Ferris, teleop};
 use frcrs::input::RobotState;
 use frcrs::networktables::NetworkTable;
 use frcrs::telemetry::Telemetry;
 use frcrs::{init_hal, observe_user_program_starting, refresh_data};
-use RobotCode2026::auto::auto::Auto;
-use RobotCode2026::{Ferris, teleop};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
