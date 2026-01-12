@@ -30,6 +30,19 @@ pub mod robotmap {
         pub const FR_DRIVE_ID: i32 = 0;
         pub const FR_TURN_ID: i32 = 0;
     }
+
+    pub mod shooter {
+        pub const SHOOTER_MOTOR_ID: i32 = 0;
+        pub const HOOD_MOTOR_ID: i32 = 1;
+    }
+
+    pub mod turret {
+        pub const SPIN_MOTOR_ID: i32 = 1;
+    }
+}
+
+pub mod turret {
+    pub const GEAR_RATIO: f64 = 0.0;
 }
 
 pub mod vision {
