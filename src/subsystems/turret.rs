@@ -7,8 +7,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 pub struct Turret {
     limelight: Vision,
     spin_motor: Talon,
-
-    turret_offset: f64,
+    //turret_offset: f64,
 }
 
 impl Turret {
@@ -22,8 +21,6 @@ impl Turret {
         Turret {
             limelight,
             spin_motor,
-
-            turret_offset: 0.0,
         }
     }
 

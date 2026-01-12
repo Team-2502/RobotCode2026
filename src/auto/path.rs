@@ -161,3 +161,32 @@ pub fn calculate_relative_target(current: f64, target: f64) -> f64 {
         target_relative
     }
 }
+
+pub async fn get_waypoint(
+    name: &str,
+    waypoint_index: usize,
+) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
+    let mut path_content = String::new();
+    File::open(format!("/home/lvuser/deploy/choreo/{}.traj", name))
+        .await?
+        .read_to_string(&mut path_content)
+        .await?;
+
+    let path = Path::from_trajectory(&path_content)?;
+    let waypoints = path.waypoints();
+
+    if waypoint_index >= waypoints.len() {
+        return Err("waypoint index out of bounds".into());
+    }
+
+    // Waypoints are times (seconds) along the trajectory
+    let waypoint_time = waypoints[waypoint_index];
+
+    let pose = path.get(Time::new::<second>(waypoint_time));
+
+    Ok(vec![
+        pose.x.get::<meter>(),
+        pose.y.get::<meter>(),
+        pose.heading.get::<degree>(),
+    ])
+}
