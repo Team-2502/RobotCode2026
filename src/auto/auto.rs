@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::time::Duration;
+use tokio::time::{sleep, timeout};
 use uom::si::angle::degree;
 use uom::si::f64::Angle;
 use uom::si::f64::Length;
@@ -47,9 +49,7 @@ impl Auto {
     pub async fn run_auto<'a>(ferris: Rc<RefCell<Ferris>>, chosen: Auto) {
         match chosen {
             Auto::Test => {
-                test(Rc::clone(&ferris))
-                    .await
-                    .expect("Failed running auto");
+                test(Rc::clone(&ferris)).await.expect("Failed running auto");
             }
             Auto::Nothing => {
                 println!("No auto was selected!");
@@ -70,6 +70,17 @@ pub async fn test(robot: Rc<RefCell<Ferris>>) -> Result<(), Box<dyn std::error::
     drivetrain.set_pose_estimate(RobotPoseEstimate::new(1.0, x, y, heading));
 
     drive("test", &mut drivetrain, 1).await?;
+
+    let _ = timeout(Duration::from_secs_f64(0.5), async {
+        loop {
+            drivetrain.post_odo().await;
+        }
+    });
+
+    drive("test", &mut drivetrain, 2).await?;
+    drive("test", &mut drivetrain, 3).await?;
+    drive("test", &mut drivetrain, 4).await?;
+    drive("test", &mut drivetrain, 5).await?;
 
     Ok(())
 }
