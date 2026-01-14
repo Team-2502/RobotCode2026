@@ -8,6 +8,7 @@ use crate::subsystems::swerve::kinematics::Kinematics;
 use crate::subsystems::swerve::odometry::{Odometry, RobotPoseEstimate};
 use crate::subsystems::vision::Vision;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
+use frcrs::telemetry::Telemetry;
 use nalgebra::{Rotation2, Vector2, vector};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
@@ -286,5 +287,16 @@ impl Drivetrain {
         self.set_pose_estimate(fused_pose.clone());
         self.set_next_frame_module_odometry();
         RobotPoseEstimate::new(fused_pose.fom, fused_pose.x, fused_pose.y, fused_pose.angle)
+    }
+
+    pub async fn post_odo(&self) {
+        Telemetry::put_number("odo_x", self.get_pose_estimate().x.get::<meter>()).await;
+        Telemetry::put_number("odo_y", self.get_pose_estimate().y.get::<meter>()).await;
+        Telemetry::put_number(
+            "odo_heading",
+            self.get_pose_estimate().angle.get::<radian>(),
+        )
+        .await;
+        Telemetry::put_number("odo_fom", self.get_pose_estimate().fom).await;
     }
 }
