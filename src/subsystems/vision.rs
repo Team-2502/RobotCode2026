@@ -298,10 +298,10 @@ impl Vision {
 mod tests {
     use super::*;
     use std::fs::File;
-    use std::path::Path;
-    use uom::si::length::meter;
-    use uom::si::f64::Length;
     use std::net::SocketAddr;
+    use std::path::Path;
+    use uom::si::f64::Length;
+    use uom::si::length::meter;
 
     fn test_vision() -> Vision {
         let addr: SocketAddr = "127.0.0.1:5800".parse().unwrap();
