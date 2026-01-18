@@ -7,6 +7,8 @@ pub mod config {
     pub const FIELD_ORIENTED: bool = true;
     pub const HALF_FIELD_WIDTH_METERS: f64 = 17.55 / 2.;
     pub const HALF_FIELD_LENGTH_METERS: f64 = 8.05 / 2.;
+    pub const HUB_X: f64 = 1.0;
+    pub const HUB_Y: f64 = 1.0;
 }
 
 pub mod robotmap {
@@ -34,6 +36,7 @@ pub mod robotmap {
     pub mod shooter {
         pub const SHOOTER_MOTOR_ID: i32 = 0;
         pub const HOOD_MOTOR_ID: i32 = 1;
+        pub const SHOOTER_SPEED: f64 = 0.0;
     }
 
     pub mod turret {
@@ -43,6 +46,10 @@ pub mod robotmap {
 
 pub mod turret {
     pub const GEAR_RATIO: f64 = 0.0;
+    pub const TURRET_MAX: f64 = 180.0;
+    pub const TURRET_MIN: f64 = -180.0;
+    // meters per second
+    pub const PROJECTILE_SPEED: f64 = 1.0;
 }
 
 pub mod vision {

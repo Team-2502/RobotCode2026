@@ -289,6 +289,21 @@ impl Vision {
     pub fn get_yaw(&self) -> Angle {
         Angle::new::<radian>(self.results.botpose_wpiblue[5])
     }
+
+    pub fn get_linear_velocity(&self) -> f64 {
+        let dt = (Instant::now() - self.last_update_time).as_secs_f64();
+
+        let current_pos = Vector2::new(
+            self.robot_position.x.get::<meter>(),
+            self.robot_position.y.get::<meter>(),
+        );
+        let last_pos = Vector2::new(
+            self.last_robot_position.x.get::<meter>(),
+            self.last_robot_position.y.get::<meter>(),
+        );
+
+        (current_pos - last_pos).magnitude() / dt
+    }
 }
 
 // tagmap test to make sure i converted it all right

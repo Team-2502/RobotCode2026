@@ -45,7 +45,7 @@ impl Ferris {
             },
 
             drivetrain: Rc::new(RefCell::new(Drivetrain::new(RobotPoseEstimate::new(
-                0.,
+                1.,
                 Length::new::<meter>(0.),
                 Length::new::<meter>(0.),
                 Angle::new::<radian>(0.),
