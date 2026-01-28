@@ -53,11 +53,11 @@ impl Turret {
     }
 
     // idk if this is still optimal now that we are likely using 2 static lls but its still here anyway :)
+    // status update its not
     pub fn track(&mut self, turn: Angle) {
         self.set_angle(turn.get::<degree>());
     }
 
-    // TODO: write a unit test for this i do not trust
     fn apply_soft_stop(&self, desired_deg: f64) -> f64 {
         let current = self.turret_angle.get::<degree>();
         let mut best = current;
@@ -70,7 +70,6 @@ impl Turret {
                 continue;
             }
 
-            // this might have a logic error - rishi at lunch
             if !found || (candidate - current).abs() < (best - current).abs() {
                 best = candidate;
                 found = true;

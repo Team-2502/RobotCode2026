@@ -42,6 +42,14 @@ pub mod robotmap {
     pub mod turret {
         pub const SPIN_MOTOR_ID: i32 = 1;
     }
+
+    pub mod intake {
+        pub const INTAKE_TOP_MOTOR_ID: i32 = 2;
+        pub const INTAKE_BOTTOM_MOTOR_ID: i32 = 3;
+        pub const PIVOT_TOP_MOTOR_ID: i32 = 4;
+        pub const PIVOT_BOTTOM_MOTOR_ID: i32 = 5;
+        pub const INDEXER_MOTOR_ID: i32 = 6;
+    }
 }
 
 pub mod turret {
