@@ -15,6 +15,7 @@ use std::time::Duration;
 use tokio::time::timeout;
 use uom::si::angle::{degree, radian, revolution};
 use uom::si::f64::Angle;
+use uom::si::f64::Length;
 use uom::si::length::meter;
 
 /// Drivetrain struct.
@@ -275,9 +276,9 @@ impl Drivetrain {
             }
 
             //
-            fused_pose.x = uom::si::f64::Length::new::<meter>(fused_x);
-            fused_pose.y = uom::si::f64::Length::new::<meter>(fused_y);
-            fused_pose.angle = uom::si::f64::Angle::new::<radian>(fused_yaw);
+            fused_pose.x = Length::new::<meter>(fused_x);
+            fused_pose.y = Length::new::<meter>(fused_y);
+            fused_pose.angle = Angle::new::<radian>(fused_yaw);
 
             // update fom to reflect fused confidence
             fused_pose.fom = (odo_fom * vision_fom) / (odo_fom + vision_fom);

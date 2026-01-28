@@ -45,11 +45,14 @@ pub mod robotmap {
 }
 
 pub mod turret {
+    use nalgebra::Vector2;
+
     pub const GEAR_RATIO: f64 = 0.0;
     pub const TURRET_MAX: f64 = 180.0;
     pub const TURRET_MIN: f64 = -180.0;
-    // meters per second
-    pub const PROJECTILE_SPEED: f64 = 1.0;
+    // meters
+    pub const OFFSET: Vector2<f64> = Vector2::new(0.0, 0.0);
+    pub const TOLERANCE: f64 = 0.001;
 }
 
 pub mod vision {
