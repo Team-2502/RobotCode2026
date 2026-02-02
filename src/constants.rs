@@ -1,4 +1,6 @@
 pub mod config {
+    use nalgebra::Vector2;
+
     /// Wheel-Wheel width of robot.
     pub const WHEELBASE_WIDTH_INCHES: f64 = 10.0;
     /// Wheel-Wheel length of robot.
@@ -7,8 +9,10 @@ pub mod config {
     pub const FIELD_ORIENTED: bool = true;
     pub const HALF_FIELD_WIDTH_METERS: f64 = 17.55 / 2.;
     pub const HALF_FIELD_LENGTH_METERS: f64 = 8.05 / 2.;
-    pub const HUB_X: f64 = 1.0;
-    pub const HUB_Y: f64 = 1.0;
+
+    pub const HUB: Vector2<f64> = Vector2::new(0.0, 0.0);
+    pub const PASS_RIGHT: Vector2<f64> = Vector2::new(0.0, 0.0);
+    pub const PASS_LEFT: Vector2<f64> = Vector2::new(0.0, 0.0);
 }
 
 pub mod robotmap {
@@ -49,6 +53,12 @@ pub mod robotmap {
         pub const PIVOT_TOP_MOTOR_ID: i32 = 4;
         pub const PIVOT_BOTTOM_MOTOR_ID: i32 = 5;
         pub const INDEXER_MOTOR_ID: i32 = 6;
+
+        pub const INTAKE_DOWN_POSITION: f64 = 0.0;
+        pub const INTAKE_UP_POSITION: f64 = 0.0;
+
+        pub const INTAKE_IN_SPEED: f64 = 0.0;
+        pub const INTAKE_REVSERSE_SPEED: f64 = 0.0;
     }
 }
 

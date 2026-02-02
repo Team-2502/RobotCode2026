@@ -1,5 +1,5 @@
-mod intake;
-mod shooter;
+pub mod intake;
+pub mod shooter;
 pub mod swerve;
-mod turret;
+pub mod turret;
 pub mod vision;

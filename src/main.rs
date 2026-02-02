@@ -1,7 +1,7 @@
 #![warn(non_snake_case)]
 
 use RobotCode2026::auto::auto::Auto;
-use RobotCode2026::{Ferris, teleop};
+use RobotCode2026::{Controllers, Ferris, teleop};
 use frcrs::input::RobotState;
 use frcrs::networktables::NetworkTable;
 use frcrs::telemetry::Telemetry;
@@ -162,5 +162,3 @@ fn main() {
         }
     }));
 }
-
-// template test

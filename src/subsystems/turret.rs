@@ -1,34 +1,35 @@
 use crate::Controllers;
-use crate::constants::config::HUB_X;
+use crate::constants::config::HUB;
 use crate::constants::robotmap::turret::SPIN_MOTOR_ID;
 use crate::constants::turret::{GEAR_RATIO, TURRET_MAX, TURRET_MIN};
-use crate::subsystems::shooter::Shooter;
 use crate::subsystems::swerve::odometry::RobotPoseEstimate;
 use frcrs::ctre::{ControlMode, Talon};
 use uom::si::angle::degree;
-use uom::si::f64::Angle;
+use uom::si::f64::{Angle, Length};
 use uom::si::length::meter;
+
+#[derive(PartialEq, Clone)]
+pub enum TurretMode {
+    Track,
+    Manual,
+    Idle,
+}
 
 pub struct Turret {
     spin_motor: Talon,
     //turret_offset: f64,
     drivetrain_angle: Angle,
     turret_angle: Angle,
-
-    shooter: Shooter,
 }
 
 impl Turret {
     pub fn new() -> Self {
         let spin_motor = Talon::new(SPIN_MOTOR_ID, Some("can0".to_string()));
-        let shooter = Shooter::new();
 
         Turret {
             spin_motor,
             drivetrain_angle: Angle::new::<degree>(0.),
             turret_angle: Angle::new::<degree>(0.),
-
-            shooter,
         }
     }
 
@@ -53,9 +54,9 @@ impl Turret {
     }
 
     // idk if this is still optimal now that we are likely using 2 static lls but its still here anyway :)
-    // status update its not
-    pub fn track(&mut self, turn: Angle) {
-        self.set_angle(turn.get::<degree>());
+    // status update its not but its being reused
+    pub fn track(&mut self, pose: RobotPoseEstimate, distance: Length) {
+        //shoot_on_move();
     }
 
     fn apply_soft_stop(&self, desired_deg: f64) -> f64 {
@@ -78,13 +79,17 @@ impl Turret {
 
         best
     }
+
+    pub fn stop(&self) {
+        self.spin_motor.stop();
+    }
 }
 
 pub fn get_angle_to_hub(pose: RobotPoseEstimate) -> Angle {
     let x = pose.x.get::<meter>();
     let y = pose.y.get::<meter>();
-    let dx = HUB_X - x;
-    let dy = HUB_X - y;
+    let dx = HUB.x - x;
+    let dy = HUB.y - y;
 
     Angle::new::<degree>(dy.atan2(dx).to_degrees())
 }

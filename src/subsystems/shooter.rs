@@ -1,12 +1,24 @@
-use crate::constants::config::{HUB_X, HUB_Y};
+use crate::constants::config::{HUB, PASS_LEFT, PASS_RIGHT};
 use crate::constants::robotmap::shooter::{HOOD_MOTOR_ID, SHOOTER_MOTOR_ID, SHOOTER_SPEED};
 use crate::constants::turret::{OFFSET, TOLERANCE};
 use crate::subsystems::swerve::odometry::RobotPoseEstimate;
+use crate::subsystems::turret::Turret;
 use frcrs::ctre::{ControlMode, Talon};
+use frcrs::telemetry::Telemetry;
+use nalgebra::Vector2;
 use uom::si::angle::radian;
 use uom::si::angular_velocity::radian_per_second;
 use uom::si::f32::Length;
 use uom::si::length::meter;
+
+#[derive(PartialEq, Clone)]
+pub enum ShootingTarget {
+    Idle,
+    Hub,
+    PassLeft,
+    PassRight,
+    PassTelemetry,
+}
 
 #[derive(Clone, Copy)]
 pub struct ShooterData {
@@ -15,6 +27,7 @@ pub struct ShooterData {
     time_of_flight: f64,
     hood_angle: f64,
 }
+
 #[derive(Clone, Copy)]
 pub struct ShotSolution {
     pub hood_angle: f64,
@@ -152,15 +165,22 @@ pub const PASSING_TABLE: [ShooterData; 10] = [
 pub struct Shooter {
     shooter_motor: Talon,
     hood_motor: Talon,
+
+    pub turret: Turret,
 }
 
 impl Shooter {
     pub fn new() -> Shooter {
         let shooter_motor = Talon::new(SHOOTER_MOTOR_ID, Some("can0".to_string()));
         let hood_motor = Talon::new(HOOD_MOTOR_ID, Some("can0".to_string()));
+
+        let turret = Turret::new();
+
         Shooter {
             shooter_motor,
             hood_motor,
+
+            turret,
         }
     }
 
@@ -179,82 +199,116 @@ impl Shooter {
     pub fn set_hood_motor(&mut self, position: f64) {
         self.hood_motor.set(ControlMode::Position, position);
     }
-}
 
-// fr ccw+ i think rad/s
-// TODO: make unit tests to make sure im not crazy
-pub fn shoot_on_move(
-    pose: RobotPoseEstimate,
-    linear: (f64, f64),
-    angular: uom::si::f64::AngularVelocity,
-    max_iter: i32,
-) -> ShotSolution {
-    let (vx, vy) = linear;
+    // fr ccw+ i think rad/s
+    // TODO: make unit tests to make sure im not crazy
+    pub async fn shoot_on_move(
+        &mut self,
+        pose: RobotPoseEstimate,
+        linear: (f64, f64),
+        angular: uom::si::f64::AngularVelocity,
+        max_iter: i32,
+        target: ShootingTarget,
+    ) {
+        let target_cords = match target {
+            ShootingTarget::Hub => HUB,
+            ShootingTarget::PassLeft => PASS_LEFT,
+            ShootingTarget::PassRight => PASS_RIGHT,
+            ShootingTarget::PassTelemetry => {
+                let target = Telemetry::get_target_point().await;
+                if let Some(target) = target {
+                    Vector2::new(target.x, target.y)
+                } else {
+                    Vector2::new(0., 0.)
+                }
+            }
+            ShootingTarget::Idle => Vector2::new(0., 0.),
+        };
 
-    let angle: f64 = pose.angle.get::<radian>();
-    let base_x: f64 = pose.x.get::<meter>();
-    let base_y: f64 = pose.y.get::<meter>();
-    let av: f64 = angular.get::<radian_per_second>();
+        let (vx, vy) = linear;
 
-    let ox: f64 = OFFSET.x;
-    let oy: f64 = OFFSET.y;
+        let angle: f64 = pose.angle.get::<radian>();
+        let base_x: f64 = pose.x.get::<meter>();
+        let base_y: f64 = pose.y.get::<meter>();
+        let av: f64 = angular.get::<radian_per_second>();
 
-    let rx = ox * angle.cos() - oy * angle.sin();
-    let ry = ox * angle.sin() + oy * angle.cos();
+        let ox: f64 = OFFSET.x;
+        let oy: f64 = OFFSET.y;
 
-    let turret_vx = vx - av * ry;
-    let turret_vy = vy + av * rx;
+        let rx = ox * angle.cos() - oy * angle.sin();
+        let ry = ox * angle.sin() + oy * angle.cos();
 
-    let mut dx = HUB_X - (base_x + rx);
-    let mut dy = HUB_Y - (base_y + ry);
-    let mut distance = (dx * dx + dy * dy).sqrt();
+        let turret_vx = vx - av * ry;
+        let turret_vy = vy + av * rx;
 
-    let mut shot = lookup_shot(distance);
-    let mut t = shot.time_of_flight;
+        let mut dx = target_cords.x - (base_x + rx);
+        let mut dy = target_cords.y - (base_y + ry);
+        let mut distance = (dx * dx + dy * dy).sqrt();
 
-    for _ in 0..max_iter {
-        let px = base_x + rx + turret_vx * t;
-        let py = base_y + ry + turret_vy * t;
+        let mut shot = lookup_shot(distance, target.clone());
+        let mut t = shot.time_of_flight;
 
-        dx = HUB_X - px;
-        dy = HUB_Y - py;
-        distance = (dx * dx + dy * dy).sqrt();
+        for _ in 0..max_iter {
+            let px = base_x + rx + turret_vx * t;
+            let py = base_y + ry + turret_vy * t;
 
-        let new_shot = lookup_shot(distance);
+            dx = target_cords.x - px;
+            dy = target_cords.y - py;
+            distance = (dx * dx + dy * dy).sqrt();
 
-        if (new_shot.time_of_flight - t).abs() < TOLERANCE {
+            let new_shot = lookup_shot(distance, target.clone());
+
+            if (new_shot.time_of_flight - t).abs() < TOLERANCE {
+                shot = new_shot;
+                break;
+            }
+
+            t = new_shot.time_of_flight;
             shot = new_shot;
-            break;
         }
 
-        t = new_shot.time_of_flight;
-        shot = new_shot;
+        let future_angle = angle + av * shot.time_of_flight;
+        let turret_angle = dy.atan2(dx) - future_angle;
+
+        match target {
+            ShootingTarget::Idle => {
+                self.turret.stop();
+                self.stop();
+            }
+            _ => {
+                self.shooter_motor
+                    .set(ControlMode::Percent, shot.flywheel_speed);
+                self.set_hood_motor(shot.hood_angle);
+                self.turret.set_angle(turret_angle);
+            }
+        }
     }
 
-    let future_angle = angle + av * shot.time_of_flight;
-    let turret_angle = dy.atan2(dx) - future_angle;
-
-    ShotSolution {
-        hood_angle: shot.hood_angle,
-        flywheel_speed: shot.flywheel_speed,
-        time_of_flight: shot.time_of_flight,
-        turret_angle,
+    pub fn stop(&self) {
+        self.hood_motor.stop();
+        self.shooter_motor.stop();
+        self.turret.stop();
     }
 }
 
-pub fn lookup_shot(distance: f64) -> ShooterData {
-    if distance <= SHOOTING_TABLE[0].distance {
-        return SHOOTING_TABLE[0];
+pub fn lookup_shot(distance: f64, target: ShootingTarget) -> ShooterData {
+    let table = match target {
+        ShootingTarget::Hub => SHOOTING_TABLE,
+        _ => PASSING_TABLE,
+    };
+
+    if distance <= table[0].distance {
+        return table[0];
     }
 
-    let last = SHOOTING_TABLE.len() - 1;
-    if distance >= SHOOTING_TABLE[last].distance {
-        return SHOOTING_TABLE[last];
+    let last = table.len() - 1;
+    if distance >= table[last].distance {
+        return table[last];
     }
 
     for i in 0..last {
-        let s0 = SHOOTING_TABLE[i];
-        let s1 = SHOOTING_TABLE[i + 1];
+        let s0 = table[i];
+        let s1 = table[i + 1];
 
         if distance >= s0.distance && distance <= s1.distance {
             let t = (distance - s0.distance) / (s1.distance - s0.distance);
