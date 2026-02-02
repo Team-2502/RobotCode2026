@@ -4,9 +4,9 @@ use crate::subsystems::shooter::{Shooter, ShootingTarget};
 use crate::subsystems::swerve::drivetrain::Drivetrain;
 use crate::subsystems::swerve::odometry::RobotPoseEstimate;
 use crate::subsystems::turret::{TurretMode, get_angle_to_hub};
+use frcrs::alliance_station;
 use frcrs::input::Joystick;
 use frcrs::telemetry::Telemetry;
-use frcrs::alliance_station;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
@@ -96,7 +96,15 @@ pub async fn teleop(ferris: &mut Ferris) {
 
         let pose = drivetrain.get_pose_estimate();
         // TODO: make work with 0-1 cord system or fix telem also maybe flip degrees so forward is forward (if arrow ever works)
-        Telemetry::set_robot_pose((pose.x.get::<meter>(), pose.y.get::<meter>(), pose.angle.get::<degree>()), alliance_station().red()).await;
+        Telemetry::set_robot_pose(
+            (
+                pose.x.get::<meter>(),
+                pose.y.get::<meter>(),
+                pose.angle.get::<degree>(),
+            ),
+            alliance_station().red(),
+        )
+        .await;
 
         // shooter logic here because it needs velocities and pose
         if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
@@ -105,9 +113,7 @@ pub async fn teleop(ferris: &mut Ferris) {
                 TurretMode::Track => {
                     //shoot on the fly track function here
                 }
-                TurretMode::Manual => {
-                    
-                }
+                TurretMode::Manual => {}
                 TurretMode::Idle => {
                     shooter.turret.stop();
                 }
