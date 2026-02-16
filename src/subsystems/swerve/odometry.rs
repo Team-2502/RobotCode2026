@@ -138,7 +138,8 @@ impl Drivetrain {
         &self,
         robot_oriented_delta_pose: Vec<Vector2<Length>>,
     ) -> Vec<Vector2<Length>> {
-        let drivetrain_angle_rotation = Rotation2::new(self.gyro.get_angle() * PI / 180.0);
+        let drivetrain_angle_rotation =
+            Rotation2::new(self.yaw.get::<degree>() + self.offset.get::<degree>() * PI / 180.0);
 
         let field_oriented_delta_pose: Vec<Vector2<Length>> = robot_oriented_delta_pose
             .iter()
