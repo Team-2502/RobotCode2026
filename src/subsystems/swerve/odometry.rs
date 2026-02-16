@@ -128,7 +128,8 @@ impl Drivetrain {
         pose_estimate.x += robot_delta_pose.x;
         pose_estimate.y += robot_delta_pose.y;
         pose_estimate.fom += figure_of_merit;
-        pose_estimate.angle = Angle::new::<degree>(self.gyro.get_angle());
+        pose_estimate.angle =
+            Angle::new::<degree>(self.yaw.get::<degree>() + self.offset.get::<degree>());
 
         self.odometry.pose_estimate = pose_estimate;
     }

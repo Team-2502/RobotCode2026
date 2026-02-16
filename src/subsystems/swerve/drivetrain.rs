@@ -24,9 +24,11 @@ use uom::si::length::meter;
 pub struct Drivetrain {
     kinematics: Kinematics,
     pub(in crate::subsystems::swerve) odometry: Odometry,
-    pub(in crate::subsystems::swerve) gyro: Pigeon,
-
+    //pub(in crate::subsystems::swerve) gyro: Pigeon,
     limelight: Vision,
+
+    pub yaw: Angle,
+    pub offset: Angle,
 
     motor_encoder_offsets: [Angle; 4],
 
@@ -73,9 +75,11 @@ impl Drivetrain {
         Drivetrain {
             kinematics: Kinematics::new(),
             odometry: Odometry::new(starting_pose),
-            gyro: Pigeon::new(GYRO_ID, DRIVETRAIN_CANBUS),
-
+            //gyro: Pigeon::new(GYRO_ID, DRIVETRAIN_CANBUS),
             limelight,
+
+            yaw: Angle::new::<degree>(0.0),
+            offset: Angle::new::<degree>(0.0),
 
             motor_encoder_offsets,
 
@@ -137,14 +141,15 @@ impl Drivetrain {
 
     /// Resets the gyro.
     pub fn reset_heading(&mut self) {
-        self.gyro.reset();
+        self.offset = self.limelight.get_yaw();
     }
 
     /// Field-orientate input from the driverstation.
     /// target_transformation is the x and y input from the driverstation put into a vector.
     /// This function rotates the driver's field orientated input to be robot oriented but the same direction.
     fn field_orientate(&self, target_transformation: Vector2<f64>) -> Vector2<f64> {
-        Rotation2::new(-self.gyro.get_angle()) * target_transformation
+        Rotation2::new(-self.limelight.get_yaw().get::<radian>() + self.offset.get::<radian>())
+            * target_transformation
     }
 
     /// Optimizes the setpoints.
