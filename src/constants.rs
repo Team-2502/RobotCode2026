@@ -22,40 +22,40 @@ pub mod robotmap {
         pub const GYRO_ID: i32 = 0;
         pub const DRIVETRAIN_CANBUS: Option<String> = None;
 
-        pub const FL_ENCODER_ID: i32 = 0;
-        pub const FL_DRIVE_ID: i32 = 0;
-        pub const FL_TURN_ID: i32 = 0;
+        pub const FL_ENCODER_ID: i32 = 1;
+        pub const FL_DRIVE_ID: i32 = 2;
+        pub const FL_TURN_ID: i32 = 3;
 
-        pub const BL_ENCODER_ID: i32 = 0;
-        pub const BL_DRIVE_ID: i32 = 0;
-        pub const BL_TURN_ID: i32 = 0;
+        pub const BL_ENCODER_ID: i32 = 4;
+        pub const BL_DRIVE_ID: i32 = 5;
+        pub const BL_TURN_ID: i32 = 6;
 
-        pub const BR_ENCODER_ID: i32 = 0;
-        pub const BR_DRIVE_ID: i32 = 0;
-        pub const BR_TURN_ID: i32 = 0;
+        pub const BR_ENCODER_ID: i32 = 7;
+        pub const BR_DRIVE_ID: i32 = 8;
+        pub const BR_TURN_ID: i32 = 9;
 
-        pub const FR_ENCODER_ID: i32 = 0;
-        pub const FR_DRIVE_ID: i32 = 0;
-        pub const FR_TURN_ID: i32 = 0;
+        pub const FR_ENCODER_ID: i32 = 10;
+        pub const FR_DRIVE_ID: i32 = 11;
+        pub const FR_TURN_ID: i32 = 12;
     }
 
     pub mod shooter {
-        pub const SHOOTER_MOTOR_LEFT_ID: i32 = 0;
-        pub const SHOOTER_MOTOR_RIGHT_ID: i32 = 0;
-        pub const HOOD_MOTOR_ID: i32 = 1;
+        pub const SHOOTER_MOTOR_LEFT_ID: i32 = 13;
+        pub const SHOOTER_MOTOR_RIGHT_ID: i32 = 14;
+        pub const HOOD_MOTOR_ID: i32 = 15;
         pub const SHOOTER_SPEED: f64 = 0.0;
     }
 
     pub mod turret {
-        pub const SPIN_MOTOR_ID: i32 = 1;
+        pub const SPIN_MOTOR_ID: i32 = 16;
     }
 
     pub mod intake {
-        pub const INTAKE_TOP_MOTOR_ID: i32 = 2;
-        pub const INTAKE_BOTTOM_MOTOR_ID: i32 = 3;
-        pub const PIVOT_TOP_MOTOR_ID: i32 = 4;
-        pub const PIVOT_BOTTOM_MOTOR_ID: i32 = 5;
-        pub const INDEXER_MOTOR_ID: i32 = 6;
+        pub const INTAKE_TOP_MOTOR_ID: i32 = 17;
+        pub const INTAKE_BOTTOM_MOTOR_ID: i32 = 18;
+        pub const PIVOT_TOP_MOTOR_ID: i32 = 19;
+        pub const PIVOT_BOTTOM_MOTOR_ID: i32 = 20;
+        pub const INDEXER_MOTOR_ID: i32 = 21;
 
         pub const INTAKE_DOWN_POSITION: f64 = 0.0;
         pub const INTAKE_UP_POSITION: f64 = 0.0;
