@@ -25,7 +25,7 @@ pub struct Drivetrain {
     kinematics: Kinematics,
     pub(in crate::subsystems::swerve) odometry: Odometry,
     //pub(in crate::subsystems::swerve) gyro: Pigeon,
-    limelight: Vision,
+    pub limelight: Vision,
 
     pub yaw: Angle,
     pub offset: Angle,
