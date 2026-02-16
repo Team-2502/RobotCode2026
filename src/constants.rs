@@ -13,6 +13,8 @@ pub mod config {
     pub const HUB: Vector2<f64> = Vector2::new(0.0, 0.0);
     pub const PASS_RIGHT: Vector2<f64> = Vector2::new(0.0, 0.0);
     pub const PASS_LEFT: Vector2<f64> = Vector2::new(0.0, 0.0);
+
+    pub const MAX_ITER: i32 = 12;
 }
 
 pub mod robotmap {
@@ -38,7 +40,8 @@ pub mod robotmap {
     }
 
     pub mod shooter {
-        pub const SHOOTER_MOTOR_ID: i32 = 0;
+        pub const SHOOTER_MOTOR_LEFT_ID: i32 = 0;
+        pub const SHOOTER_MOTOR_RIGHT_ID: i32 = 0;
         pub const HOOD_MOTOR_ID: i32 = 1;
         pub const SHOOTER_SPEED: f64 = 0.0;
     }
@@ -60,6 +63,10 @@ pub mod robotmap {
         pub const INTAKE_IN_SPEED: f64 = 0.0;
         pub const INTAKE_REVSERSE_SPEED: f64 = 0.0;
     }
+}
+
+pub mod shooter {
+    pub const GEAR_RATIO_HOOD: f64 = 0.0;
 }
 
 pub mod turret {

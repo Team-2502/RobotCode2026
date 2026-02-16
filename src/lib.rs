@@ -1,3 +1,4 @@
+use crate::constants::config::MAX_ITER;
 use crate::constants::robotmap::intake::{INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
 use crate::subsystems::intake::Intake;
 use crate::subsystems::shooter::{Shooter, ShootingTarget};
@@ -95,11 +96,10 @@ pub async fn teleop(ferris: &mut Ferris) {
         drivetrain.update_localization().await;
 
         let pose = drivetrain.get_pose_estimate();
-        // TODO: make work with 0-1 cord system or fix telem also maybe flip degrees so forward is forward (if arrow ever works)
         Telemetry::set_robot_pose(
             (
-                pose.x.get::<meter>(),
-                pose.y.get::<meter>(),
+                pose.x.get::<meter>() * 17.55,
+                pose.y.get::<meter>() * 8.05,
                 pose.angle.get::<degree>(),
             ),
             alliance_station().red(),
@@ -111,18 +111,20 @@ pub async fn teleop(ferris: &mut Ferris) {
             shooter.turret.update_turret(pose.angle);
             match ferris.turret_mode {
                 TurretMode::Track => {
-                    //shoot on the fly track function here
+                    // idk what max iters should be right now its just 12
+                    // TODO: make the kinematics velocities
+                    //shooter.shoot_on_move(pose, linear, angular, MAX_ITER, ferris.shooter_target);
                 }
                 TurretMode::Manual => {}
                 TurretMode::Idle => {
                     shooter.turret.stop();
                 }
+                TurretMode::Test => {
+                    shooter
+                        .turret
+                        .move_to_angle(get_angle_to_hub(pose).get::<degree>());
+                }
             }
-
-            //this is for initial test
-            shooter
-                .turret
-                .set_angle(get_angle_to_hub(pose).get::<degree>());
         }
     }
 

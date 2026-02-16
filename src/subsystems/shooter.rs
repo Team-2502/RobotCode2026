@@ -1,8 +1,14 @@
-use crate::constants::config::{HUB, PASS_LEFT, PASS_RIGHT};
-use crate::constants::robotmap::shooter::{HOOD_MOTOR_ID, SHOOTER_MOTOR_ID, SHOOTER_SPEED};
+use crate::constants::config::{
+    HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS, HUB, PASS_LEFT, PASS_RIGHT,
+};
+use crate::constants::robotmap::shooter::{
+    HOOD_MOTOR_ID, SHOOTER_MOTOR_LEFT_ID, SHOOTER_MOTOR_RIGHT_ID, SHOOTER_SPEED,
+};
+use crate::constants::shooter::GEAR_RATIO_HOOD;
 use crate::constants::turret::{OFFSET, TOLERANCE};
 use crate::subsystems::swerve::odometry::RobotPoseEstimate;
 use crate::subsystems::turret::Turret;
+use frcrs::alliance_station;
 use frcrs::ctre::{ControlMode, Talon};
 use frcrs::telemetry::Telemetry;
 use nalgebra::Vector2;
@@ -163,7 +169,8 @@ pub const PASSING_TABLE: [ShooterData; 10] = [
 ];
 
 pub struct Shooter {
-    shooter_motor: Talon,
+    shooter_motor_left: Talon,
+    shooter_motor_right: Talon,
     hood_motor: Talon,
 
     pub turret: Turret,
@@ -171,13 +178,15 @@ pub struct Shooter {
 
 impl Shooter {
     pub fn new() -> Shooter {
-        let shooter_motor = Talon::new(SHOOTER_MOTOR_ID, Some("can0".to_string()));
+        let shooter_motor_left = Talon::new(SHOOTER_MOTOR_LEFT_ID, Some("can0".to_string()));
+        let shooter_motor_right = Talon::new(SHOOTER_MOTOR_RIGHT_ID, Some("can0".to_string()));
         let hood_motor = Talon::new(HOOD_MOTOR_ID, Some("can0".to_string()));
 
         let turret = Turret::new();
 
         Shooter {
-            shooter_motor,
+            shooter_motor_left,
+            shooter_motor_right,
             hood_motor,
 
             turret,
@@ -185,19 +194,22 @@ impl Shooter {
     }
 
     pub fn set_shooter(&mut self, speed: f64) {
-        self.shooter_motor.set(ControlMode::Percent, speed);
+        self.shooter_motor_left.set(ControlMode::Percent, speed);
+        self.shooter_motor_right.set(ControlMode::Percent, -speed);
     }
 
-    pub fn shoot(&self, on: bool) {
-        if on {
-            self.shooter_motor.set(ControlMode::Percent, SHOOTER_SPEED);
-        } else {
-            self.shooter_motor.set(ControlMode::Percent, 0.0);
-        }
-    }
+    // pub fn shoot(&self, on: bool) {
+    //     if on {
+    //         self.shooter_motor.set(ControlMode::Percent, SHOOTER_SPEED);
+    //     } else {
+    //         self.shooter_motor.set(ControlMode::Percent, 0.0);
+    //     }
+    // }
 
-    pub fn set_hood_motor(&mut self, position: f64) {
-        self.hood_motor.set(ControlMode::Position, position);
+    pub fn set_hood(&mut self, angle: f64) {
+        let target_rot = angle / 360.0 * GEAR_RATIO_HOOD;
+
+        self.hood_motor.set(ControlMode::Position, target_rot);
     }
 
     // fr ccw+ i think rad/s
@@ -211,15 +223,38 @@ impl Shooter {
         target: ShootingTarget,
     ) {
         let target_cords = match target {
-            ShootingTarget::Hub => HUB,
-            ShootingTarget::PassLeft => PASS_LEFT,
-            ShootingTarget::PassRight => PASS_RIGHT,
+            ShootingTarget::Hub => {
+                // flip for blue
+                if alliance_station().blue() {
+                    flip(HUB)
+                } else {
+                    HUB
+                }
+            }
+            ShootingTarget::PassLeft => {
+                // flip for blue
+                if alliance_station().blue() {
+                    flip(PASS_LEFT)
+                } else {
+                    PASS_LEFT
+                }
+            }
+            ShootingTarget::PassRight => {
+                // flip for blue
+                if alliance_station().blue() {
+                    flip(PASS_RIGHT)
+                } else {
+                    PASS_RIGHT
+                }
+            }
             ShootingTarget::PassTelemetry => {
                 let target = Telemetry::get_target_point().await;
                 if let Some(target) = target {
-                    Vector2::new(target.x, target.y)
+                    // -1..1 so we have to convert
+                    Vector2::new(target.x * 17.55, target.y * 8.05)
                 } else {
-                    Vector2::new(0., 0.)
+                    // probably the right order but maybe now
+                    Vector2::new(HALF_FIELD_WIDTH_METERS, HALF_FIELD_LENGTH_METERS)
                 }
             }
             ShootingTarget::Idle => Vector2::new(0., 0.),
@@ -276,9 +311,11 @@ impl Shooter {
                 self.stop();
             }
             _ => {
-                self.shooter_motor
+                self.shooter_motor_left
                     .set(ControlMode::Percent, shot.flywheel_speed);
-                self.set_hood_motor(shot.hood_angle);
+                self.shooter_motor_right
+                    .set(ControlMode::Percent, shot.flywheel_speed);
+                self.set_hood(shot.hood_angle);
                 self.turret.set_angle(turret_angle);
             }
         }
@@ -286,7 +323,8 @@ impl Shooter {
 
     pub fn stop(&self) {
         self.hood_motor.stop();
-        self.shooter_motor.stop();
+        self.shooter_motor_left.stop();
+        self.shooter_motor_right.stop();
         self.turret.stop();
     }
 }
@@ -323,4 +361,15 @@ pub fn lookup_shot(distance: f64, target: ShootingTarget) -> ShooterData {
     }
 
     unreachable!("if you see this its broken");
+}
+
+pub fn flip(target: Vector2<f64>) -> Vector2<f64> {
+    if alliance_station().blue() {
+        Vector2::new(
+            target.x - HALF_FIELD_WIDTH_METERS + target.x,
+            target.y - HALF_FIELD_LENGTH_METERS + target.y,
+        )
+    } else {
+        target
+    }
 }

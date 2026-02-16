@@ -13,6 +13,7 @@ pub enum TurretMode {
     Track,
     Manual,
     Idle,
+    Test,
 }
 
 pub struct Turret {
@@ -106,8 +107,8 @@ mod tests {
     pub fn test_angle_to_hub() {
         let pose = RobotPoseEstimate::new(
             1.,
-            Length::new::<meter>(0.),
-            Length::new::<meter>(0.),
+            Length::new::<meter>(-1.),
+            Length::new::<meter>(-1.),
             Angle::new::<radian>(0.),
         );
 
