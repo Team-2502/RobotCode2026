@@ -287,6 +287,11 @@ impl Vision {
         let yaw_deg = self.results.imu.unwrap_or([0.0; 10])[0];
         Angle::new::<radian>(yaw_deg.to_degrees())
     }
+    
+    //radians per second
+    pub fn get_angular_velocity(&self) -> f64 {
+        self.results.imu.unwrap_or([0.0; 10])[6]
+    }
 
     pub fn get_linear_velocity(&self) -> f64 {
         let dt = (Instant::now() - self.last_update_time).as_secs_f64();

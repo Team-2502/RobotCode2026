@@ -66,6 +66,7 @@ impl Kinematics {
             module_setpoints.push((final_vector.magnitude(), final_angle));
         }
 
+        //println!("calc: {:?}", module_setpoints);
         module_setpoints
     }
 
@@ -74,7 +75,7 @@ impl Kinematics {
     fn scale_targets(&self, targets: Vec<(f64, Angle)>) -> Vec<(f64, Angle)> {
         let mut scaled_targets: Vec<(f64, Angle)> = Vec::new();
         let mut max = 0.0;
-        println!("targets: {:?}", targets);
+
         for target in targets.clone() {
             if target.0 > max {
                 max = target.0;
@@ -85,8 +86,10 @@ impl Kinematics {
                 let scaled = target.0 / max;
                 scaled_targets.push((scaled, target.1));
             }
+        } else {
+            scaled_targets = targets;
         }
-        println!("targets scaled: {:?}", scaled_targets);
+        //println!("targets scaled: {:?}", scaled_targets);
         scaled_targets
     }
 

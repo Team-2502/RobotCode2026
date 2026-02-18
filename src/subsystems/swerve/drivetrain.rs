@@ -7,9 +7,11 @@ use crate::constants::robotmap::drivetrain_map::{
 use crate::subsystems::swerve::kinematics::Kinematics;
 use crate::subsystems::swerve::odometry::{Odometry, RobotPoseEstimate};
 use crate::subsystems::vision::Vision;
+use frcrs::Robot;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
 use frcrs::telemetry::Telemetry;
 use nalgebra::{Rotation2, Vector2, vector};
+use uom::si::quantities::AngularVelocity;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 use tokio::time::timeout;
@@ -17,6 +19,7 @@ use uom::si::angle::{degree, radian, revolution};
 use uom::si::f64::Angle;
 use uom::si::f64::Length;
 use uom::si::length::meter;
+use uom::si::angular_velocity::radian_per_second;
 
 /// Drivetrain struct.
 /// kinematics field interfaces with inverse kinematics functions.
@@ -26,6 +29,8 @@ pub struct Drivetrain {
     pub(in crate::subsystems::swerve) odometry: Odometry,
     //pub(in crate::subsystems::swerve) gyro: Pigeon,
     pub limelight: Vision,
+    pub velocity: Vector2<f64>,
+    pub angular_velocity: f64,
 
     pub yaw: Angle,
     pub offset: Angle,
@@ -64,6 +69,9 @@ impl Drivetrain {
             5807,
         ));
 
+        let velocity = Vector2::new(0.0, 0.0);
+        let angular_velocity = 0.0;
+        
         // .get_absolute returns the CANCoder's rotation from -1 to 1
         let motor_encoder_offsets = [
             Angle::new::<revolution>(fl_encoder.get_absolute()),
@@ -78,6 +86,9 @@ impl Drivetrain {
             //gyro: Pigeon::new(GYRO_ID, DRIVETRAIN_CANBUS),
             limelight,
 
+            velocity,
+            angular_velocity,
+            
             yaw: Angle::new::<degree>(0.0),
             offset: Angle::new::<degree>(0.0),
 
@@ -205,22 +216,22 @@ impl Drivetrain {
 
         // set turn motors based on targets
         self.fl_turn.set(
-            ControlMode::Percent,
+            ControlMode::Position,
             -(targets[0].1.get::<revolution>() - self.motor_encoder_offsets[0].get::<revolution>())
                 * SWERVE_TURN_RATIO,
         );
         self.bl_turn.set(
-            ControlMode::Percent,
+            ControlMode::Position,
             -(targets[1].1.get::<revolution>() - self.motor_encoder_offsets[1].get::<revolution>())
                 * SWERVE_TURN_RATIO,
         );
         self.br_turn.set(
-            ControlMode::Percent,
+            ControlMode::Position,
             -(targets[2].1.get::<revolution>() - self.motor_encoder_offsets[2].get::<revolution>())
                 * SWERVE_TURN_RATIO,
         );
         self.fr_turn.set(
-            ControlMode::Percent,
+            ControlMode::Position,
             -(targets[3].1.get::<revolution>() - self.motor_encoder_offsets[3].get::<revolution>())
                 * SWERVE_TURN_RATIO,
         );
@@ -235,8 +246,9 @@ impl Drivetrain {
         };
 
         let targets = self.kinematics.get_targets(target_transformation, rotation);
-        let optimized_targets = self.optimize_setpoints(targets);
-        self.set_speeds(optimized_targets);
+        println!("{:?}", targets);
+        //let optimized_targets = self.optimize_setpoints(targets);
+        self.set_speeds(targets);
     }
 
     /// #updates the localized cords using odo and vision
@@ -250,7 +262,7 @@ impl Drivetrain {
 
         // attempt to get vision pose
         if let Some(vision_xy) = self.limelight.get_botpose_orb() {
-            // get both of the figures of merit higher is better
+            // get both of the figures of merit; higher is better
             let vision_fom = self.limelight.get_vision_fom();
             let odo_fom = fused_pose.fom;
 
@@ -276,17 +288,18 @@ impl Drivetrain {
 
             let mut fused_yaw = sin_sum.atan2(cos_sum);
 
-            if fused_yaw < 0. {
-                fused_yaw += std::f64::consts::PI * 2.
+            if fused_yaw < 0. || fused_yaw >= std::f64::consts::PI * 2. {
+                println!(
+                    "[ERROR] fused_yaw was negative after a function that should only ever return [0,2pi). Computed fused_yaw: {}",
+                    fused_yaw
+                );
+                fused_yaw = fused_yaw.rem_euclid(std::f64::consts::PI * 2.);
             }
 
             //
             fused_pose.x = Length::new::<meter>(fused_x);
             fused_pose.y = Length::new::<meter>(fused_y);
             fused_pose.angle = Angle::new::<radian>(fused_yaw);
-
-            // update fom to reflect fused confidence
-            fused_pose.fom = (odo_fom * vision_fom) / (odo_fom + vision_fom);
         }
 
         // set odo to fused fom
@@ -304,5 +317,20 @@ impl Drivetrain {
         )
         .await;
         Telemetry::put_number("odo_fom", self.get_pose_estimate().fom).await;
+    }
+    
+    // Needs to be updated each frame
+    pub fn update_velocity(&mut self) {
+        // meters/second
+        let magnitude = self.limelight.get_linear_velocity();
+        let heading = self.yaw;
+        
+        let frame_velocity: Vector2<f64> = Vector2::new(
+            magnitude * (heading.get::<radian>().cos()),
+            magnitude * (heading.get::<radian>().sin()),
+        );
+        
+        self.velocity = frame_velocity;
+        self.angular_velocity = self.limelight.get_angular_velocity();
     }
 }

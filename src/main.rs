@@ -37,6 +37,7 @@ fn main() {
 
         // this initializes network tables on the default port
         NetworkTable::init();
+        println!("hello");
 
         // puts the auto chooser up on the telemetry server
         Telemetry::put_selector("auto chooser", Auto::names()).await;
@@ -80,7 +81,7 @@ fn main() {
                 }
             }
         });
-
+        println!("loop");
         loop {
             // refresh the data like robot state
             refresh_data();

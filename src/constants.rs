@@ -43,6 +43,8 @@ pub mod robotmap {
         pub const SHOOTER_MOTOR_LEFT_ID: i32 = 13;
         pub const SHOOTER_MOTOR_RIGHT_ID: i32 = 14;
         pub const HOOD_MOTOR_ID: i32 = 15;
+        
+        pub const HOOD_MAX: f64 = 2.4;
         pub const SHOOTER_SPEED: f64 = 0.0;
     }
 
@@ -56,12 +58,14 @@ pub mod robotmap {
         pub const PIVOT_TOP_MOTOR_ID: i32 = 19;
         pub const PIVOT_BOTTOM_MOTOR_ID: i32 = 20;
         pub const INDEXER_MOTOR_ID: i32 = 21;
+        pub const HANDOFF_MOTOR_ID: i32 = 22;
 
         pub const INTAKE_DOWN_POSITION: f64 = 0.0;
         pub const INTAKE_UP_POSITION: f64 = 0.0;
 
-        pub const INTAKE_IN_SPEED: f64 = 0.0;
-        pub const INTAKE_REVSERSE_SPEED: f64 = 0.0;
+        pub const INTAKE_IN_SPEED: f64 = 0.5;
+        pub const INTAKE_REVSERSE_SPEED: f64 = 0.5;
+        pub const HANDOFF_SPEED: f64 = 1.0;
     }
 }
 

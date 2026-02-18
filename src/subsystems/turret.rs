@@ -23,9 +23,11 @@ pub struct Turret {
     turret_angle: Angle,
 }
 
+
+// ball park max -2.5
 impl Turret {
     pub fn new() -> Self {
-        let spin_motor = Talon::new(SPIN_MOTOR_ID, Some("can0".to_string()));
+        let spin_motor = Talon::new(SPIN_MOTOR_ID, None);
 
         Turret {
             spin_motor,
@@ -61,7 +63,7 @@ impl Turret {
     }
 
     fn apply_soft_stop(&self, desired_deg: f64) -> f64 {
-        let current = self.turret_angle.get::<degree>();
+        let current = self.turret_angle.get::<degree>() % 360.;
         let mut best = current;
         let mut found = false;
 
@@ -79,6 +81,11 @@ impl Turret {
         }
 
         best
+    }
+    
+    pub fn man_move(&self, joystick: f64) {
+        let angle = self.turret_angle.get::<degree>() + joystick;
+        self.move_to_angle(self.apply_soft_stop(angle));
     }
 
     pub fn stop(&self) {

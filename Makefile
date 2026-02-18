@@ -32,3 +32,5 @@ deploy-scp: $(OUT)
 .PHONY: deploy-paths
 deploy-paths:
 	scp -r $(PATHS) admin@10.$(TEAM).2:/home/lvuser/deploy/choreo/
+
+#scp target/arm-unknown-linux-gnueabi/release/RobotCode2026 lvuser@10.25.2.2:
