@@ -52,6 +52,7 @@ impl Kinematics {
         target_transformation: Vector2<f64>,
         input_rotation: f64,
     ) -> Vec<(f64, Angle)> {
+        // println!("[DEBUG]: calculate_targets inputs: target_transform: {}, rot: {}", target_transformation, input_rotation);
         let mut module_setpoints: Vec<(f64, Angle)> = Vec::new();
 
         for rotation_unit_vector in &self.module_rotation_unit_vectors.clone() {
@@ -66,13 +67,14 @@ impl Kinematics {
             module_setpoints.push((final_vector.magnitude(), final_angle));
         }
 
-        //println!("calc: {:?}", module_setpoints);
+        // println!("[DEBUG]: calculate_targets outputs: module_setpoints: {:?}", module_setpoints);
         module_setpoints
     }
 
     /// ## Scales the speed setpoints to be from -1 to 1.
     /// FYI: It is possible for speed to be >1 after calculate_targets.
     fn scale_targets(&self, targets: Vec<(f64, Angle)>) -> Vec<(f64, Angle)> {
+        // println!("[DEBUG]: scale_targets inputs: targets: {:?}", targets);
         let mut scaled_targets: Vec<(f64, Angle)> = Vec::new();
         let mut max = 0.0;
 
@@ -89,7 +91,7 @@ impl Kinematics {
         } else {
             scaled_targets = targets;
         }
-        //println!("targets scaled: {:?}", scaled_targets);
+        // println!("[DEBUG]: scale_targets outputs: targets: {:?}", scaled_targets);
         scaled_targets
     }
 
@@ -100,8 +102,10 @@ impl Kinematics {
         target_transformation: Vector2<f64>,
         rotation: f64,
     ) -> Vec<(f64, Angle)> {
+        // println!("[DEBUG]: get_targets inputs: target_transform: {}, rot: {}", target_transformation, rotation);
         let mut targets = self.calculate_targets(target_transformation, rotation);
         targets = self.scale_targets(targets);
+        // println!("[DEBUG]: get_targets outputs: target_transform: {:?}", targets);
         targets
     }
 }

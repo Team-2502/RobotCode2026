@@ -1,6 +1,7 @@
 #![warn(non_snake_case)]
 
 use RobotCode2026::auto::auto::Auto;
+use RobotCode2026::subsystems::turret::TurretMode;
 use RobotCode2026::{Controllers, Ferris, teleop};
 use frcrs::input::RobotState;
 use frcrs::networktables::NetworkTable;
@@ -37,10 +38,11 @@ fn main() {
 
         // this initializes network tables on the default port
         NetworkTable::init();
-        println!("hello");
+        // println!("hello");
 
         // puts the auto chooser up on the telemetry server
         Telemetry::put_selector("auto chooser", Auto::names()).await;
+        Telemetry::put_selector("justice for cam :)", TurretMode::names()).await;
 
         // this line is used if we are using a usb camera and want to see its feed on shuffleboard
         // SmartDashboard::start_camera_server();

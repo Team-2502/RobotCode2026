@@ -66,7 +66,7 @@ impl Ferris {
             intake: Rc::new(RefCell::new(Intake::new())),
 
             shooter_target: ShootingTarget::Idle,
-            turret_mode: TurretMode::Idle,
+            turret_mode: TurretMode::Manual,
 
             dt: Duration::from_millis(0),
         }
@@ -128,11 +128,21 @@ pub async fn teleop(ferris: &mut Ferris) {
             shooter.turret.update_turret(pose.angle);
             match ferris.turret_mode {
                 TurretMode::Track => {
-                    shooter.shoot_on_move(pose, (drivetrain.velocity.x, drivetrain.velocity.y), drivetrain.angular_velocity, MAX_ITER, ferris.shooter_target.clone()).await;
+                    shooter
+                        .shoot_on_move(
+                            pose,
+                            (drivetrain.velocity.x, drivetrain.velocity.y),
+                            drivetrain.angular_velocity,
+                            MAX_ITER,
+                            ferris.shooter_target.clone(),
+                        )
+                        .await;
                 }
                 TurretMode::Manual => {
                     shooter.turret.man_move(ferris.controllers.operator.get_z());
                     shooter.set_hood(ferris.controllers.operator.get_throttle() * HOOD_MAX);
+                    println!("{:?}", shooter.turret.turret_angle);
+                    println!("{:?}", ferris.controllers.operator.get_z());
                 }
                 TurretMode::Idle => {
                     shooter.turret.stop();
@@ -143,6 +153,14 @@ pub async fn teleop(ferris: &mut Ferris) {
                         .move_to_angle(get_angle_to_hub(pose).get::<degree>());
                 }
             }
+
+            // shooter.turret.man_move(ferris.controllers.operator.get_z());
+            // shooter.set_hood(ferris.controllers.operator.get_throttle() * HOOD_MAX);
+            // println!("cam is cool");
+
+            // if let Some(turret_mode) = Telemetry::get_selection("justice for cam :)").await {
+            //     ferris.turret_mode = TurretMode::to_mode(turret_mode.as_str());
+            // }
 
             if let Ok(mut intake) = ferris.intake.try_borrow_mut() {
                 // maybe zero maybe one i forogt what trigger is

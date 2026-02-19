@@ -6,7 +6,7 @@ pub mod config {
     /// Wheel-Wheel length of robot.
     pub const WHEELBASE_LENGTH_INCHES: f64 = 10.0;
 
-    pub const FIELD_ORIENTED: bool = true;
+    pub const FIELD_ORIENTED: bool = false;
     pub const HALF_FIELD_WIDTH_METERS: f64 = 17.55 / 2.;
     pub const HALF_FIELD_LENGTH_METERS: f64 = 8.05 / 2.;
 
@@ -43,7 +43,7 @@ pub mod robotmap {
         pub const SHOOTER_MOTOR_LEFT_ID: i32 = 13;
         pub const SHOOTER_MOTOR_RIGHT_ID: i32 = 14;
         pub const HOOD_MOTOR_ID: i32 = 15;
-        
+
         pub const HOOD_MAX: f64 = 2.4;
         pub const SHOOTER_SPEED: f64 = 0.0;
     }
@@ -76,9 +76,9 @@ pub mod shooter {
 pub mod turret {
     use nalgebra::Vector2;
 
-    pub const GEAR_RATIO: f64 = 0.0;
-    pub const TURRET_MAX: f64 = 180.0;
-    pub const TURRET_MIN: f64 = -180.0;
+    pub const GEAR_RATIO: f64 = 34.5;
+    pub const TURRET_MAX: f64 = 45.0;
+    pub const TURRET_MIN: f64 = -45.0;
     // meters
     pub const OFFSET: Vector2<f64> = Vector2::new(0.0, 0.0);
     pub const TOLERANCE: f64 = 0.001;
@@ -118,7 +118,7 @@ pub mod vision {
 }
 
 pub mod drivetrain {
-    pub const SWERVE_TURN_RATIO: f64 = 1.0 / 12.8;
+    pub const SWERVE_TURN_RATIO: f64 = 12.8;
     pub const SWERVE_DRIVE_RATIO: f64 = 1.0 / 6.12;
     pub const SWERVE_WHEEL_DIAMETER_INCHES: f64 = 4.0;
     pub const ARC_ODOMETRY_MINIMUM_DELTA_ANGLE_RADIANS: f64 = 0.00001;

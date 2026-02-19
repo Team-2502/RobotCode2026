@@ -20,9 +20,41 @@ pub struct Turret {
     spin_motor: Talon,
     //turret_offset: f64,
     drivetrain_angle: Angle,
-    turret_angle: Angle,
+    pub turret_angle: Angle,
 }
 
+impl TurretMode {
+    pub fn name(&self) -> &'static str {
+        match self {
+            TurretMode::Idle => "idle",
+            TurretMode::Manual => "man",
+            TurretMode::Track => "track",
+            TurretMode::Test => "test",
+            _ => "none",
+        }
+    }
+
+    pub fn iterator() -> Vec<Self> {
+        vec![TurretMode::Idle]
+    }
+
+    pub fn names() -> Vec<String> {
+        Self::iterator()
+            .iter()
+            .map(|a| a.name().to_owned())
+            .collect()
+    }
+
+    pub fn to_mode(s: &str) -> Self {
+        match s {
+            "idle" => TurretMode::Idle,
+            "man" => TurretMode::Manual,
+            "track" => TurretMode::Track,
+            "test" => TurretMode::Test,
+            _ => TurretMode::Idle,
+        }
+    }
+}
 
 // ball park max -2.5
 impl Turret {
@@ -42,8 +74,8 @@ impl Turret {
 
     pub fn move_to_angle(&self, angle: f64) {
         let target_rot = angle / 360.0 * GEAR_RATIO;
-
-        self.spin_motor.set(ControlMode::MotionMagic, target_rot);
+        println!("target_rot {}", target_rot);
+        self.spin_motor.set(ControlMode::Position, target_rot);
     }
 
     pub fn set_angle(&mut self, mut angle: f64) {
@@ -64,6 +96,7 @@ impl Turret {
 
     fn apply_soft_stop(&self, desired_deg: f64) -> f64 {
         let current = self.turret_angle.get::<degree>() % 360.;
+        println!("attempting current {:?}", current);
         let mut best = current;
         let mut found = false;
 
@@ -74,6 +107,8 @@ impl Turret {
                 continue;
             }
 
+            println!("testing {:?}", candidate);
+
             if !found || (candidate - current).abs() < (best - current).abs() {
                 best = candidate;
                 found = true;
@@ -82,10 +117,13 @@ impl Turret {
 
         best
     }
-    
-    pub fn man_move(&self, joystick: f64) {
+
+    pub fn man_move(&mut self, joystick: f64) {
         let angle = self.turret_angle.get::<degree>() + joystick;
+        println!("here: {}", angle);
+        self.turret_angle = Angle::new::<degree>(angle);
         self.move_to_angle(self.apply_soft_stop(angle));
+        println!("moved? {}", self.apply_soft_stop(angle));
     }
 
     pub fn stop(&self) {
