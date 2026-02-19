@@ -218,7 +218,7 @@ impl Shooter {
         &mut self,
         pose: RobotPoseEstimate,
         linear: (f64, f64),
-        angular: uom::si::f64::AngularVelocity,
+        angular: f64,
         max_iter: i32,
         target: ShootingTarget,
     ) {
@@ -265,7 +265,7 @@ impl Shooter {
         let angle: f64 = pose.angle.get::<radian>();
         let base_x: f64 = pose.x.get::<meter>();
         let base_y: f64 = pose.y.get::<meter>();
-        let av: f64 = angular.get::<radian_per_second>();
+        let av: f64 = angular;
 
         let ox: f64 = OFFSET.x;
         let oy: f64 = OFFSET.y;

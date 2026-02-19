@@ -284,7 +284,13 @@ impl Vision {
 
     /// returns the yaw in radians
     pub fn get_yaw(&self) -> Angle {
-        Angle::new::<radian>(self.results.botpose_wpiblue[5])
+        let yaw_deg = self.results.imu.unwrap_or([0.0; 10])[0];
+        Angle::new::<radian>(yaw_deg.to_degrees())
+    }
+
+    //radians per second
+    pub fn get_angular_velocity(&self) -> f64 {
+        self.results.imu.unwrap_or([0.0; 10])[6]
     }
 
     pub fn get_linear_velocity(&self) -> f64 {

@@ -128,7 +128,8 @@ impl Drivetrain {
         pose_estimate.x += robot_delta_pose.x;
         pose_estimate.y += robot_delta_pose.y;
         pose_estimate.fom += figure_of_merit;
-        pose_estimate.angle = Angle::new::<degree>(self.gyro.get_angle());
+        pose_estimate.angle =
+            Angle::new::<degree>(self.yaw.get::<degree>() + self.offset.get::<degree>());
 
         self.odometry.pose_estimate = pose_estimate;
     }
@@ -137,7 +138,8 @@ impl Drivetrain {
         &self,
         robot_oriented_delta_pose: Vec<Vector2<Length>>,
     ) -> Vec<Vector2<Length>> {
-        let drivetrain_angle_rotation = Rotation2::new(self.gyro.get_angle() * PI / 180.0);
+        let drivetrain_angle_rotation =
+            Rotation2::new(self.yaw.get::<degree>() + self.offset.get::<degree>() * PI / 180.0);
 
         let field_oriented_delta_pose: Vec<Vector2<Length>> = robot_oriented_delta_pose
             .iter()
