@@ -88,16 +88,16 @@ impl Ferris {
 pub async fn teleop(ferris: &mut Ferris) {
     // run drivetrain functions each frame
     let deadzone_output_range = 0.0..1.0;
-    let deadzone_input_range = 0.5..1.0;
+    let deadzone_input_range = 0.2..1.0;
     if let Ok(mut drivetrain) = ferris.drivetrain.try_borrow_mut() {
         drivetrain.control_drivetrain(
             deadzone(
-                ferris.controllers.right_drive.get_x(),
+                -ferris.controllers.left_drive.get_x(),
                 &deadzone_input_range,
                 &deadzone_output_range,
             ),
             deadzone(
-                ferris.controllers.right_drive.get_y(),
+                -ferris.controllers.left_drive.get_y(),
                 &deadzone_input_range,
                 &deadzone_output_range,
             ),
@@ -108,6 +108,7 @@ pub async fn teleop(ferris: &mut Ferris) {
             ),
         );
         drivetrain.update_limelight().await;
+        //Telemetry::put_number("justics for cam (i32 editon)", drivetrain.limelight.results.stdev_mt2[0]).await;
         //drivetrain.update_localization().await;
 
         let pose = drivetrain.get_pose_estimate();
@@ -141,8 +142,8 @@ pub async fn teleop(ferris: &mut Ferris) {
                 TurretMode::Manual => {
                     shooter.turret.man_move(ferris.controllers.operator.get_z());
                     shooter.set_hood(ferris.controllers.operator.get_throttle() * HOOD_MAX);
-                    println!("{:?}", shooter.turret.turret_angle);
-                    println!("{:?}", ferris.controllers.operator.get_z());
+                    // println!("{:?}", shooter.turret.turret_angle);
+                    // println!("{:?}", ferris.controllers.operator.get_z());
                 }
                 TurretMode::Idle => {
                     shooter.turret.stop();
@@ -153,10 +154,6 @@ pub async fn teleop(ferris: &mut Ferris) {
                         .move_to_angle(get_angle_to_hub(pose).get::<degree>());
                 }
             }
-
-            // shooter.turret.man_move(ferris.controllers.operator.get_z());
-            // shooter.set_hood(ferris.controllers.operator.get_throttle() * HOOD_MAX);
-            // println!("cam is cool");
 
             // if let Some(turret_mode) = Telemetry::get_selection("justice for cam :)").await {
             //     ferris.turret_mode = TurretMode::to_mode(turret_mode.as_str());

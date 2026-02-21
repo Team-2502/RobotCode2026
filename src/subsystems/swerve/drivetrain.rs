@@ -1,5 +1,8 @@
 use crate::constants::config;
-use crate::constants::drivetrain::{DRIVETRAIN_ERROR_THRESHOLD, SWERVE_TURN_RATIO};
+use crate::constants::drivetrain::{
+    BL_ABSOLUTE_ENCODER_ROTATIONS, BR_ABSOLUTE_ENCODER_ROTATIONS, DRIVETRAIN_ERROR_THRESHOLD,
+    FL_ABSOLUTE_ENCODER_ROTATIONS, FR_ABSOLUTE_ENCODER_ROTATIONS, SWERVE_TURN_RATIO,
+};
 use crate::constants::robotmap::drivetrain_map::{
     BL_DRIVE_ID, BL_ENCODER_ID, BL_TURN_ID, BR_DRIVE_ID, BR_ENCODER_ID, BR_TURN_ID,
     DRIVETRAIN_CANBUS, FL_DRIVE_ID, FL_ENCODER_ID, FL_TURN_ID, FR_DRIVE_ID, FR_ENCODER_ID,
@@ -12,6 +15,7 @@ use frcrs::Robot;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
 use frcrs::telemetry::Telemetry;
 use nalgebra::{Rotation2, Vector2, vector};
+use std::f64::consts::PI;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 use tokio::time::timeout;
@@ -36,7 +40,7 @@ pub struct Drivetrain {
     pub yaw: Angle,
     pub offset: Angle,
 
-    motor_encoder_offsets: [Angle; 4],
+    motor_encoder_offsets: [f64; 4],
 
     //pub(crate::subsystems::swerve) makes this pub to everything in crate::subsystems::swerve
     fl_encoder: CanCoder,
@@ -66,7 +70,7 @@ impl Drivetrain {
         let fr_encoder = CanCoder::new(FR_ENCODER_ID, DRIVETRAIN_CANBUS);
 
         let limelight = Vision::new(SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::new(10, 25, 2, 12)),
+            IpAddr::V4(Ipv4Addr::new(10, 25, 2, 204)),
             5807,
         ));
 
@@ -74,11 +78,16 @@ impl Drivetrain {
         let angular_velocity = 0.0;
 
         // .get_absolute returns the CANCoder's rotation from -1 to 1
+
         let motor_encoder_offsets = [
-            Angle::new::<revolution>(fl_encoder.get_absolute()),
-            Angle::new::<revolution>(bl_encoder.get_absolute()),
-            Angle::new::<revolution>(br_encoder.get_absolute()),
-            Angle::new::<revolution>(fr_encoder.get_absolute()),
+            Angle::new::<revolution>(-fl_encoder.get_absolute() - FL_ABSOLUTE_ENCODER_ROTATIONS)
+                .get::<revolution>(),
+            Angle::new::<revolution>(-bl_encoder.get_absolute() - BL_ABSOLUTE_ENCODER_ROTATIONS)
+                .get::<revolution>(),
+            Angle::new::<revolution>(-br_encoder.get_absolute() - BR_ABSOLUTE_ENCODER_ROTATIONS)
+                .get::<revolution>(),
+            Angle::new::<revolution>(-fr_encoder.get_absolute() - FR_ABSOLUTE_ENCODER_ROTATIONS)
+                .get::<revolution>(),
         ];
 
         Drivetrain {
@@ -91,7 +100,7 @@ impl Drivetrain {
             angular_velocity,
 
             yaw: Angle::new::<degree>(0.0),
-            offset: Angle::new::<degree>(0.0),
+            offset: Angle::new::<degree>(90.0),
 
             motor_encoder_offsets,
 
@@ -160,25 +169,66 @@ impl Drivetrain {
     /// target_transformation is the x and y input from the driverstation put into a vector.
     /// This function rotates the driver's field orientated input to be robot oriented but the same direction.
     fn field_orientate(&self, target_transformation: Vector2<f64>) -> Vector2<f64> {
-        Rotation2::new(-self.limelight.get_yaw().get::<radian>() + self.offset.get::<radian>())
-            * target_transformation
+        // println!(
+        //     "[DEBUG]: field_orient: yaw: {:?}",
+        //     self.limelight.get_yaw()
+        // );
+        let oriented = Rotation2::new(
+            self.limelight.get_yaw().get::<radian>(), /*+ self.offset.get::<radian>()*/
+        ) * target_transformation;
+        // println!("{}", oriented);
+        oriented
     }
-
     /// Optimizes the setpoints.
     /// For example, instead of turning to 135 degrees from 0 degrees, turn to -45 degrees and invert speed.
-    // fn optimize_setpoints(&self, setpoints: Vec<(f64, Angle)>) -> Vec<(f64, Angle)> {
+    // pub fn optimize_setpoints(&self, setpoints: Vec<(f64, Angle)>) -> Vec<(f64, Angle)> {
+    //     let mut optimized = vec![
+    //         (1.0, Angle::new::<degree>(0.0)),
+    //         (1.0, Angle::new::<degree>(0.0)),
+    //         (1.0, Angle::new::<degree>(0.0)),
+    //         (1.0, Angle::new::<degree>(0.0)),
+    //     ]
 
-    // }
+    //     let measured = vec![
+    //         Angle::new::<revolution>(self.fl_turn.get_position() / SWERVE_TURN_RATIO),
+    //         Angle::new::<revolution>(self.bl_turn.get_position() / SWERVE_TURN_RATIO),
+    //         Angle::new::<revolution>(self.br_turn.get_position() / SWERVE_TURN_RATIO),
+    //         Angle::new::<revolution>(self.fr_turn.get_position() / SWERVE_TURN_RATIO),
+    //     ];
 
-    // fn get_angles(&self) -> Vec<Angle> {
+    //     //((optimized), measured)
+    //     for mut tuple in optimized.iter().zip(measured.iter()) {
+    //         if tuple.0.1 < tuple.1 {
+    //             tuple.0.1 += Angle::new::<revolution>(1);
+    //         }
+    //     }
 
+    //     // let delta = target_angle - current_angle;
+    //     // let offset = if delta > 0. { 180. } else { -180. };
+
+    //     // return if delta.abs() > 90. {
+    //     //     (-target_speed, target_angle - offset)
+    //     // } else {
+    //     //     (target_speed, target_angle - offset)
+    //     // };
     // }
 
     /// ## Sets drivetrain motor speeds.
     pub fn set_speeds(&mut self, targets: Vec<(f64, Angle)>) {
-        //println!("[DEBUG]: set_speeds: input: {:?}", targets);
+        let mut update_turn = false;
+        for tuple in &targets {
+            if tuple.0.abs() > 0.05 {
+                update_turn = true;
+            }
+        }
+        // println!("[DEBUG]: set_speeds: input: {:?}", targets);
         // set drive motor speeds based on targets
-        self.fl_drive.set(ControlMode::Percent, -targets[0].0);
+        // println!("[DEBUG]: set_speeds: setting fl_drive to: {}", targets[0].0);
+        // println!("[DEBUG]: set_speeds: setting bl_drive to: {}", targets[1].0);
+        // println!("[DEBUG]: set_speeds: setting br_drive to: {}", targets[2].0);
+        // println!("[DEBUG]: set_speeds: setting fr_drive to: {}", targets[3].0);
+
+        self.fl_drive.set(ControlMode::Percent, targets[0].0);
         self.bl_drive.set(ControlMode::Percent, targets[1].0);
         self.br_drive.set(ControlMode::Percent, targets[2].0);
         self.fr_drive.set(ControlMode::Percent, targets[3].0);
@@ -186,40 +236,78 @@ impl Drivetrain {
         // set turn motors based on targets
         // println!(
         //     "[DEBUG]: set_speeds: setting fl_turn to: {}",
-        //     (targets[0].1.get::<revolution>())
-        //         * SWERVE_TURN_RATIO
+        //     (targets[0].1.get::<revolution>()) * SWERVE_TURN_RATIO
         // );
         // println!(
         //     "[DEBUG]: set_speeds: setting bl_turn to: {}",
-        //     (targets[1].1.get::<revolution>())
-        //         * SWERVE_TURN_RATIO
+        //     (targets[1].1.get::<revolution>()) * SWERVE_TURN_RATIO
         // );
         // println!(
         //     "[DEBUG]: set_speeds: setting br_turn to: {}",
-        //     (targets[2].1.get::<revolution>())
-        //         * SWERVE_TURN_RATIO
+        //     (targets[2].1.get::<revolution>()) * SWERVE_TURN_RATIO
         // );
         // println!(
         //     "[DEBUG]: set_speeds: setting fr_turn to: {}",
-        //     (targets[3].1.get::<revolution>())
-        //         * SWERVE_TURN_RATIO
+        //     (targets[3].1.get::<revolution>()) * SWERVE_TURN_RATIO
         // );
-        self.fl_turn.set(
-            ControlMode::Position,
-            (targets[0].1.get::<revolution>()) * SWERVE_TURN_RATIO,
-        );
-        self.bl_turn.set(
-            ControlMode::Position,
-            (targets[1].1.get::<revolution>()) * SWERVE_TURN_RATIO,
-        );
-        self.br_turn.set(
-            ControlMode::Position,
-            (targets[2].1.get::<revolution>()) * SWERVE_TURN_RATIO,
-        );
-        self.fr_turn.set(
-            ControlMode::Position,
-            (targets[3].1.get::<revolution>()) * SWERVE_TURN_RATIO,
-        );
+        if update_turn {
+            self.fl_turn.set(
+                ControlMode::Position,
+                (targets[0].1.get::<revolution>() - self.motor_encoder_offsets[0])
+                    * SWERVE_TURN_RATIO,
+            );
+            self.bl_turn.set(
+                ControlMode::Position,
+                (targets[1].1.get::<revolution>() - self.motor_encoder_offsets[1])
+                    * SWERVE_TURN_RATIO,
+            );
+            self.br_turn.set(
+                ControlMode::Position,
+                (targets[2].1.get::<revolution>() - self.motor_encoder_offsets[2])
+                    * SWERVE_TURN_RATIO,
+            );
+            self.fr_turn.set(
+                ControlMode::Position,
+                (targets[3].1.get::<revolution>() - self.motor_encoder_offsets[3])
+                    * SWERVE_TURN_RATIO,
+            );
+        }
+
+        // let expected: Vec<(f64, Angle)> = vec![
+        //     (0.9999999999999999, Angle::new::<radian>(3.0 * PI / 4.0)),
+        //     (0.9999999999999999, Angle::new::<radian>(-3.0 * PI / 4.0)),
+        //     (0.9999999999999999, Angle::new::<radian>(-PI / 4.0)),
+        //     (0.9999999999999999, Angle::new::<radian>(PI / 5.0)),
+        // ];
+
+        // let expected: Vec<(f64, Angle)> = vec![
+        //     (0.9999999999999999, Angle::new::<radian>(-PI / 4.0)),
+        //     (0.9999999999999999, Angle::new::<radian>(-3.0 * PI / 4.0)),
+        //     (0.9999999999999999, Angle::new::<radian>(3.0 * PI / 4.0)),
+        //     (0.9999999999999999, Angle::new::<radian>(PI / 4.0)),
+        // ];
+
+        // self.fl_drive.set(ControlMode::Percent, expected[0].0);
+        // self.bl_drive.set(ControlMode::Percent, expected[1].0);
+        // self.br_drive.set(ControlMode::Percent, expected[2].0);
+        // self.fr_drive.set(ControlMode::Percent, expected[3].0);
+
+        // self.fl_turn.set(
+        //     ControlMode::Position,
+        //     (expected[0].1.get::<revolution>()) * SWERVE_TURN_RATIO,
+        // );
+        // self.bl_turn.set(
+        //     ControlMode::Position,
+        //     (expected[1].1.get::<revolution>()) * SWERVE_TURN_RATIO,
+        // );
+        // self.br_turn.set(
+        //     ControlMode::Position,
+        //     (expected[2].1.get::<revolution>()) * SWERVE_TURN_RATIO,
+        // );
+        // self.fr_turn.set(
+        //     ControlMode::Position,
+        //     (expected[3].1.get::<revolution>()) * SWERVE_TURN_RATIO,
+        // );
     }
 
     /// Control the drivetrain.
@@ -236,6 +324,7 @@ impl Drivetrain {
 
         let targets = self.kinematics.get_targets(target_transformation, rotation);
         // let optimized_targets = self.optimize_setpoints(targets);
+
         self.set_speeds(targets);
     }
 
@@ -321,4 +410,13 @@ impl Drivetrain {
         self.velocity = frame_velocity;
         self.angular_velocity = self.limelight.get_angular_velocity();
     }
+}
+
+#[cfg(test)]
+mod drivetrain_tests {
+    use super::*;
+
+    // subaru will
+    #[test]
+    fn optimize_setpoints_test() {}
 }

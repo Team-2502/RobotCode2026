@@ -21,25 +21,25 @@ impl Kinematics {
         // vectors pointing to each module from center of robot.
         // convention is FL, BL, BR, FR
         let module_vectors: Vec<Vector2<f64>> = vec![
-            Vector2::new(half_length, half_width),   //   FL
-            Vector2::new(-half_length, half_width),  //  BL
-            Vector2::new(-half_length, -half_width), // BR
-            Vector2::new(half_length, -half_width),  //  FR
+            Vector2::new(-half_length, half_width).normalize(), //   FL
+            Vector2::new(half_length, half_width).normalize(),  //  BL
+            Vector2::new(half_length, -half_width).normalize(), // BR
+            Vector2::new(-half_length, -half_width).normalize(), //  FR
         ];
 
-        // rotate each vector by 90 degrees and normalize. This will give us the rotation unit vectors.
-        let mut final_vectors: Vec<Vector2<f64>> = Vec::new();
-        let ninety_degree_rotation = Rotation2::new(PI / 2.0);
-        for mut vector in module_vectors {
-            // due to some underlying math, you have to do rotation * vector, not vector * rotation.
-            // search up "non-communicative matrix multiplication" and "rotation matrix" (this is what Rotation2 actually is) for the underlying math.
-            vector = ninety_degree_rotation * vector;
-            vector = vector.normalize();
-            final_vectors.push(vector);
-        }
+        // // rotate each vector by 90 degrees and normalize. This will give us the rotation unit vectors.
+        // let mut final_vectors: Vec<Vector2<f64>> = Vec::new();
+        // let ninety_degree_rotation = Rotation2::new(PI / 2.0);
+        // for mut vector in module_vectors {
+        //     // due to some underlying math, you have to do rotation * vector, not vector * rotation.
+        //     // search up "non-communicative matrix multiplication" and "rotation matrix" (this is what Rotation2 actually is) for the underlying math.
+        //     vector = ninety_degree_rotation * vector;
+        //     vector = vector.normalize();
+        //     final_vectors.push(vector);
+        // }
 
         Kinematics {
-            module_rotation_unit_vectors: final_vectors,
+            module_rotation_unit_vectors: module_vectors,
         }
     }
 
@@ -52,7 +52,10 @@ impl Kinematics {
         target_transformation: Vector2<f64>,
         input_rotation: f64,
     ) -> Vec<(f64, Angle)> {
-        // println!("[DEBUG]: calculate_targets inputs: target_transform: {}, rot: {}", target_transformation, input_rotation);
+        // println!(
+        //     "[DEBUG]: calculate_targets inputs: target_transform: {}, rot: {}",
+        //     target_transformation, input_rotation
+        // );
         let mut module_setpoints: Vec<(f64, Angle)> = Vec::new();
 
         for rotation_unit_vector in &self.module_rotation_unit_vectors.clone() {
@@ -67,7 +70,10 @@ impl Kinematics {
             module_setpoints.push((final_vector.magnitude(), final_angle));
         }
 
-        // println!("[DEBUG]: calculate_targets outputs: module_setpoints: {:?}", module_setpoints);
+        // println!(
+        //     "[DEBUG]: calculate_targets outputs: module_setpoints: {:?}",
+        //     module_setpoints
+        // );
         module_setpoints
     }
 
@@ -91,7 +97,10 @@ impl Kinematics {
         } else {
             scaled_targets = targets;
         }
-        // println!("[DEBUG]: scale_targets outputs: targets: {:?}", scaled_targets);
+        // println!(
+        //     "[DEBUG]: scale_targets outputs: targets: {:?}",
+        //     scaled_targets
+        // );
         scaled_targets
     }
 
@@ -102,10 +111,16 @@ impl Kinematics {
         target_transformation: Vector2<f64>,
         rotation: f64,
     ) -> Vec<(f64, Angle)> {
-        // println!("[DEBUG]: get_targets inputs: target_transform: {}, rot: {}", target_transformation, rotation);
+        // println!(
+        //     "[DEBUG]: get_targets inputs: target_transform: {}, rot: {}",
+        //     target_transformation, rotation
+        // );
         let mut targets = self.calculate_targets(target_transformation, rotation);
         targets = self.scale_targets(targets);
-        // println!("[DEBUG]: get_targets outputs: target_transform: {:?}", targets);
+        // println!(
+        //     "[DEBUG]: get_targets outputs: target_transform: {:?}",
+        //     targets
+        // );
         targets
     }
 }
@@ -126,9 +141,9 @@ mod kinematics_tests {
         // these seemingly random numbers are coordinates on the unit circle, specifically sqrt2/2 = 0.707...
         let expected = vec![
             vector![-0.7071067811865475, 0.7071067811865475],
-            vector![-0.7071067811865475, -0.7071067811865475],
-            vector![0.7071067811865475, -0.7071067811865475],
             vector![0.7071067811865475, 0.7071067811865475],
+            vector![0.7071067811865475, -0.7071067811865475],
+            vector![-0.7071067811865475, -0.7071067811865475],
         ];
 
         println!("expected: {:?}", expected);
@@ -281,9 +296,9 @@ mod kinematics_tests {
         // floating point operations means 1.0 becomes 0.9999999999
         let expected: Vec<(f64, Angle)> = vec![
             (0.9999999999999999, Angle::new::<radian>(3.0 * PI / 4.0)),
-            (0.9999999999999999, Angle::new::<radian>(-3.0 * PI / 4.0)),
-            (0.9999999999999999, Angle::new::<radian>(-PI / 4.0)),
             (0.9999999999999999, Angle::new::<radian>(PI / 4.0)),
+            (0.9999999999999999, Angle::new::<radian>(-PI / 4.0)),
+            (0.9999999999999999, Angle::new::<radian>(-3.0 * PI / 4.0)),
         ];
         println!("expected: {:?}", expected);
         println!("results: {:?}", results);
@@ -299,9 +314,9 @@ mod kinematics_tests {
         // floating point operations means 0.5 becomes 0.49999999999999994
         let expected: Vec<(f64, Angle)> = vec![
             (0.49999999999999994, Angle::new::<radian>(3.0 * PI / 4.0)),
-            (0.49999999999999994, Angle::new::<radian>(-3.0 * PI / 4.0)),
-            (0.49999999999999994, Angle::new::<radian>(-PI / 4.0)),
             (0.49999999999999994, Angle::new::<radian>(PI / 4.0)),
+            (0.49999999999999994, Angle::new::<radian>(-PI / 4.0)),
+            (0.49999999999999994, Angle::new::<radian>(-3.0 * PI / 4.0)),
         ];
         println!("expected: {:?}", expected);
         println!("results: {:?}", results);
@@ -317,9 +332,9 @@ mod kinematics_tests {
         // floating point operations means 1.0 becomes 0.9999999999
         let expected: Vec<(f64, Angle)> = vec![
             (0.9999999999999999, Angle::new::<radian>(-PI / 4.0)),
-            (0.9999999999999999, Angle::new::<radian>(PI / 4.0)),
-            (0.9999999999999999, Angle::new::<radian>(3.0 * PI / 4.0)),
             (0.9999999999999999, Angle::new::<radian>(-3.0 * PI / 4.0)),
+            (0.9999999999999999, Angle::new::<radian>(3.0 * PI / 4.0)),
+            (0.9999999999999999, Angle::new::<radian>(PI / 4.0)),
         ];
         println!("expected: {:?}", expected);
         println!("results: {:?}", results);
@@ -335,9 +350,9 @@ mod kinematics_tests {
         // floating point operations means 0.5 becomes 0.49999999999999994
         let expected: Vec<(f64, Angle)> = vec![
             (0.49999999999999994, Angle::new::<radian>(-PI / 4.0)),
-            (0.49999999999999994, Angle::new::<radian>(PI / 4.0)),
-            (0.49999999999999994, Angle::new::<radian>(3.0 * PI / 4.0)),
             (0.49999999999999994, Angle::new::<radian>(-3.0 * PI / 4.0)),
+            (0.49999999999999994, Angle::new::<radian>(3.0 * PI / 4.0)),
+            (0.49999999999999994, Angle::new::<radian>(PI / 4.0)),
         ];
         println!("expected: {:?}", expected);
         println!("results: {:?}", results);
@@ -352,6 +367,6 @@ mod kinematics_tests {
         let target = kinematics.scale_targets(target);
         println!("scaled targets: {:?}", target);
 
-        assert_eq!(target[3].0, 1.0);
+        assert_eq!(target[1].0, 1.0);
     }
 }

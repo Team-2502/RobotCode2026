@@ -6,7 +6,7 @@ pub mod config {
     /// Wheel-Wheel length of robot.
     pub const WHEELBASE_LENGTH_INCHES: f64 = 10.0;
 
-    pub const FIELD_ORIENTED: bool = false;
+    pub const FIELD_ORIENTED: bool = true;
     pub const HALF_FIELD_WIDTH_METERS: f64 = 17.55 / 2.;
     pub const HALF_FIELD_LENGTH_METERS: f64 = 8.05 / 2.;
 
@@ -124,6 +124,11 @@ pub mod drivetrain {
     pub const ARC_ODOMETRY_MINIMUM_DELTA_ANGLE_RADIANS: f64 = 0.00001;
     pub const ARC_ODOMETRY_FOM_DAMPENING: f64 = 0.02; // How much to distrust higher values for arc radius.
     pub const DRIVETRAIN_ERROR_THRESHOLD: f64 = 0.5;
+
+    pub const FL_ABSOLUTE_ENCODER_ROTATIONS: f64 = 0.415 * 2.0;
+    pub const BL_ABSOLUTE_ENCODER_ROTATIONS: f64 = -0.419 * 2.0;
+    pub const BR_ABSOLUTE_ENCODER_ROTATIONS: f64 = -0.187 * 2.0;
+    pub const FR_ABSOLUTE_ENCODER_ROTATIONS: f64 = -0.0942 * 2.0;
 }
 
 pub mod auto {

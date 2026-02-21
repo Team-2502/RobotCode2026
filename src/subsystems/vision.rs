@@ -1,5 +1,5 @@
 use crate::constants::vision;
-use frcrs::limelight::{Limelight, LimelightResults};
+use frcrs::limelight::{Limelight, LimelightResults, LimelightStatus};
 use nalgebra::{Quaternion, Rotation2, Vector2, Vector3};
 use serde_json::Value;
 use std::fs::File;
@@ -29,8 +29,9 @@ use tokio::time::Instant;
 pub struct Vision {
     tag_map_values: Value,
     limelight: Limelight,
-    results: LimelightResults,
+    pub results: LimelightResults,
     last_results: LimelightResults,
+    pub status: LimelightStatus,
     saved_id: i32,
     drivetrain_angle: Angle,
     last_drivetrain_angle: Angle,
@@ -58,6 +59,7 @@ impl Vision {
             limelight,
             results: LimelightResults::default(),
             last_results: LimelightResults::default(),
+            status: LimelightStatus::default(),
             saved_id: 0,
             drivetrain_angle: Angle::new::<degree>(0.),
             last_drivetrain_angle: Angle::new::<degree>(0.),
@@ -79,6 +81,13 @@ impl Vision {
             self.results = r;
         } else {
             eprintln!("failed to fetch results from limelight")
+        }
+
+        let status = self.limelight.status().await;
+        if let Ok(s) = status {
+            self.status = s;
+        } else {
+            eprintln!("failed to fetch status from limelight")
         }
 
         self.last_drivetrain_angle = self.drivetrain_angle;
@@ -284,9 +293,11 @@ impl Vision {
 
     /// returns the yaw in radians
     pub fn get_yaw(&self) -> Angle {
-        let yaw_deg = self.results.imu.unwrap_or([0.0; 10])[0];
-        Angle::new::<radian>(yaw_deg.to_degrees())
+        let yaw_deg = self.status.finalYaw;
+        Angle::new::<degree>(yaw_deg)
     }
+
+    // {"cameraQuat":{"w":0.6321377276274888,"x":0.774783983401699,"y":-0.004118024448506402,"z":-0.009732124577505519},"cid":9281,"cpu":75.11737060546875,"finalYaw":-1.0707001893496237,"finalimu":[-1.0707001893496237,0.5657632629803511,-11.573459341930416,-1.0707001893496237,-0.38499999046325684,-0.17499999701976776,-0.2800000011920929,-0.20276400446891785,-0.010003999806940556,0.9882000088691711],"fps":60.90412521362305,"hailoCount":1,"hailoPower":3.75,"hailoTemp":74.0,"hwType":6,"ignoreNT":0,"interfaceNeedsRefresh":0,"name":"","pipeImgCount":2,"pipelineIndex":0,"pipelineType":"pipe_fiducial","ram":34.567813873291016,"snapshotMode":0,"temp":71.05000305175781}
 
     //radians per second
     pub fn get_angular_velocity(&self) -> f64 {

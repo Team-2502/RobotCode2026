@@ -74,7 +74,7 @@ impl Turret {
 
     pub fn move_to_angle(&self, angle: f64) {
         let target_rot = angle / 360.0 * GEAR_RATIO;
-        println!("target_rot {}", target_rot);
+        // println!("target_rot {}", target_rot);
         self.spin_motor.set(ControlMode::Position, target_rot);
     }
 
@@ -96,7 +96,7 @@ impl Turret {
 
     fn apply_soft_stop(&self, desired_deg: f64) -> f64 {
         let current = self.turret_angle.get::<degree>() % 360.;
-        println!("attempting current {:?}", current);
+        // println!("attempting current {:?}", current);
         let mut best = current;
         let mut found = false;
 
@@ -107,7 +107,7 @@ impl Turret {
                 continue;
             }
 
-            println!("testing {:?}", candidate);
+            // println!("testing {:?}", candidate);
 
             if !found || (candidate - current).abs() < (best - current).abs() {
                 best = candidate;
@@ -120,10 +120,10 @@ impl Turret {
 
     pub fn man_move(&mut self, joystick: f64) {
         let angle = self.turret_angle.get::<degree>() + joystick;
-        println!("here: {}", angle);
+        // println!("here: {}", angle);
         self.turret_angle = Angle::new::<degree>(angle);
         self.move_to_angle(self.apply_soft_stop(angle));
-        println!("moved? {}", self.apply_soft_stop(angle));
+        // println!("moved? {}", self.apply_soft_stop(angle));
     }
 
     pub fn stop(&self) {
