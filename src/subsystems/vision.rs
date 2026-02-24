@@ -1,4 +1,5 @@
 use crate::constants::vision;
+use crate::subsystems::swerve::odometry::RobotPoseEstimate;
 use frcrs::limelight::{Limelight, LimelightResults, LimelightStatus};
 use nalgebra::{Quaternion, Rotation2, Vector2, Vector3};
 use serde_json::Value;
@@ -28,7 +29,7 @@ use tokio::time::Instant;
 /// - last update time
 pub struct Vision {
     tag_map_values: Value,
-    limelight: Limelight,
+    pub limelight: Limelight,
     pub results: LimelightResults,
     last_results: LimelightResults,
     pub status: LimelightStatus,
@@ -79,6 +80,7 @@ impl Vision {
         let results = self.limelight.results().await;
         if let Ok(r) = results {
             self.results = r;
+            println!("it got results bro");
         } else {
             eprintln!("failed to fetch results from limelight")
         }
@@ -318,6 +320,30 @@ impl Vision {
 
         (current_pos - last_pos).magnitude() / dt
     }
+
+    pub fn get_pose(&self) -> RobotPoseEstimate {
+        if let Some(pose) = self.get_botpose_orb() {
+            RobotPoseEstimate {
+                fom: 1.0,
+                x: self.get_botpose_orb().unwrap().x,
+                y: self.get_botpose_orb().unwrap().y,
+                angle: self.get_yaw(),
+            }
+        } else {
+            RobotPoseEstimate::new(
+                0.,
+                Length::new::<meter>(0.),
+                Length::new::<meter>(0.),
+                Angle::new::<radian>(0.),
+            )
+        }
+    }
+}
+
+pub fn distance(p1: Vector2<f64>, p2: RobotPoseEstimate) -> f64 {
+    let dx = p2.x.get::<meter>() - p1[0];
+    let dy = p2.y.get::<meter>() - p1[1];
+    (dx * dx + dy * dy).sqrt()
 }
 
 // tagmap test to make sure i converted it all right

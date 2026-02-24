@@ -70,7 +70,7 @@ impl Drivetrain {
         let fr_encoder = CanCoder::new(FR_ENCODER_ID, DRIVETRAIN_CANBUS);
 
         let limelight = Vision::new(SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::new(10, 25, 2, 204)),
+            IpAddr::V4(Ipv4Addr::new(10, 25, 2, 12)),
             5807,
         ));
 
@@ -100,7 +100,7 @@ impl Drivetrain {
             angular_velocity,
 
             yaw: Angle::new::<degree>(0.0),
-            offset: Angle::new::<degree>(90.0),
+            offset: Angle::new::<degree>(-180.0),
 
             motor_encoder_offsets,
 
@@ -162,7 +162,7 @@ impl Drivetrain {
 
     /// Resets the gyro.
     pub fn reset_heading(&mut self) {
-        self.offset = self.limelight.get_yaw();
+        self.offset = self.limelight.get_yaw() + Angle::new::<degree>(180.);
     }
 
     /// Field-orientate input from the driverstation.
@@ -174,7 +174,7 @@ impl Drivetrain {
         //     self.limelight.get_yaw()
         // );
         let oriented = Rotation2::new(
-            self.limelight.get_yaw().get::<radian>(), /*+ self.offset.get::<radian>()*/
+            self.limelight.get_yaw().get::<radian>() + self.offset.get::<radian>() + 180.,
         ) * target_transformation;
         // println!("{}", oriented);
         oriented
@@ -253,22 +253,22 @@ impl Drivetrain {
         if update_turn {
             self.fl_turn.set(
                 ControlMode::Position,
-                (targets[0].1.get::<revolution>() - self.motor_encoder_offsets[0])
+                (targets[0].1.get::<revolution>()/* - self.motor_encoder_offsets[0]*/)
                     * SWERVE_TURN_RATIO,
             );
             self.bl_turn.set(
                 ControlMode::Position,
-                (targets[1].1.get::<revolution>() - self.motor_encoder_offsets[1])
+                (targets[1].1.get::<revolution>()/* - self.motor_encoder_offsets[1]*/)
                     * SWERVE_TURN_RATIO,
             );
             self.br_turn.set(
                 ControlMode::Position,
-                (targets[2].1.get::<revolution>() - self.motor_encoder_offsets[2])
+                (targets[2].1.get::<revolution>()/* - self.motor_encoder_offsets[2]*/)
                     * SWERVE_TURN_RATIO,
             );
             self.fr_turn.set(
                 ControlMode::Position,
-                (targets[3].1.get::<revolution>() - self.motor_encoder_offsets[3])
+                (targets[3].1.get::<revolution>()/* - self.motor_encoder_offsets[3]*/)
                     * SWERVE_TURN_RATIO,
             );
         }
@@ -410,6 +410,10 @@ impl Drivetrain {
         self.velocity = frame_velocity;
         self.angular_velocity = self.limelight.get_angular_velocity();
     }
+
+    // pub fn reset_heading(&mut self) {
+    //     self.offset = self.limelight.get_yaw();
+    // }
 }
 
 #[cfg(test)]

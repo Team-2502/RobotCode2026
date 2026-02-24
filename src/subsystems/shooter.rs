@@ -209,7 +209,7 @@ impl Shooter {
     pub fn set_hood(&mut self, angle: f64) {
         let target_rot = angle / 360.0 * GEAR_RATIO_HOOD;
 
-        self.hood_motor.set(ControlMode::Position, target_rot);
+        self.hood_motor.set(ControlMode::Position, angle);
     }
 
     // fr ccw+ i think rad/s

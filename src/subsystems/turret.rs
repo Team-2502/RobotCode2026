@@ -35,7 +35,12 @@ impl TurretMode {
     }
 
     pub fn iterator() -> Vec<Self> {
-        vec![TurretMode::Idle]
+        vec![
+            TurretMode::Idle,
+            TurretMode::Test,
+            TurretMode::Manual,
+            TurretMode::Track,
+        ]
     }
 
     pub fn names() -> Vec<String> {
@@ -81,6 +86,7 @@ impl Turret {
     pub fn set_angle(&mut self, mut angle: f64) {
         angle = self.apply_soft_stop(angle);
         let field_relative_angle = angle - self.drivetrain_angle.get::<degree>();
+        println!("cool: {}", field_relative_angle);
         self.move_to_angle(field_relative_angle);
     }
 

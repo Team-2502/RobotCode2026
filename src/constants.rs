@@ -10,7 +10,7 @@ pub mod config {
     pub const HALF_FIELD_WIDTH_METERS: f64 = 17.55 / 2.;
     pub const HALF_FIELD_LENGTH_METERS: f64 = 8.05 / 2.;
 
-    pub const HUB: Vector2<f64> = Vector2::new(0.0, 0.0);
+    pub const HUB: Vector2<f64> = Vector2::new(11.85, 4.02);
     pub const PASS_RIGHT: Vector2<f64> = Vector2::new(0.0, 0.0);
     pub const PASS_LEFT: Vector2<f64> = Vector2::new(0.0, 0.0);
 
@@ -76,9 +76,9 @@ pub mod shooter {
 pub mod turret {
     use nalgebra::Vector2;
 
-    pub const GEAR_RATIO: f64 = 34.5;
-    pub const TURRET_MAX: f64 = 45.0;
-    pub const TURRET_MIN: f64 = -45.0;
+    pub const GEAR_RATIO: f64 = 29.5;
+    pub const TURRET_MAX: f64 = 80.0;
+    pub const TURRET_MIN: f64 = -80.0;
     // meters
     pub const OFFSET: Vector2<f64> = Vector2::new(0.0, 0.0);
     pub const TOLERANCE: f64 = 0.001;
