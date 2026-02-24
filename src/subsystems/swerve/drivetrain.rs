@@ -181,37 +181,53 @@ impl Drivetrain {
     }
     /// Optimizes the setpoints.
     /// For example, instead of turning to 135 degrees from 0 degrees, turn to -45 degrees and invert speed.
-    // pub fn optimize_setpoints(&self, setpoints: Vec<(f64, Angle)>) -> Vec<(f64, Angle)> {
-    //     let mut optimized = vec![
-    //         (1.0, Angle::new::<degree>(0.0)),
-    //         (1.0, Angle::new::<degree>(0.0)),
-    //         (1.0, Angle::new::<degree>(0.0)),
-    //         (1.0, Angle::new::<degree>(0.0)),
-    //     ]
+    pub fn optimize_setpoints(&self, setpoints: Vec<(f64, Angle)>) /*-> Vec<(f64, Angle)>*/
+    {
+        // let mut optimized = vec![
+        //     (1.0, Angle::new::<degree>(0.0)),
+        //     (1.0, Angle::new::<degree>(0.0)),
+        //     (1.0, Angle::new::<degree>(0.0)),
+        //     (1.0, Angle::new::<degree>(0.0)),
+        // ];
 
-    //     let measured = vec![
-    //         Angle::new::<revolution>(self.fl_turn.get_position() / SWERVE_TURN_RATIO),
-    //         Angle::new::<revolution>(self.bl_turn.get_position() / SWERVE_TURN_RATIO),
-    //         Angle::new::<revolution>(self.br_turn.get_position() / SWERVE_TURN_RATIO),
-    //         Angle::new::<revolution>(self.fr_turn.get_position() / SWERVE_TURN_RATIO),
-    //     ];
+        // let measured = vec![
+        //     Angle::new::<revolution>(self.fl_turn.get_position() / SWERVE_TURN_RATIO),
+        //     Angle::new::<revolution>(self.bl_turn.get_position() / SWERVE_TURN_RATIO),
+        //     Angle::new::<revolution>(self.br_turn.get_position() / SWERVE_TURN_RATIO),
+        //     Angle::new::<revolution>(self.fr_turn.get_position() / SWERVE_TURN_RATIO),
+        // ];
 
-    //     //((optimized), measured)
-    //     for mut tuple in optimized.iter().zip(measured.iter()) {
-    //         if tuple.0.1 < tuple.1 {
-    //             tuple.0.1 += Angle::new::<revolution>(1);
-    //         }
-    //     }
+        // let measured = vec![
+        //     Angle::new::<degree>(748.0),
+        //     Angle::new::<degree>(3605.0),
+        //     Angle::new::<degree>(-3605.0),
+        //     Angle::new::<degree>(-10.0),
+        // ];
 
-    //     // let delta = target_angle - current_angle;
-    //     // let offset = if delta > 0. { 180. } else { -180. };
+        //((optimized), measured)
+        // for mut tuple in optimized.iter().zip(measured.iter()) {
+        //     if tuple.0.1.get::<degree>() < tuple.1.get::<degree>() {
+        //         while (tuple.1.get::<degree>() - tuple.0.1.get::<degree>()) < 360.0 {
+        //             tuple.0.1 += Angle::new::<revolution>(1.0);
+        //         }
+        //     } else {
+        //         while (tuple.0.1.get::<degree>() - tuple.0.get::<degree>()) < 360.0 {
+        //             tuple.0.1 += Angle::new::<revolution>(1.0);
+        //         }
+        //     }
+        // }
 
-    //     // return if delta.abs() > 90. {
-    //     //     (-target_speed, target_angle - offset)
-    //     // } else {
-    //     //     (target_speed, target_angle - offset)
-    //     // };
-    // }
+        // println!("pluh: {:?}", optimized.iter().zip(measured.iter()));
+
+        // let delta = target_angle - current_angle;
+        // let offset = if delta > 0. { 180. } else { -180. };
+
+        // return if delta.abs() > 90. {
+        //     (-target_speed, target_angle - offset)
+        // } else {
+        //     (target_speed, target_angle - offset)
+        // };
+    }
 
     /// ## Sets drivetrain motor speeds.
     pub fn set_speeds(&mut self, targets: Vec<(f64, Angle)>) {
@@ -414,9 +430,57 @@ impl Drivetrain {
 
 #[cfg(test)]
 mod drivetrain_tests {
+    use std::{collections::hash_set::Difference, panic};
+
     use super::*;
 
     // subaru will
-    #[test]
-    fn optimize_setpoints_test() {}
+    // #[test]
+    // fn optimize_setpoint_test() {
+    //     // let measured = vec![
+    //     //     Angle::new::<revolution>(self.fl_turn.get_position() / SWERVE_TURN_RATIO),
+    //     //     Angle::new::<revolution>(self.bl_turn.get_position() / SWERVE_TURN_RATIO),
+    //     //     Angle::new::<revolution>(self.br_turn.get_position() / SWERVE_TURN_RATIO),
+    //     //     Angle::new::<revolution>(self.fr_turn.get_position() / SWERVE_TURN_RATIO),
+    //     // ];
+
+    //     let mut measured = vec![
+    //         Angle::new::<degree>(3750.0),
+    //         Angle::new::<degree>(3605.0),
+    //         Angle::new::<degree>(-3605.0),
+    //         Angle::new::<degree>(-3750.0),
+    //     ]
+    //     .into_iter();
+
+    //     let mut optimized = Vec::new();
+
+    //     for mut measured_angle in measured {
+    //         let mut neg = false;
+    //         if measured_angle.get::<degree>() < 0.0 {
+    //             neg = true;
+    //         }
+
+    //         let mut rotations = measured_angle.get::<degree>() / 360.0;
+    //         rotations = rotations.trunc();
+
+    //         let closest_360 = Angle::new::<degree>(360.0 * rotations);
+
+    //         let diff = measured_angle - closest_360;
+
+    //         if optimized
+    //         optimized.push(diff.get::<degree>());
+    //     }
+
+    //     // let delta = target_angle - current_angle;
+    //     // let offset = if delta > 0. { 180. } else { -180. };
+
+    //     // return if delta.abs() > 90. {
+    //     //     (-target_speed, target_angle - offset)
+    //     // } else {
+    //     //     (target_speed, target_angle - offset)
+    //     // };
+
+    //     println!("{:?}", optimized);
+    //     panic!();
+    }
 }
