@@ -181,37 +181,36 @@ impl Drivetrain {
     }
     /// Optimizes the setpoints.
     /// For example, instead of turning to 135 degrees from 0 degrees, turn to -45 degrees and invert speed.
-    // pub fn optimize_setpoints(&self, setpoints: Vec<(f64, Angle)>) -> Vec<(f64, Angle)> {
-    //     let mut optimized = vec![
-    //         (1.0, Angle::new::<degree>(0.0)),
-    //         (1.0, Angle::new::<degree>(0.0)),
-    //         (1.0, Angle::new::<degree>(0.0)),
-    //         (1.0, Angle::new::<degree>(0.0)),
-    //     ]
+    /// Targets need to be -180 to 180 degs
+    pub fn optimize_setpoints(&self, targets: Vec<(f64, Angle)>) -> Vec<(f64, Angle)> {
+        let mut measured = vec![
+            Angle::new::<revolution>(self.fl_turn.get_position() / SWERVE_TURN_RATIO),
+            Angle::new::<revolution>(self.bl_turn.get_position() / SWERVE_TURN_RATIO),
+            Angle::new::<revolution>(self.br_turn.get_position() / SWERVE_TURN_RATIO),
+            Angle::new::<revolution>(self.fr_turn.get_position() / SWERVE_TURN_RATIO),
+        ];
 
-    //     let measured = vec![
-    //         Angle::new::<revolution>(self.fl_turn.get_position() / SWERVE_TURN_RATIO),
-    //         Angle::new::<revolution>(self.bl_turn.get_position() / SWERVE_TURN_RATIO),
-    //         Angle::new::<revolution>(self.br_turn.get_position() / SWERVE_TURN_RATIO),
-    //         Angle::new::<revolution>(self.fr_turn.get_position() / SWERVE_TURN_RATIO),
-    //     ];
+        let mut difs = vec![
+            get_differences(measured[0].clone(), targets.clone()[0]),
+            get_differences(measured[1].clone(), targets.clone()[1]),
+            get_differences(measured[2].clone(), targets.clone()[2]),
+            get_differences(measured[3].clone(), targets.clone()[3]),
+        ];
 
-    //     //((optimized), measured)
-    //     for mut tuple in optimized.iter().zip(measured.iter()) {
-    //         if tuple.0.1 < tuple.1 {
-    //             tuple.0.1 += Angle::new::<revolution>(1);
-    //         }
-    //     }
+        let mut optimized_difs = vec![
+            optimize_difs(difs[0]),
+            optimize_difs(difs[1]),
+            optimize_difs(difs[2]),
+            optimize_difs(difs[3]),
+        ];
 
-    //     // let delta = target_angle - current_angle;
-    //     // let offset = if delta > 0. { 180. } else { -180. };
-
-    //     // return if delta.abs() > 90. {
-    //     //     (-target_speed, target_angle - offset)
-    //     // } else {
-    //     //     (target_speed, target_angle - offset)
-    //     // };
-    // }
+        vec![
+            add_difs_to_setpoints(optimized_difs[0], measured[0], targets[0]),
+            add_difs_to_setpoints(optimized_difs[1], measured[1], targets[1]),
+            add_difs_to_setpoints(optimized_difs[2], measured[2], targets[2]),
+            add_difs_to_setpoints(optimized_difs[3], measured[3], targets[3]),
+        ]
+    }
 
     /// ## Sets drivetrain motor speeds.
     pub fn set_speeds(&mut self, targets: Vec<(f64, Angle)>) {
@@ -325,6 +324,10 @@ impl Drivetrain {
         let targets = self.kinematics.get_targets(target_transformation, rotation);
         // let optimized_targets = self.optimize_setpoints(targets);
 
+        for each in targets.clone() {
+            println!("angle: {}", each.1.get::<degree>());
+        }
+
         self.set_speeds(targets);
     }
 
@@ -416,11 +419,199 @@ impl Drivetrain {
     // }
 }
 
+fn get_differences(mut measured: Angle, target: (f64, Angle)) -> Angle {
+    let target_angle = target.1.get::<radian>();
+    let measured_angle = measured.get::<radian>();
+
+    Angle::new::<radian>(f64::atan2(
+        f64::sin(target_angle - measured_angle),
+        f64::cos(target_angle - measured_angle),
+    ))
+}
+
+/// Angle is difference, f64 is -1 or 1 for if module is reversed
+fn optimize_difs(dif: Angle) -> (Angle, f64) {
+    let mut optimized = (0.0, Angle::new::<degree>(0.0));
+
+    let dif_f64 = dif.get::<degree>();
+
+    if dif_f64 > 90.0 {
+        (Angle::new::<degree>(-180.0 + dif_f64), -1.0)
+    } else if dif_f64 < -90.0 {
+        (Angle::new::<degree>(180.0 + dif_f64), -1.0)
+    } else {
+        (Angle::new::<degree>(dif_f64), 1.0)
+    }
+}
+
+fn add_difs_to_setpoints(dif: (Angle, f64), measured: Angle, target: (f64, Angle)) -> (f64, Angle) {
+    ((dif.1 * target.0), measured + dif.0)
+}
+
 #[cfg(test)]
 mod drivetrain_tests {
     use super::*;
+    use float_cmp::assert_approx_eq;
+    use serde_json::de;
+    use std::{collections::hash_set::Difference, f64::NAN, panic};
+    use uom::si::time::megasecond;
 
-    // subaru will
+    // Measured is 0-360
+    // Target is -180 to 180
     #[test]
-    fn optimize_setpoints_test() {}
+    fn get_difs_test() {
+        // (measured, target)
+        let inputs = vec![
+            (Angle::new::<degree>(0.0), Angle::new::<degree>(180.0)), // 1
+            (Angle::new::<degree>(90.0), Angle::new::<degree>(180.0)), // 2
+            (Angle::new::<degree>(180.0), Angle::new::<degree>(180.0)), // 3
+            (Angle::new::<degree>(270.0), Angle::new::<degree>(180.0)), // 4
+            (Angle::new::<degree>(360.0), Angle::new::<degree>(180.0)), // 5
+            (Angle::new::<degree>(0.0), Angle::new::<degree>(-180.0)), // 6
+            (Angle::new::<degree>(90.0), Angle::new::<degree>(-180.0)), // 7
+            (Angle::new::<degree>(180.0), Angle::new::<degree>(-180.0)), // 8
+            (Angle::new::<degree>(270.0), Angle::new::<degree>(-180.0)), // 9
+            (Angle::new::<degree>(360.0), Angle::new::<degree>(-180.0)), // 10
+            (Angle::new::<degree>(350.0), Angle::new::<degree>(10.0)), // 11
+            (Angle::new::<degree>(10.0), Angle::new::<degree>(-10.0)), // 12
+        ];
+
+        let expected = vec![
+            Angle::new::<degree>(180.0),  // 1
+            Angle::new::<degree>(90.0),   // 2
+            Angle::new::<degree>(0.0),    // 3
+            Angle::new::<degree>(-90.0),  // 4
+            Angle::new::<degree>(-180.0), // 5
+            Angle::new::<degree>(-180.0), // 6
+            Angle::new::<degree>(90.0),   // 7
+            Angle::new::<degree>(0.0),    // 8
+            Angle::new::<degree>(-90.0),  // 9
+            Angle::new::<degree>(-180.0), // 10
+            Angle::new::<degree>(20.0),   // 11
+            Angle::new::<degree>(-20.0),  // 12
+        ];
+
+        let mut results = Vec::new();
+
+        for tuple in inputs {
+            results.push(get_differences(tuple.0, (1.0, tuple.1)));
+        }
+
+        let mut i = 1.0;
+        for result in results.clone() {
+            println!("result {}: {}", i, result.get::<degree>());
+            i += 1.0;
+        }
+
+        for tuple in expected.iter().zip(results.iter()) {
+            assert_approx_eq!(
+                f64,
+                tuple.0.get::<degree>(),
+                tuple.1.get::<degree>(),
+                epsilon = 0.001
+            );
+        }
+    }
+
+    #[test]
+    fn optimize_difs_test() {
+        let inputs = vec![
+            Angle::new::<degree>(0.0),    // 1
+            Angle::new::<degree>(45.0),   // 2
+            Angle::new::<degree>(90.0),   // 3
+            Angle::new::<degree>(135.0),  // 4
+            Angle::new::<degree>(180.0),  // 5
+            Angle::new::<degree>(-45.0),  // 6
+            Angle::new::<degree>(-90.0),  // 7
+            Angle::new::<degree>(-135.0), // 8
+            Angle::new::<degree>(-180.0), // 9
+        ];
+
+        let expected = vec![
+            (Angle::new::<degree>(0.0), 1.0),    // 1
+            (Angle::new::<degree>(45.0), 1.0),   // 2
+            (Angle::new::<degree>(90.0), 1.0),   // 3
+            (Angle::new::<degree>(-45.0), -1.0), // 4
+            (Angle::new::<degree>(0.0), -1.0),   // 5
+            (Angle::new::<degree>(-45.0), 1.0),  // 6
+            (Angle::new::<degree>(-90.0), 1.0),  // 7
+            (Angle::new::<degree>(45.0), -1.0),  // 8
+            (Angle::new::<degree>(0.0), -1.0),   // 9
+        ];
+
+        let mut results = Vec::new();
+
+        for input in inputs {
+            results.push(optimize_difs(input));
+        }
+
+        let mut i = 1.0;
+        for result in results.clone() {
+            println!("result {}: ({}, {})", i, result.0.get::<degree>(), result.1);
+            i += 1.0;
+        }
+
+        for tuple in expected.iter().zip(results.iter()) {
+            assert_approx_eq!(f64, tuple.0.1, tuple.1.1);
+            assert_approx_eq!(f64, tuple.0.0.get::<degree>(), tuple.1.0.get::<degree>());
+        }
+    }
+
+    // #[test]
+    // fn add_difs_to_setpoints_test() {
+    //     // dif: (Angle, f64), measured: Angle, target: (f64, Angle)
+    //     let inputs = vec![
+    //         (
+    //             (Angle::new::<degree>(10.0), 1.0), // 1
+    //             Angle::new::<degree>(0.0),         // 1
+    //             (1.0, Angle::new::<degree>(NAN)),  // 1
+    //         ),
+    //         (
+    //             (Angle::new::<degree>(0.0), 0.0), // 2
+    //             Angle::new::<degree>(350.0),        // 2
+    //             (0.0, Angle::new::<degree>(NAN)), // 2
+    //         ),
+    //         (
+    //             (Angle::new::<degree>(0.0), 0.0), // 3
+    //             Angle::new::<degree>(0.0),        // 3
+    //             (0.0, Angle::new::<degree>(NAN)), // 3
+    //         ),
+    //         (
+    //             (Angle::new::<degree>(0.0), 0.0), // 4
+    //             Angle::new::<degree>(0.0),        // 4
+    //             (0.0, Angle::new::<degree>(NAN)), // 4
+    //         ),
+    //         (
+    //             (Angle::new::<degree>(0.0), 0.0), // 5
+    //             Angle::new::<degree>(0.0),        // 5
+    //             (0.0, Angle::new::<degree>(NAN)), // 5
+    //         ),
+    //         (
+    //             (Angle::new::<degree>(0.0), 0.0), // 6
+    //             Angle::new::<degree>(0.0),        // 6
+    //             (0.0, Angle::new::<degree>(NAN)), // 6
+    //         ),
+    //     ];
+
+    //     let expected = vec![
+    //         (1.0, Angle::new::<degree>(10.0)), // 1
+    //         (1.0, Angle::new::<degree>(90.0)), // 2
+    //         (1.0, Angle::new::<degree>(90.0)), // 3
+    //         (1.0, Angle::new::<degree>(90.0)), // 4
+    //         (1.0, Angle::new::<degree>(90.0)), // 5
+    //         (1.0, Angle::new::<degree>(90.0)), // 6
+    //     ];
+
+    //     let mut results = Vec::new();
+
+    //     for input in inputs {
+    //         results.push(add_difs_to_setpoints(dif, measured, target));
+    //     }
+
+    //     let mut i = 1.0;
+    //     for result in results.clone() {
+    //         println!("result {}: ({}, {})", i, result.0.get::<degree>(), result.1);
+    //         i += 1.0;
+    //     }
+    // }
 }
