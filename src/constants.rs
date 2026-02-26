@@ -125,10 +125,10 @@ pub mod drivetrain {
     pub const ARC_ODOMETRY_FOM_DAMPENING: f64 = 0.02; // How much to distrust higher values for arc radius.
     pub const DRIVETRAIN_ERROR_THRESHOLD: f64 = 0.5;
 
-    pub const FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.415 * 2.0;
-    pub const BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = -0.419 * 2.0;
+    pub const FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.418 * 2.0;
+    pub const BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = -0.423 * 2.0;
     pub const BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = -0.187 * 2.0;
-    pub const FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = -0.0942 * 2.0;
+    pub const FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = -0.0937 * 2.0;
 }
 
 pub mod auto {

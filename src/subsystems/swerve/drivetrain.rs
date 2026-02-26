@@ -241,41 +241,43 @@ impl Drivetrain {
         self.fr_drive.set(ControlMode::Percent, targets[3].0);
 
         // set turn motors based on targets
-        // println!(
-        //     "[DEBUG]: set_speeds: setting fl_turn to: {}",
-        //     (targets[0].1.get::<revolution>()) * SWERVE_TURN_RATIO
-        // );
-        // println!(
-        //     "[DEBUG]: set_speeds: setting bl_turn to: {}",
-        //     (targets[1].1.get::<revolution>()) * SWERVE_TURN_RATIO
-        // );
-        // println!(
-        //     "[DEBUG]: set_speeds: setting br_turn to: {}",
-        //     (targets[2].1.get::<revolution>()) * SWERVE_TURN_RATIO
-        // );
-        // println!(
-        //     "[DEBUG]: set_speeds: setting fr_turn to: {}",
-        //     (targets[3].1.get::<revolution>()) * SWERVE_TURN_RATIO
-        // );
+        println!(
+            "[DEBUG]: set_speeds: setting fl_turn to: {}",
+            (targets[0].1.get::<revolution>() + self.motor_encoder_offsets[0]) * SWERVE_TURN_RATIO
+        );
+        println!(
+            "[DEBUG]: set_speeds: setting bl_turn to: {}",
+            (targets[1].1.get::<revolution>() + self.motor_encoder_offsets[1]) * SWERVE_TURN_RATIO
+        );
+        println!(
+            "[DEBUG]: set_speeds: setting br_turn to: {}",
+            (targets[2].1.get::<revolution>() + self.motor_encoder_offsets[2]) * SWERVE_TURN_RATIO
+        );
+        println!(
+            "[DEBUG]: set_speeds: setting fr_turn to: {}",
+            (targets[3].1.get::<revolution>() + self.motor_encoder_offsets[3]) * SWERVE_TURN_RATIO
+        );
+
+        println!("offsets: {:?}", self.motor_encoder_offsets);
         if update_turn {
             self.fl_turn.set(
                 ControlMode::Position,
-                (targets[0].1.get::<revolution>()/* + self.motor_encoder_offsets[0]*/)
+                (targets[0].1.get::<revolution>()/* - self.motor_encoder_offsets[0] */)
                     * SWERVE_TURN_RATIO,
             );
             self.bl_turn.set(
                 ControlMode::Position,
-                (targets[1].1.get::<revolution>()/* + self.motor_encoder_offsets[1]*/)
+                (targets[1].1.get::<revolution>()/* - self.motor_encoder_offsets[1] */)
                     * SWERVE_TURN_RATIO,
             );
             self.br_turn.set(
                 ControlMode::Position,
-                (targets[2].1.get::<revolution>()/* + self.motor_encoder_offsets[2]*/)
+                (targets[2].1.get::<revolution>()/* - self.motor_encoder_offsets[2] */)
                     * SWERVE_TURN_RATIO,
             );
             self.fr_turn.set(
                 ControlMode::Position,
-                (targets[3].1.get::<revolution>()/* + self.motor_encoder_offsets[3]*/)
+                (targets[3].1.get::<revolution>()/* - self.motor_encoder_offsets[3] */)
                     * SWERVE_TURN_RATIO,
             );
         }
