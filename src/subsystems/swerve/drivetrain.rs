@@ -1,7 +1,7 @@
 use crate::constants::config;
 use crate::constants::drivetrain::{
-    BL_ABSOLUTE_ENCODER_ROTATIONS, BR_ABSOLUTE_ENCODER_ROTATIONS, DRIVETRAIN_ERROR_THRESHOLD,
-    FL_ABSOLUTE_ENCODER_ROTATIONS, FR_ABSOLUTE_ENCODER_ROTATIONS, SWERVE_TURN_RATIO,
+    BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
+    FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS, SWERVE_TURN_RATIO,
 };
 use crate::constants::robotmap::drivetrain_map::{
     BL_DRIVE_ID, BL_ENCODER_ID, BL_TURN_ID, BR_DRIVE_ID, BR_ENCODER_ID, BR_TURN_ID,
@@ -80,14 +80,22 @@ impl Drivetrain {
         // .get_absolute returns the CANCoder's rotation from -1 to 1
 
         let motor_encoder_offsets = [
-            Angle::new::<revolution>(-fl_encoder.get_absolute() - FL_ABSOLUTE_ENCODER_ROTATIONS)
-                .get::<revolution>(),
-            Angle::new::<revolution>(-bl_encoder.get_absolute() - BL_ABSOLUTE_ENCODER_ROTATIONS)
-                .get::<revolution>(),
-            Angle::new::<revolution>(-br_encoder.get_absolute() - BR_ABSOLUTE_ENCODER_ROTATIONS)
-                .get::<revolution>(),
-            Angle::new::<revolution>(-fr_encoder.get_absolute() - FR_ABSOLUTE_ENCODER_ROTATIONS)
-                .get::<revolution>(),
+            Angle::new::<revolution>(
+                FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS - fl_encoder.get_absolute(),
+            )
+            .get::<revolution>(),
+            Angle::new::<revolution>(
+                BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS - bl_encoder.get_absolute(),
+            )
+            .get::<revolution>(),
+            Angle::new::<revolution>(
+                BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS - br_encoder.get_absolute(),
+            )
+            .get::<revolution>(),
+            Angle::new::<revolution>(
+                FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS - fr_encoder.get_absolute(),
+            )
+            .get::<revolution>(),
         ];
 
         Drivetrain {
@@ -252,22 +260,22 @@ impl Drivetrain {
         if update_turn {
             self.fl_turn.set(
                 ControlMode::Position,
-                (targets[0].1.get::<revolution>()/* - self.motor_encoder_offsets[0]*/)
+                (targets[0].1.get::<revolution>()/* + self.motor_encoder_offsets[0]*/)
                     * SWERVE_TURN_RATIO,
             );
             self.bl_turn.set(
                 ControlMode::Position,
-                (targets[1].1.get::<revolution>()/* - self.motor_encoder_offsets[1]*/)
+                (targets[1].1.get::<revolution>()/* + self.motor_encoder_offsets[1]*/)
                     * SWERVE_TURN_RATIO,
             );
             self.br_turn.set(
                 ControlMode::Position,
-                (targets[2].1.get::<revolution>()/* - self.motor_encoder_offsets[2]*/)
+                (targets[2].1.get::<revolution>()/* + self.motor_encoder_offsets[2]*/)
                     * SWERVE_TURN_RATIO,
             );
             self.fr_turn.set(
                 ControlMode::Position,
-                (targets[3].1.get::<revolution>()/* - self.motor_encoder_offsets[3]*/)
+                (targets[3].1.get::<revolution>()/* + self.motor_encoder_offsets[3]*/)
                     * SWERVE_TURN_RATIO,
             );
         }
@@ -322,13 +330,13 @@ impl Drivetrain {
         };
 
         let targets = self.kinematics.get_targets(target_transformation, rotation);
-        // let optimized_targets = self.optimize_setpoints(targets);
+        let optimized_targets = self.optimize_setpoints(targets);
 
-        for each in targets.clone() {
-            println!("angle: {}", each.1.get::<degree>());
-        }
+        // for each in targets.clone() {
+        //     println!("angle: {}", each.1.get::<degree>());
+        // }
 
-        self.set_speeds(targets);
+        self.set_speeds(optimized_targets);
     }
 
     /// #updates the localized cords using odo and vision
@@ -557,61 +565,307 @@ mod drivetrain_tests {
         }
     }
 
-    // #[test]
-    // fn add_difs_to_setpoints_test() {
-    //     // dif: (Angle, f64), measured: Angle, target: (f64, Angle)
-    //     let inputs = vec![
-    //         (
-    //             (Angle::new::<degree>(10.0), 1.0), // 1
-    //             Angle::new::<degree>(0.0),         // 1
-    //             (1.0, Angle::new::<degree>(NAN)),  // 1
-    //         ),
-    //         (
-    //             (Angle::new::<degree>(0.0), 0.0), // 2
-    //             Angle::new::<degree>(350.0),        // 2
-    //             (0.0, Angle::new::<degree>(NAN)), // 2
-    //         ),
-    //         (
-    //             (Angle::new::<degree>(0.0), 0.0), // 3
-    //             Angle::new::<degree>(0.0),        // 3
-    //             (0.0, Angle::new::<degree>(NAN)), // 3
-    //         ),
-    //         (
-    //             (Angle::new::<degree>(0.0), 0.0), // 4
-    //             Angle::new::<degree>(0.0),        // 4
-    //             (0.0, Angle::new::<degree>(NAN)), // 4
-    //         ),
-    //         (
-    //             (Angle::new::<degree>(0.0), 0.0), // 5
-    //             Angle::new::<degree>(0.0),        // 5
-    //             (0.0, Angle::new::<degree>(NAN)), // 5
-    //         ),
-    //         (
-    //             (Angle::new::<degree>(0.0), 0.0), // 6
-    //             Angle::new::<degree>(0.0),        // 6
-    //             (0.0, Angle::new::<degree>(NAN)), // 6
-    //         ),
-    //     ];
+    #[test]
+    fn add_difs_to_setpoints_test() {
+        // dif: (Angle, f64), measured: Angle, target: (f64, Angle)
+        let inputs = vec![
+            (
+                (Angle::new::<degree>(0.0), 1.0), // 1
+                Angle::new::<degree>(0.0),        // 1
+                (1.0, Angle::new::<degree>(NAN)), // 1
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0), // 2
+                Angle::new::<degree>(0.0),         // 2
+                (1.0, Angle::new::<degree>(NAN)),  // 2
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0), // 3
+                Angle::new::<degree>(0.0),         // 3
+                (1.0, Angle::new::<degree>(NAN)),  // 3
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0), // 4
+                Angle::new::<degree>(0.0),          // 4
+                (1.0, Angle::new::<degree>(NAN)),   // 4
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0), // 5
+                Angle::new::<degree>(0.0),          // 5
+                (1.0, Angle::new::<degree>(NAN)),   // 5
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0), // 6
+                Angle::new::<degree>(90.0),       // 6
+                (1.0, Angle::new::<degree>(NAN)), // 6
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0), // 7
+                Angle::new::<degree>(90.0),        // 7
+                (1.0, Angle::new::<degree>(NAN)),  // 7
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0), // 8
+                Angle::new::<degree>(90.0),        // 8
+                (1.0, Angle::new::<degree>(NAN)),  // 8
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0), // 9
+                Angle::new::<degree>(90.0),         // 9
+                (1.0, Angle::new::<degree>(NAN)),   // 9
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0), // 10
+                Angle::new::<degree>(90.0),         // 10
+                (1.0, Angle::new::<degree>(NAN)),   // 10
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0), // 11
+                Angle::new::<degree>(-90.0),      // 11
+                (1.0, Angle::new::<degree>(NAN)), // 11
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0), // 12
+                Angle::new::<degree>(-90.0),       // 12
+                (1.0, Angle::new::<degree>(NAN)),  // 12
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0), // 13
+                Angle::new::<degree>(-90.0),       // 13
+                (1.0, Angle::new::<degree>(NAN)),  // 13
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0), // 14
+                Angle::new::<degree>(-90.0),        // 14
+                (1.0, Angle::new::<degree>(NAN)),   // 14
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0), // 15
+                Angle::new::<degree>(-90.0),        // 15
+                (1.0, Angle::new::<degree>(NAN)),   // 15
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0),  // 16
+                Angle::new::<degree>(0.0 + 720.0), // 16
+                (1.0, Angle::new::<degree>(NAN)),  // 16
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0), // 17
+                Angle::new::<degree>(0.0 + 720.0), // 17
+                (1.0, Angle::new::<degree>(NAN)),  // 17
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0), // 18
+                Angle::new::<degree>(0.0 + 720.0), // 18
+                (1.0, Angle::new::<degree>(NAN)),  // 18
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0), // 19
+                Angle::new::<degree>(0.0 + 720.0),  // 19
+                (1.0, Angle::new::<degree>(NAN)),   // 19
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0), // 20
+                Angle::new::<degree>(0.0 + 720.0),  // 20
+                (1.0, Angle::new::<degree>(NAN)),   // 20
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0),   // 21
+                Angle::new::<degree>(90.0 + 720.0), // 21
+                (1.0, Angle::new::<degree>(NAN)),   // 21
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0),  // 22
+                Angle::new::<degree>(90.0 + 720.0), // 22
+                (1.0, Angle::new::<degree>(NAN)),   // 22
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0),  // 23
+                Angle::new::<degree>(90.0 + 720.0), // 23
+                (1.0, Angle::new::<degree>(NAN)),   // 23
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0), // 24
+                Angle::new::<degree>(90.0 + 720.0), // 24
+                (1.0, Angle::new::<degree>(NAN)),   // 24
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0), // 25
+                Angle::new::<degree>(90.0 + 720.0), // 25
+                (1.0, Angle::new::<degree>(NAN)),   // 25
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0),    // 26
+                Angle::new::<degree>(-90.0 + 720.0), // 26
+                (1.0, Angle::new::<degree>(NAN)),    // 26
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0),   // 27
+                Angle::new::<degree>(-90.0 + 720.0), // 27
+                (1.0, Angle::new::<degree>(NAN)),    // 27
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0),   // 28
+                Angle::new::<degree>(-90.0 + 720.0), // 28
+                (1.0, Angle::new::<degree>(NAN)),    // 28
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0),  // 29
+                Angle::new::<degree>(-90.0 + 720.0), // 29
+                (1.0, Angle::new::<degree>(NAN)),    // 29
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0),  // 30
+                Angle::new::<degree>(-90.0 + 720.0), // 30
+                (1.0, Angle::new::<degree>(NAN)),    // 30
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0),  // 31
+                Angle::new::<degree>(0.0 - 720.0), // 31
+                (1.0, Angle::new::<degree>(NAN)),  // 31
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0), // 32
+                Angle::new::<degree>(0.0 - 720.0), // 32
+                (1.0, Angle::new::<degree>(NAN)),  // 32
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0), // 33
+                Angle::new::<degree>(0.0 - 720.0), // 33
+                (1.0, Angle::new::<degree>(NAN)),  // 33
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0), // 34
+                Angle::new::<degree>(0.0 - 720.0),  // 34
+                (1.0, Angle::new::<degree>(NAN)),   // 34
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0), // 35
+                Angle::new::<degree>(0.0 - 720.0),  // 35
+                (1.0, Angle::new::<degree>(NAN)),   // 35
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0),   // 36
+                Angle::new::<degree>(90.0 - 720.0), // 36
+                (1.0, Angle::new::<degree>(NAN)),   // 36
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0),  // 37
+                Angle::new::<degree>(90.0 - 720.0), // 37
+                (1.0, Angle::new::<degree>(NAN)),   // 37
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0),  // 38
+                Angle::new::<degree>(90.0 - 720.0), // 38
+                (1.0, Angle::new::<degree>(NAN)),   // 38
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0), // 39
+                Angle::new::<degree>(90.0 - 720.0), // 39
+                (1.0, Angle::new::<degree>(NAN)),   // 39
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0), // 40
+                Angle::new::<degree>(90.0 - 720.0), // 40
+                (1.0, Angle::new::<degree>(NAN)),   // 40
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0),    // 41
+                Angle::new::<degree>(-90.0 - 720.0), // 41
+                (1.0, Angle::new::<degree>(NAN)),    // 41
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0),   // 42
+                Angle::new::<degree>(-90.0 - 720.0), // 42
+                (1.0, Angle::new::<degree>(NAN)),    // 42
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0),   // 43
+                Angle::new::<degree>(-90.0 - 720.0), // 43
+                (1.0, Angle::new::<degree>(NAN)),    // 43
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0),  // 44
+                Angle::new::<degree>(-90.0 - 720.0), // 44
+                (1.0, Angle::new::<degree>(NAN)),    // 44
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0),  // 45
+                Angle::new::<degree>(-90.0 - 720.0), // 45
+                (1.0, Angle::new::<degree>(NAN)),    // 45
+            ),
+            (
+                (Angle::new::<degree>(90.0), -1.0), // 46
+                Angle::new::<degree>(0.0),          // 46
+                (1.0, Angle::new::<degree>(NAN)),   // 46
+            ),
+        ];
 
-    //     let expected = vec![
-    //         (1.0, Angle::new::<degree>(10.0)), // 1
-    //         (1.0, Angle::new::<degree>(90.0)), // 2
-    //         (1.0, Angle::new::<degree>(90.0)), // 3
-    //         (1.0, Angle::new::<degree>(90.0)), // 4
-    //         (1.0, Angle::new::<degree>(90.0)), // 5
-    //         (1.0, Angle::new::<degree>(90.0)), // 6
-    //     ];
+        let expected = vec![
+            (1.0, Angle::new::<degree>(0.0)),            // 1
+            (1.0, Angle::new::<degree>(45.0)),           // 2
+            (1.0, Angle::new::<degree>(90.0)),           // 3
+            (1.0, Angle::new::<degree>(-45.0)),          // 4
+            (1.0, Angle::new::<degree>(-90.0)),          // 5
+            (1.0, Angle::new::<degree>(90.0)),           // 6
+            (1.0, Angle::new::<degree>(135.0)),          // 7
+            (1.0, Angle::new::<degree>(180.0)),          // 8
+            (1.0, Angle::new::<degree>(45.0)),           // 9
+            (1.0, Angle::new::<degree>(0.0)),            // 10
+            (1.0, Angle::new::<degree>(-90.0)),          // 11
+            (1.0, Angle::new::<degree>(-45.0)),          // 12
+            (1.0, Angle::new::<degree>(-0.0)),           // 13
+            (1.0, Angle::new::<degree>(-135.0)),         // 14
+            (1.0, Angle::new::<degree>(-180.0)),         // 15
+            (1.0, Angle::new::<degree>(0.0 + 720.0)),    // 16
+            (1.0, Angle::new::<degree>(45.0 + 720.0)),   // 17
+            (1.0, Angle::new::<degree>(90.0 + 720.0)),   // 18
+            (1.0, Angle::new::<degree>(-45.0 + 720.0)),  // 19
+            (1.0, Angle::new::<degree>(-90.0 + 720.0)),  // 20
+            (1.0, Angle::new::<degree>(90.0 + 720.0)),   // 21
+            (1.0, Angle::new::<degree>(135.0 + 720.0)),  // 22
+            (1.0, Angle::new::<degree>(180.0 + 720.0)),  // 23
+            (1.0, Angle::new::<degree>(45.0 + 720.0)),   // 24
+            (1.0, Angle::new::<degree>(0.0 + 720.0)),    // 25
+            (1.0, Angle::new::<degree>(-90.0 + 720.0)),  // 26
+            (1.0, Angle::new::<degree>(-45.0 + 720.0)),  // 27
+            (1.0, Angle::new::<degree>(-0.0 + 720.0)),   // 28
+            (1.0, Angle::new::<degree>(-135.0 + 720.0)), // 29
+            (1.0, Angle::new::<degree>(-180.0 + 720.0)), // 30
+            (1.0, Angle::new::<degree>(0.0 - 720.0)),    // 31
+            (1.0, Angle::new::<degree>(45.0 - 720.0)),   // 32
+            (1.0, Angle::new::<degree>(90.0 - 720.0)),   // 33
+            (1.0, Angle::new::<degree>(-45.0 - 720.0)),  // 34
+            (1.0, Angle::new::<degree>(-90.0 - 720.0)),  // 35
+            (1.0, Angle::new::<degree>(90.0 - 720.0)),   // 36
+            (1.0, Angle::new::<degree>(135.0 - 720.0)),  // 37
+            (1.0, Angle::new::<degree>(180.0 - 720.0)),  // 38
+            (1.0, Angle::new::<degree>(45.0 - 720.0)),   // 39
+            (1.0, Angle::new::<degree>(0.0 - 720.0)),    // 40
+            (1.0, Angle::new::<degree>(-90.0 - 720.0)),  // 41
+            (1.0, Angle::new::<degree>(-45.0 - 720.0)),  // 42
+            (1.0, Angle::new::<degree>(-0.0 - 720.0)),   // 43
+            (1.0, Angle::new::<degree>(-135.0 - 720.0)), // 44
+            (1.0, Angle::new::<degree>(-180.0 - 720.0)), // 45
+            (-1.0, Angle::new::<degree>(90.0)),          // 46
+        ];
 
-    //     let mut results = Vec::new();
+        let mut results = Vec::new();
 
-    //     for input in inputs {
-    //         results.push(add_difs_to_setpoints(dif, measured, target));
-    //     }
+        for input in inputs {
+            results.push(add_difs_to_setpoints(input.0, input.1, input.2));
+        }
 
-    //     let mut i = 1.0;
-    //     for result in results.clone() {
-    //         println!("result {}: ({}, {})", i, result.0.get::<degree>(), result.1);
-    //         i += 1.0;
-    //     }
-    // }
+        let mut i = 1.0;
+        println!("      (speed, angle)");
+        for result in results.clone() {
+            println!("result {}: ({}, {})", i, result.0, result.1.get::<degree>());
+            i += 1.0;
+        }
+
+        for tuple in expected.iter().zip(results.iter()) {
+            assert_approx_eq!(f64, tuple.0.0, tuple.1.0);
+            assert_approx_eq!(f64, tuple.0.1.get::<degree>(), tuple.1.1.get::<degree>());
+        }
+    }
 }
