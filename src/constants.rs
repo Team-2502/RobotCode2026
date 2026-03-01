@@ -2,9 +2,9 @@ pub mod config {
     use nalgebra::Vector2;
 
     /// Wheel-Wheel width of robot.
-    pub const WHEELBASE_WIDTH_INCHES: f64 = 10.0;
+    pub const WHEELBASE_WIDTH_INCHES: f64 = 22.5;
     /// Wheel-Wheel length of robot.
-    pub const WHEELBASE_LENGTH_INCHES: f64 = 10.0;
+    pub const WHEELBASE_LENGTH_INCHES: f64 = 19.5;
 
     pub const FIELD_ORIENTED: bool = true;
     pub const HALF_FIELD_WIDTH_METERS: f64 = 17.55 / 2.;
@@ -79,9 +79,10 @@ pub mod turret {
     use nalgebra::Vector2;
 
     // 29.5
+    // 34.5
     pub const GEAR_RATIO: f64 = 34.5;
-    pub const TURRET_MAX: f64 = 100.0;
-    pub const TURRET_MIN: f64 = -100.0;
+    pub const TURRET_MAX: f64 = 80.0;
+    pub const TURRET_MIN: f64 = -80.0;
     // meters
     pub const OFFSET: Vector2<f64> = Vector2::new(0.0, 0.0);
     pub const TOLERANCE: f64 = 0.001;

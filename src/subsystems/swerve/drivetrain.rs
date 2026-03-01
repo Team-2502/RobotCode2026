@@ -331,12 +331,12 @@ impl Drivetrain {
         // NOTE: REMOVE THIS WHEN IMPLEMENTING FUSED
         self.update_pose();
 
-        println!("pose: x: {}", self.odometry.pose_estimate.x.get::<meter>());
-        println!("pose: y: {}", self.odometry.pose_estimate.y.get::<meter>());
-        println!(
-            "pose: angle: {}",
-            self.odometry.pose_estimate.angle.get::<degree>()
-        );
+        // println!("pose: x: {}", self.odometry.pose_estimate.x.get::<meter>());
+        // println!("pose: y: {}", self.odometry.pose_estimate.y.get::<meter>());
+        // println!(
+        //     "pose: angle: {}",
+        //     self.odometry.pose_estimate.angle.get::<degree>()
+        // );
 
         let target_transformation = match config::FIELD_ORIENTED {
             true => self.field_orientate(vector![x, y]),
@@ -432,7 +432,7 @@ impl Drivetrain {
         );
 
         self.velocity = frame_velocity;
-        self.angular_velocity = self.limelight.get_angular_velocity();
+        self.angular_velocity = 0.0; //self.limelight.get_angular_velocity();
     }
 
     pub fn get_yaw(&self) -> Angle {

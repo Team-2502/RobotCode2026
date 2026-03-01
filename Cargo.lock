@@ -267,7 +267,7 @@ dependencies = [
 [[package]]
 name = "frcrs"
 version = "0.1.6"
-source = "git+https://github.com/Team-2502/frcrs?branch=follower_fix#879ae287234f886b5b22a4d3e718228735626600"
+source = "git+https://github.com/Team-2502/frcrs?branch=follower_fix#6b4ee4ba052386b5f30d88613ecfef65d04d36c0"
 dependencies = [
  "async-trait",
  "axum",

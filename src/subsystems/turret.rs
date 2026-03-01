@@ -84,11 +84,12 @@ impl Turret {
     }
 
     pub fn set_angle(&mut self, mut angle: f64) {
+        angle = self.apply_soft_stop(angle);
         let field_relative_angle = angle - self.drivetrain_angle.get::<degree>();
-        println!("{}", field_relative_angle);
-        let angle_new = self.apply_soft_stop(angle);
-        //println!("cool: {}", field_relative_angle);
-        self.move_to_angle(angle_new);
+        // println!("{}", field_relative_angle);
+        // let angle_new = self.apply_soft_stop(field_relative_angle);
+        // println!("cool: {}", field_relative_angle);
+        self.move_to_angle(field_relative_angle);
     }
 
     pub fn set_speed(&self, speed: f64) {

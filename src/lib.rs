@@ -182,12 +182,12 @@ pub async fn teleop(ferris: &mut Ferris) {
                 ferris.turret_mode = TurretMode::to_mode(turret_mode.as_str());
             }
 
-            println!("speed: {}", shooter.get_speed());
-            println!("hood: {}", shooter.get_hood());
+            // println!("speed: {}", shooter.get_speed());
+            // println!("hood: {}", shooter.get_hood());
 
-            ferris.avg = ferris.avg * 0.945 + shooter.get_speed() * (1.0 - 0.945);
+            // ferris.avg = ferris.avg * 0.945 + shooter.get_speed() * (1.0 - 0.945);
 
-            println!("avg: {}", ferris.avg);
+            // println!("avg: {}", ferris.avg);
 
             let hub_distance = distance(HUB, pose.clone());
             Telemetry::put_number("da hub", hub_distance).await;
