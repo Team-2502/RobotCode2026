@@ -89,8 +89,9 @@ impl Ferris {
 pub async fn teleop(ferris: &mut Ferris) {
     // run drivetrain functions each frame
     let deadzone_output_range = 0.0..1.0;
-    let deadzone_input_range = 0.2..1.0;
+    let deadzone_input_range = 0.1..1.0;
     if let Ok(mut drivetrain) = ferris.drivetrain.try_borrow_mut() {
+        drivetrain.update_limelight().await;
         drivetrain.control_drivetrain(
             deadzone(
                 -ferris.controllers.left_drive.get_x(),
@@ -98,12 +99,12 @@ pub async fn teleop(ferris: &mut Ferris) {
                 &deadzone_output_range,
             ),
             deadzone(
-                -ferris.controllers.left_drive.get_y(),
+                ferris.controllers.left_drive.get_y(),
                 &deadzone_input_range,
                 &deadzone_output_range,
             ),
             deadzone(
-                ferris.controllers.right_drive.get_z(),
+                -ferris.controllers.right_drive.get_z(),
                 &deadzone_input_range,
                 &deadzone_output_range,
             ),
@@ -112,85 +113,84 @@ pub async fn teleop(ferris: &mut Ferris) {
             drivetrain.reset_heading();
         }
 
-        drivetrain.update_limelight().await;
         //Telemetry::put_number("justics for cam (i32 editon)", drivetrain.limelight.results.stdev_mt2[0]).await;
         //drivetrain.update_localization().await;
 
-        let pose = drivetrain.limelight.get_pose();
-        Telemetry::set_robot_pose(
-            (
-                pose.clone().x.get::<meter>() / 17.55,
-                pose.clone().y.get::<meter>() / 8.05,
-                pose.clone().angle.get::<degree>(),
-            ),
-            alliance_station().red(),
-        )
-        .await;
+        // let pose = drivetrain.limelight.get_pose();
+        // Telemetry::set_robot_pose(
+        //     (
+        //         pose.clone().x.get::<meter>() / 17.55,
+        //         pose.clone().y.get::<meter>() / 8.05,
+        //         pose.clone().angle.get::<degree>(),
+        //     ),
+        //     alliance_station().red(),
+        // )
+        // .await;
 
-        Telemetry::put_number("ll_yaw", drivetrain.limelight.get_yaw().get::<degree>()).await;
+        // Telemetry::put_number("ll_yaw", drivetrain.limelight.get_yaw().get::<degree>()).await;
 
-        // shooter logic here because it needs velocities and pose
-        if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
-            shooter.turret.update_turret(drivetrain.limelight.get_yaw());
-            match ferris.turret_mode {
-                TurretMode::Track => {
-                    // shooter
-                    //     .shoot_on_move(
-                    //         pose.clone(),
-                    //         (drivetrain.velocity.x, drivetrain.velocity.y),
-                    //         drivetrain.angular_velocity,
-                    //         MAX_ITER,
-                    //         ferris.shooter_target.clone(),
-                    //     )
-                    //     .await;
+        // // shooter logic here because it needs velocities and pose
+        // if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
+        //     shooter.turret.update_turret(drivetrain.limelight.get_yaw());
+        //     match ferris.turret_mode {
+        //         TurretMode::Track => {
+        //             // shooter
+        //             //     .shoot_on_move(
+        //             //         pose.clone(),
+        //             //         (drivetrain.velocity.x, drivetrain.velocity.y),
+        //             //         drivetrain.angular_velocity,
+        //             //         MAX_ITER,
+        //             //         ferris.shooter_target.clone(),
+        //             //     )
+        //             //     .await;
 
-                    shooter
-                        .turret
-                        .set_angle(get_angle_to_hub(pose.clone()).get::<degree>());
-                }
-                TurretMode::Manual => {
-                    shooter.turret.man_move(ferris.controllers.operator.get_z());
-                    shooter.set_hood(ferris.controllers.operator.get_throttle() * HOOD_MAX);
-                    // println!("{:?}", shooter.turret.turret_angle);
-                    // println!("{:?}", ferris.controllers.operator.get_z());
-                }
-                TurretMode::Idle => {
-                    shooter.turret.stop();
-                }
-                TurretMode::Test => {
-                    shooter.turret.set_angle(0.0);
-                    if ferris.controllers.operator.get_throttle() * -3. >= -3.
-                        && ferris.controllers.operator.get_throttle() * -3. <= 0.
-                    {
-                        shooter.set_hood(ferris.controllers.operator.get_throttle() * -3.);
-                    }
-                }
-            }
+        //             shooter
+        //                 .turret
+        //                 .set_angle(get_angle_to_hub(pose.clone()).get::<degree>());
+        //         }
+        //         TurretMode::Manual => {
+        //             shooter.turret.man_move(ferris.controllers.operator.get_z());
+        //             shooter.set_hood(ferris.controllers.operator.get_throttle() * HOOD_MAX);
+        //             // println!("{:?}", shooter.turret.turret_angle);
+        //             // println!("{:?}", ferris.controllers.operator.get_z());
+        //         }
+        //         TurretMode::Idle => {
+        //             shooter.turret.stop();
+        //         }
+        //         TurretMode::Test => {
+        //             shooter.turret.set_angle(0.0);
+        //             if ferris.controllers.operator.get_throttle() * -3. >= -3.
+        //                 && ferris.controllers.operator.get_throttle() * -3. <= 0.
+        //             {
+        //                 shooter.set_hood(ferris.controllers.operator.get_throttle() * -3.);
+        //             }
+        //         }
+        //     }
 
-            if let Some(turret_mode) = Telemetry::get_selection("justice for cam :)").await {
-                ferris.turret_mode = TurretMode::to_mode(turret_mode.as_str());
-            }
+        //     if let Some(turret_mode) = Telemetry::get_selection("justice for cam :)").await {
+        //         ferris.turret_mode = TurretMode::to_mode(turret_mode.as_str());
+        //     }
 
-            let hub_distance = distance(HUB, pose.clone());
-            Telemetry::put_number("da hub", hub_distance).await;
-            Telemetry::put_number("ll_X", pose.clone().x.get::<meter>()).await;
-            Telemetry::put_number("ll_Y", pose.clone().y.get::<meter>()).await;
-            Telemetry::put_number("ll_YAW", pose.clone().angle.get::<degree>()).await;
+        //     let hub_distance = distance(HUB, pose.clone());
+        //     Telemetry::put_number("da hub", hub_distance).await;
+        //     Telemetry::put_number("ll_X", pose.clone().x.get::<meter>()).await;
+        //     Telemetry::put_number("ll_Y", pose.clone().y.get::<meter>()).await;
+        //     Telemetry::put_number("ll_YAW", pose.clone().angle.get::<degree>()).await;
 
-            if let Ok(mut intake) = ferris.intake.try_borrow_mut() {
-                // maybe zero maybe one i forogt what trigger is
-                // TODO: make toggle work (probably also a debouncer then...)
-                if ferris.controllers.left_drive.get(1) {
-                    intake.set_intake_speed(INTAKE_IN_SPEED);
-                    intake.set_handoff(HANDOFF_SPEED);
-                    shooter.set_shooter(ferris.controllers.left_drive.get_throttle());
-                } else if ferris.controllers.left_drive.get(2) {
-                    intake.set_intake_speed(INTAKE_REVSERSE_SPEED);
-                    intake.set_handoff(-HANDOFF_SPEED);
-                } else {
-                    intake.stop();
-                }
-            }
-        }
+        //     if let Ok(mut intake) = ferris.intake.try_borrow_mut() {
+        //         // maybe zero maybe one i forogt what trigger is
+        //         // TODO: make toggle work (probably also a debouncer then...)
+        //         if ferris.controllers.left_drive.get(1) {
+        //             intake.set_intake_speed(INTAKE_IN_SPEED);
+        //             intake.set_handoff(HANDOFF_SPEED);
+        //             shooter.set_shooter(ferris.controllers.left_drive.get_throttle());
+        //         } else if ferris.controllers.left_drive.get(2) {
+        //             intake.set_intake_speed(INTAKE_REVSERSE_SPEED);
+        //             intake.set_handoff(-HANDOFF_SPEED);
+        //         } else {
+        //             intake.stop();
+        //         }
+        //     }
+        // }
     }
 }

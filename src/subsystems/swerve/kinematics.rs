@@ -21,10 +21,10 @@ impl Kinematics {
         // vectors pointing to each module from center of robot.
         // convention is FL, BL, BR, FR
         let module_vectors: Vec<Vector2<f64>> = vec![
-            Vector2::new(-half_length, half_width).normalize(), //   FL
-            Vector2::new(half_length, half_width).normalize(),  //  BL
-            Vector2::new(half_length, -half_width).normalize(), // BR
-            Vector2::new(-half_length, -half_width).normalize(), //  FR
+            Vector2::new(half_length, half_width).normalize(), //   FL
+            Vector2::new(-half_length, half_width).normalize(), //  BL
+            Vector2::new(-half_length, -half_width).normalize(), // BR
+            Vector2::new(half_length, -half_width).normalize(), //  FR
         ];
 
         // // rotate each vector by 90 degrees and normalize. This will give us the rotation unit vectors.
