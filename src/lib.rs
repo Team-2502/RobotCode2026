@@ -1,5 +1,4 @@
 use crate::constants::config::{HUB, MAX_ITER};
-use crate::constants::drivetrain::DRIVE_DEADZONE;
 use crate::constants::robotmap::intake::{HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
 use crate::constants::robotmap::shooter::HOOD_MAX;
 use crate::constants::shooter::SHOOTER_DISTANCE_ERROR_SMUDGE;
