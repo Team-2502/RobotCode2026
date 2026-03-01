@@ -4,7 +4,9 @@ use crate::constants::config::{
 use crate::constants::robotmap::shooter::{
     HOOD_MOTOR_ID, SHOOTER_MOTOR_LEFT_ID, SHOOTER_MOTOR_RIGHT_ID, SHOOTER_SPEED,
 };
-use crate::constants::shooter::GEAR_RATIO_HOOD;
+use crate::constants::shooter::{
+    GEAR_RATIO_HOOD, MAX_FLYWHEEL_SPEED, SHOOTER_DISTANCE_ERROR_SMUDGE,
+};
 use crate::constants::turret::{OFFSET, TOLERANCE};
 use crate::subsystems::swerve::odometry::RobotPoseEstimate;
 use crate::subsystems::turret::Turret;
@@ -14,7 +16,7 @@ use frcrs::telemetry::Telemetry;
 use nalgebra::Vector2;
 use uom::si::angle::radian;
 use uom::si::angular_velocity::radian_per_second;
-use uom::si::f32::Length;
+use uom::si::f64::Length;
 use uom::si::length::meter;
 
 #[derive(PartialEq, Clone)]
@@ -44,10 +46,41 @@ pub struct ShotSolution {
 
 pub const SHOOTING_TABLE: [ShooterData; 10] = [
     ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
+        // 91 in
+        distance: 2.31,
+        flywheel_speed: 0.69,
+        //<77 >60
         time_of_flight: 0.0,
         hood_angle: 0.0,
+    },
+    ShooterData {
+        // 62 37 0.596
+        // 153 in
+        // 128 3.25
+        distance: 3.89,
+        flywheel_speed: 0.78,
+        time_of_flight: 0.0,
+        hood_angle: 0.0,
+        // -1.5
+    },
+    ShooterData {
+        distance: 0.0,
+        // 60 in
+        flywheel_speed: 0.0,
+        // 0.55
+        time_of_flight: 0.0,
+        hood_angle: 0.0,
+    },
+    ShooterData {
+        // 18
+        distance: 0.0,
+        flywheel_speed: 0.0,
+        // 0.0 1.0 98
+        time_of_flight: 0.0,
+        hood_angle: 0.0,
+        // 2.5 77 0.78
+        //
+        // 1.25  .67 73
     },
     ShooterData {
         distance: 0.0,
@@ -85,24 +118,26 @@ pub const SHOOTING_TABLE: [ShooterData; 10] = [
         time_of_flight: 0.0,
         hood_angle: 0.0,
     },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
+    // at 5ft hood: 0.02 speed: ~46 +-0.2
+    //
+    // at 7ft hood: 0.02 speed: ~48.5 +-0.2
+    // at 7ft hood: 0.41 speed: ~46.5 +-0.2
+    //
+    // at 9ft hood: 0.57 speed: ~49.5 +-0.2
+    // at 9ft hood: 0.67 speed: ~49.5 +-0.2
+    // at 9ft hood: 0.01 speed: ~54.5 +-0.2
+    //
+    // at 11ft hood: 0.02 speed: ~61.5 +-0.2
+    // at 11ft hood: 0.78 speed: ~51.5 +-0.2
+    //
+    // at 13ft hood: 0.01 speed: ~67.5 +-0.2
+    // at 13ft hood: 0.67 speed: ~56.5 +-0.2
+    // at 13ft hood: 0.87 speed: ~54.5 +-0.2
+    //
+    // at 17ft hood: 0.01 speed: ~78.5 +-0.2
+    //
+    // at 18ft hood: 0.01 speed: ~83.5 +-0.2
+    // at 18ft hood: 0.98 speed: ~66.5 +-0.2
 ];
 
 pub const PASSING_TABLE: [ShooterData; 10] = [
@@ -321,6 +356,19 @@ impl Shooter {
         }
     }
 
+    pub fn get_speed(&self) -> f64 {
+        self.shooter_motor_left.get_velocity()
+    }
+
+    pub fn set_velocity(&self, speed: f64) {
+        self.shooter_motor_left.set(ControlMode::Velocity, speed);
+        self.shooter_motor_right.set(ControlMode::Velocity, speed);
+    }
+
+    pub fn get_hood(&self) -> f64 {
+        self.hood_motor.get_position()
+    }
+
     pub fn stop(&self) {
         self.hood_motor.stop();
         self.shooter_motor_left.stop();
@@ -371,5 +419,34 @@ pub fn flip(target: Vector2<f64>) -> Vector2<f64> {
         )
     } else {
         target
+    }
+}
+
+pub fn get_turret_speed_target(distance: Length) -> f64 {
+    let distance_feet: f64 =
+        distance.get::<meter>() as f64 * 3.28084 * SHOOTER_DISTANCE_ERROR_SMUDGE;
+    let mut target =
+        (0.0652772 * (distance_feet * distance_feet)) + (0.954121 * distance_feet) + 38.92606;
+
+    target.clamp(0.0, MAX_FLYWHEEL_SPEED)
+}
+
+pub fn get_hood_angle_target(distance: Length, current_speed: f64) -> f64 {
+    let distance_feet: f64 =
+        distance.get::<meter>() as f64 * 3.28084 * SHOOTER_DISTANCE_ERROR_SMUDGE;
+    let min_speed =
+        (0.0917639 * (distance_feet * distance_feet)) + (-0.53771 * distance_feet) + 46.28489;
+    let max_speed =
+        (0.0496249 * (distance_feet * distance_feet)) + (1.84238 * distance_feet) + 34.54472;
+    let max_angle =
+        (-0.0076574 * (distance_feet * distance_feet)) + (0.24567 * distance_feet) + -0.978109;
+
+    if max_angle < 0.0 || current_speed > max_speed {
+        0.0
+    } else if current_speed < min_speed {
+        max_angle
+    } else {
+        let t = 1.0 - (current_speed - min_speed) / (max_speed - min_speed);
+        max_angle * t
     }
 }
