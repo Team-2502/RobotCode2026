@@ -293,7 +293,7 @@ impl Vision {
         1.0 / (uncertainty + 1.0).clamp(0.0, 1.0)
     }
 
-    /// returns the yaw in radians
+    /// returns the yaw in degrees
     pub fn get_yaw(&self) -> Angle {
         let yaw_deg = self.status.finalYaw;
         Angle::new::<degree>(yaw_deg)

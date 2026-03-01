@@ -1,6 +1,6 @@
 use crate::constants::drivetrain::{
     ARC_ODOMETRY_FOM_DAMPENING, ARC_ODOMETRY_MINIMUM_DELTA_ANGLE_RADIANS, SWERVE_DRIVE_RATIO,
-    SWERVE_WHEEL_DIAMETER_INCHES,
+    SWERVE_TURN_RATIO, SWERVE_WHEEL_DIAMETER_INCHES,
 };
 use crate::subsystems::swerve::drivetrain::Drivetrain;
 use nalgebra::{Rotation2, Vector2, vector};
@@ -82,7 +82,7 @@ impl Drivetrain {
                 total_distance_traveled: Length::new::<inch>(
                     SWERVE_WHEEL_DIAMETER_INCHES * (drive.get_position() * SWERVE_DRIVE_RATIO),
                 ),
-                current_angle: Angle::new::<revolution>(turn.get_position()),
+                current_angle: Angle::new::<revolution>(-turn.get_position() / SWERVE_TURN_RATIO),
             })
         }
 
@@ -103,6 +103,7 @@ impl Drivetrain {
     /// Note: Does not fetch ModuleOdometry for this frame, intentionally.
     pub(in crate::subsystems::swerve) fn update_pose(&mut self) {
         let current_module_odometry = self.get_module_odometry();
+
         let last_frame_module_odometry = self.odometry.last_frame_module_odometry.clone();
 
         // Handle the first time this function is called; Odometry.last_frame_module_odometry is just a Vec::new().
@@ -110,6 +111,62 @@ impl Drivetrain {
             self.odometry.last_frame_module_odometry = current_module_odometry;
             return;
         }
+        // println!(
+        //     "measured module odo fl: angle: {}, distance: {}",
+        //     current_module_odometry[0].current_angle.get::<degree>(),
+        //     current_module_odometry[0]
+        //         .total_distance_traveled
+        //         .get::<meter>()
+        // );
+        // println!(
+        //     "measured module odo bl: angle: {}, distance: {}",
+        //     current_module_odometry[1].current_angle.get::<degree>(),
+        //     current_module_odometry[1]
+        //         .total_distance_traveled
+        //         .get::<meter>()
+        // );
+        // println!(
+        //     "measured module odo br: angle: {}, distance: {}",
+        //     current_module_odometry[2].current_angle.get::<degree>(),
+        //     current_module_odometry[2]
+        //         .total_distance_traveled
+        //         .get::<meter>()
+        // );
+        // println!(
+        //     "measured module odo fr: angle: {}, distance: {}",
+        //     current_module_odometry[3].current_angle.get::<degree>(),
+        //     current_module_odometry[3]
+        //         .total_distance_traveled
+        //         .get::<meter>()
+        // );
+        // println!(
+        //     "last frame module odo fl: angle: {}, distance: {}",
+        //     last_frame_module_odometry[0].current_angle.get::<degree>(),
+        //     last_frame_module_odometry[0]
+        //         .total_distance_traveled
+        //         .get::<meter>()
+        // );
+        // println!(
+        //     "last frame module odo bl: angle: {}, distance: {}",
+        //     last_frame_module_odometry[1].current_angle.get::<degree>(),
+        //     last_frame_module_odometry[1]
+        //         .total_distance_traveled
+        //         .get::<meter>()
+        // );
+        // println!(
+        //     "last frame module odo br: angle: {}, distance: {}",
+        //     last_frame_module_odometry[2].current_angle.get::<degree>(),
+        //     last_frame_module_odometry[2]
+        //         .total_distance_traveled
+        //         .get::<meter>()
+        // );
+        // println!(
+        //     "last frame module odo fr: angle: {}, distance: {}",
+        //     last_frame_module_odometry[3].current_angle.get::<degree>(),
+        //     last_frame_module_odometry[3]
+        //         .total_distance_traveled
+        //         .get::<meter>()
+        // );
 
         // Returns robot-oriented vectors representing each individual swerve module's pose change.
         let (robot_oriented_module_delta_poses, figure_of_merit) = module_level_arc_odometry(
@@ -130,6 +187,9 @@ impl Drivetrain {
         pose_estimate.fom += figure_of_merit;
         pose_estimate.angle =
             Angle::new::<degree>(self.yaw.get::<degree>() + self.offset.get::<degree>());
+
+        // NOTE: REMOVE THIS WHEN IMPLEMENTING FUSED
+        self.set_next_frame_module_odometry();
 
         self.odometry.pose_estimate = pose_estimate;
     }

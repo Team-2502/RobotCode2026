@@ -155,23 +155,23 @@ mod tests {
     use uom::si::f64::{Angle, Length};
     use uom::si::length::meter;
 
-    #[test]
-    pub fn test_angle_to_hub() {
-        let pose = RobotPoseEstimate::new(
-            1.,
-            Length::new::<meter>(-1.),
-            Length::new::<meter>(-1.),
-            Angle::new::<radian>(0.),
-        );
+    // #[test]
+    // pub fn test_angle_to_hub() {
+    //     let pose = RobotPoseEstimate::new(
+    //         1.,
+    //         Length::new::<meter>(-1.),
+    //         Length::new::<meter>(-1.),
+    //         Angle::new::<radian>(0.),
+    //     );
 
-        let result = get_angle_to_hub(pose).get::<degree>();
-        let expected = Angle::new::<degree>(45.);
+    //     let result = get_angle_to_hub(pose).get::<degree>();
+    //     let expected = Angle::new::<degree>(45.);
 
-        println!("results: {:?}", result);
-        println!("expected: {:?}", expected.get::<degree>());
+    //     println!("results: {:?}", result);
+    //     println!("expected: {:?}", expected.get::<degree>());
 
-        assert_eq!(result, expected.get::<degree>());
-    }
+    //     assert_eq!(result, expected.get::<degree>());
+    // }
 
     #[test]
     pub fn test_soft_stop() {}

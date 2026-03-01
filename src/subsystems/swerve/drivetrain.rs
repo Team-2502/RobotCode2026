@@ -1,7 +1,7 @@
 use crate::constants::config;
 use crate::constants::drivetrain::{
-    BL_ABSOLUTE_ENCODER_ROTATIONS, BR_ABSOLUTE_ENCODER_ROTATIONS, DRIVETRAIN_ERROR_THRESHOLD,
-    FL_ABSOLUTE_ENCODER_ROTATIONS, FR_ABSOLUTE_ENCODER_ROTATIONS, SWERVE_TURN_RATIO,
+    BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
+    FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS, SWERVE_TURN_RATIO,
 };
 use crate::constants::robotmap::drivetrain_map::{
     BL_DRIVE_ID, BL_ENCODER_ID, BL_TURN_ID, BR_DRIVE_ID, BR_ENCODER_ID, BR_TURN_ID,
@@ -17,6 +17,7 @@ use frcrs::telemetry::Telemetry;
 use nalgebra::{Rotation2, Vector2, vector};
 use std::f64::consts::PI;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::path::Ancestors;
 use std::time::Duration;
 use tokio::time::timeout;
 use uom::si::angle::{degree, radian, revolution};
@@ -40,7 +41,7 @@ pub struct Drivetrain {
     pub yaw: Angle,
     pub offset: Angle,
 
-    motor_encoder_offsets: [f64; 4],
+    motor_encoder_offsets: [Angle; 4],
 
     //pub(crate::subsystems::swerve) makes this pub to everything in crate::subsystems::swerve
     fl_encoder: CanCoder,
@@ -80,14 +81,10 @@ impl Drivetrain {
         // .get_absolute returns the CANCoder's rotation from -1 to 1
 
         let motor_encoder_offsets = [
-            Angle::new::<revolution>(-fl_encoder.get_absolute() - FL_ABSOLUTE_ENCODER_ROTATIONS)
-                .get::<revolution>(),
-            Angle::new::<revolution>(-bl_encoder.get_absolute() - BL_ABSOLUTE_ENCODER_ROTATIONS)
-                .get::<revolution>(),
-            Angle::new::<revolution>(-br_encoder.get_absolute() - BR_ABSOLUTE_ENCODER_ROTATIONS)
-                .get::<revolution>(),
-            Angle::new::<revolution>(-fr_encoder.get_absolute() - FR_ABSOLUTE_ENCODER_ROTATIONS)
-                .get::<revolution>(),
+            Angle::new::<revolution>(fl_encoder.get_absolute()),
+            Angle::new::<revolution>(bl_encoder.get_absolute()),
+            Angle::new::<revolution>(br_encoder.get_absolute()),
+            Angle::new::<revolution>(fr_encoder.get_absolute()),
         ];
 
         Drivetrain {
@@ -100,7 +97,7 @@ impl Drivetrain {
             angular_velocity,
 
             yaw: Angle::new::<degree>(0.0),
-            offset: Angle::new::<degree>(-180.0),
+            offset: Angle::new::<degree>(0.0),
 
             motor_encoder_offsets,
 
@@ -191,10 +188,10 @@ impl Drivetrain {
         ];
 
         let mut difs = vec![
-            get_differences(measured[0].clone(), targets.clone()[0]),
-            get_differences(measured[1].clone(), targets.clone()[1]),
-            get_differences(measured[2].clone(), targets.clone()[2]),
-            get_differences(measured[3].clone(), targets.clone()[3]),
+            get_angle_difs(measured[0].clone(), targets.clone()[0].1),
+            get_angle_difs(measured[1].clone(), targets.clone()[1].1),
+            get_angle_difs(measured[2].clone(), targets.clone()[2].1),
+            get_angle_difs(measured[3].clone(), targets.clone()[3].1),
         ];
 
         let mut optimized_difs = vec![
@@ -220,6 +217,70 @@ impl Drivetrain {
                 update_turn = true;
             }
         }
+
+        let relative_target_modifers = vec![
+            optimize_difs(abs_offset(
+                Angle::new::<revolution>(FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS),
+                Angle::new::<revolution>(self.fl_encoder.get_absolute()),
+                targets[0].1,
+            )),
+            optimize_difs(abs_offset(
+                Angle::new::<revolution>(BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS),
+                Angle::new::<revolution>(self.bl_encoder.get_absolute()),
+                targets[1].1,
+            )),
+            optimize_difs(abs_offset(
+                Angle::new::<revolution>(BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS),
+                Angle::new::<revolution>(self.br_encoder.get_absolute()),
+                targets[2].1,
+            )),
+            optimize_difs(abs_offset(
+                Angle::new::<revolution>(FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS),
+                Angle::new::<revolution>(self.fr_encoder.get_absolute()),
+                targets[3].1,
+            )),
+        ];
+
+        self.fl_drive.set(
+            ControlMode::Percent,
+            targets[0].0 * relative_target_modifers[0].1,
+        );
+        self.bl_drive.set(
+            ControlMode::Percent,
+            targets[1].0 * relative_target_modifers[1].1,
+        );
+        self.br_drive.set(
+            ControlMode::Percent,
+            targets[2].0 * relative_target_modifers[2].1,
+        );
+        self.fr_drive.set(
+            ControlMode::Percent,
+            targets[3].0 * relative_target_modifers[3].1,
+        );
+
+        if update_turn {
+            self.fl_turn.set(
+                ControlMode::Position,
+                self.fl_turn.get_position()
+                    + relative_target_modifers[0].0.get::<revolution>() * SWERVE_TURN_RATIO,
+            );
+            self.bl_turn.set(
+                ControlMode::Position,
+                self.bl_turn.get_position()
+                    + relative_target_modifers[1].0.get::<revolution>() * SWERVE_TURN_RATIO,
+            );
+            self.br_turn.set(
+                ControlMode::Position,
+                self.br_turn.get_position()
+                    + relative_target_modifers[2].0.get::<revolution>() * SWERVE_TURN_RATIO,
+            );
+            self.fr_turn.set(
+                ControlMode::Position,
+                self.fr_turn.get_position()
+                    + relative_target_modifers[3].0.get::<revolution>() * SWERVE_TURN_RATIO,
+            );
+        }
+
         // println!("[DEBUG]: set_speeds: input: {:?}", targets);
         // set drive motor speeds based on targets
         // println!("[DEBUG]: set_speeds: setting fl_drive to: {}", targets[0].0);
@@ -227,95 +288,56 @@ impl Drivetrain {
         // println!("[DEBUG]: set_speeds: setting br_drive to: {}", targets[2].0);
         // println!("[DEBUG]: set_speeds: setting fr_drive to: {}", targets[3].0);
 
-        self.fl_drive.set(ControlMode::Percent, targets[0].0);
-        self.bl_drive.set(ControlMode::Percent, targets[1].0);
-        self.br_drive.set(ControlMode::Percent, targets[2].0);
-        self.fr_drive.set(ControlMode::Percent, targets[3].0);
-
         // set turn motors based on targets
         // println!(
         //     "[DEBUG]: set_speeds: setting fl_turn to: {}",
-        //     (targets[0].1.get::<revolution>()) * SWERVE_TURN_RATIO
+        //     (targets[0].1.get::<revolution>() + self.motor_encoder_offsets[0]) * SWERVE_TURN_RATIO
         // );
         // println!(
         //     "[DEBUG]: set_speeds: setting bl_turn to: {}",
-        //     (targets[1].1.get::<revolution>()) * SWERVE_TURN_RATIO
+        //     (targets[1].1.get::<revolution>() + self.motor_encoder_offsets[1]) * SWERVE_TURN_RATIO
         // );
         // println!(
         //     "[DEBUG]: set_speeds: setting br_turn to: {}",
-        //     (targets[2].1.get::<revolution>()) * SWERVE_TURN_RATIO
+        //     (targets[2].1.get::<revolution>() + self.motor_encoder_offsets[2]) * SWERVE_TURN_RATIO
         // );
         // println!(
         //     "[DEBUG]: set_speeds: setting fr_turn to: {}",
-        //     (targets[3].1.get::<revolution>()) * SWERVE_TURN_RATIO
+        //     (targets[3].1.get::<revolution>() + self.motor_encoder_offsets[3]) * SWERVE_TURN_RATIO
         // );
-        if update_turn {
-            self.fl_turn.set(
-                ControlMode::Position,
-                (targets[0].1.get::<revolution>()/* - self.motor_encoder_offsets[0]*/)
-                    * SWERVE_TURN_RATIO,
-            );
-            self.bl_turn.set(
-                ControlMode::Position,
-                (targets[1].1.get::<revolution>()/* - self.motor_encoder_offsets[1]*/)
-                    * SWERVE_TURN_RATIO,
-            );
-            self.br_turn.set(
-                ControlMode::Position,
-                (targets[2].1.get::<revolution>()/* - self.motor_encoder_offsets[2]*/)
-                    * SWERVE_TURN_RATIO,
-            );
-            self.fr_turn.set(
-                ControlMode::Position,
-                (targets[3].1.get::<revolution>()/* - self.motor_encoder_offsets[3]*/)
-                    * SWERVE_TURN_RATIO,
-            );
-        }
 
-        // let expected: Vec<(f64, Angle)> = vec![
-        //     (0.9999999999999999, Angle::new::<radian>(3.0 * PI / 4.0)),
-        //     (0.9999999999999999, Angle::new::<radian>(-3.0 * PI / 4.0)),
-        //     (0.9999999999999999, Angle::new::<radian>(-PI / 4.0)),
-        //     (0.9999999999999999, Angle::new::<radian>(PI / 5.0)),
-        // ];
-
-        // let expected: Vec<(f64, Angle)> = vec![
-        //     (0.9999999999999999, Angle::new::<radian>(-PI / 4.0)),
-        //     (0.9999999999999999, Angle::new::<radian>(-3.0 * PI / 4.0)),
-        //     (0.9999999999999999, Angle::new::<radian>(3.0 * PI / 4.0)),
-        //     (0.9999999999999999, Angle::new::<radian>(PI / 4.0)),
-        // ];
-
-        // self.fl_drive.set(ControlMode::Percent, expected[0].0);
-        // self.bl_drive.set(ControlMode::Percent, expected[1].0);
-        // self.br_drive.set(ControlMode::Percent, expected[2].0);
-        // self.fr_drive.set(ControlMode::Percent, expected[3].0);
-
-        // self.fl_turn.set(
-        //     ControlMode::Position,
-        //     (expected[0].1.get::<revolution>()) * SWERVE_TURN_RATIO,
+        // println!("constant offsets: {:?}", self.motor_encoder_offsets);
+        // println!(
+        //     "current frame abs encoder: fl: {}",
+        //     self.fl_encoder.get_absolute()
         // );
-        // self.bl_turn.set(
-        //     ControlMode::Position,
-        //     (expected[1].1.get::<revolution>()) * SWERVE_TURN_RATIO,
+        // println!(
+        //     "current frame abs encoder: bl: {}",
+        //     self.bl_encoder.get_absolute()
         // );
-        // self.br_turn.set(
-        //     ControlMode::Position,
-        //     (expected[2].1.get::<revolution>()) * SWERVE_TURN_RATIO,
+        // println!(
+        //     "current frame abs encoder: br: {}",
+        //     self.br_encoder.get_absolute()
         // );
-        // self.fr_turn.set(
-        //     ControlMode::Position,
-        //     (expected[3].1.get::<revolution>()) * SWERVE_TURN_RATIO,
+        // println!(
+        //     "current frame abs encoder: fr: {}",
+        //     self.fr_encoder.get_absolute()
         // );
     }
 
     /// Control the drivetrain.
     /// x, y, and rotation are driverstation inputs.
     pub fn control_drivetrain(&mut self, x: f64, y: f64, rotation: f64) {
-        // println!(
-        //     "[DEBUG]: control_drivetrain inputs: x: {}, y: {}, rot: {}",
-        //     x, y, rotation
-        // );
+        // NOTE: REMOVE THIS WHEN IMPLEMENTING FUSED
+        self.update_pose();
+
+        println!("pose: x: {}", self.odometry.pose_estimate.x.get::<meter>());
+        println!("pose: y: {}", self.odometry.pose_estimate.y.get::<meter>());
+        println!(
+            "pose: angle: {}",
+            self.odometry.pose_estimate.angle.get::<degree>()
+        );
+
         let target_transformation = match config::FIELD_ORIENTED {
             true => self.field_orientate(vector![x, y]),
             false => vector![x, y],
@@ -418,20 +440,22 @@ impl Drivetrain {
     }
 }
 
-fn get_differences(mut measured: Angle, target: (f64, Angle)) -> Angle {
-    let target_angle = target.1.get::<radian>();
-    let measured_angle = measured.get::<radian>();
-
+fn get_angle_difs(from: Angle, to: Angle) -> Angle {
     Angle::new::<radian>(f64::atan2(
-        f64::sin(target_angle - measured_angle),
-        f64::cos(target_angle - measured_angle),
+        f64::sin(to.get::<radian>() - from.get::<radian>()),
+        f64::cos(to.get::<radian>() - from.get::<radian>()),
+    ))
+}
+
+fn wrap_angle(angle: Angle) -> Angle {
+    Angle::new::<radian>(f64::atan2(
+        f64::sin(angle.get::<radian>()),
+        f64::cos(angle.get::<radian>()),
     ))
 }
 
 /// Angle is difference, f64 is -1 or 1 for if module is reversed
 fn optimize_difs(dif: Angle) -> (Angle, f64) {
-    let mut optimized = (0.0, Angle::new::<degree>(0.0));
-
     let dif_f64 = dif.get::<degree>();
 
     if dif_f64 > 90.0 {
@@ -447,13 +471,16 @@ fn add_difs_to_setpoints(dif: (Angle, f64), measured: Angle, target: (f64, Angle
     ((dif.1 * target.0), measured + dif.0)
 }
 
+fn abs_offset(abs_zero_position: Angle, abs_reading: Angle, target: Angle) -> Angle {
+    // current_angle + get_angle_difs(get_angle_difs(abs_zero_position, abs_reading), target)
+    wrap_angle(target - (abs_reading - abs_zero_position))
+}
+
 #[cfg(test)]
 mod drivetrain_tests {
     use super::*;
     use float_cmp::assert_approx_eq;
-    use serde_json::de;
-    use std::{collections::hash_set::Difference, f64::NAN, panic};
-    use uom::si::time::megasecond;
+    use std::{f64::NAN, panic};
 
     // Measured is 0-360
     // Target is -180 to 180
@@ -493,7 +520,7 @@ mod drivetrain_tests {
         let mut results = Vec::new();
 
         for tuple in inputs {
-            results.push(get_differences(tuple.0, (1.0, tuple.1)));
+            results.push(get_angle_difs(tuple.0, tuple.1));
         }
 
         let mut i = 1.0;
@@ -556,61 +583,341 @@ mod drivetrain_tests {
         }
     }
 
-    // #[test]
-    // fn add_difs_to_setpoints_test() {
-    //     // dif: (Angle, f64), measured: Angle, target: (f64, Angle)
-    //     let inputs = vec![
-    //         (
-    //             (Angle::new::<degree>(10.0), 1.0), // 1
-    //             Angle::new::<degree>(0.0),         // 1
-    //             (1.0, Angle::new::<degree>(NAN)),  // 1
-    //         ),
-    //         (
-    //             (Angle::new::<degree>(0.0), 0.0), // 2
-    //             Angle::new::<degree>(350.0),        // 2
-    //             (0.0, Angle::new::<degree>(NAN)), // 2
-    //         ),
-    //         (
-    //             (Angle::new::<degree>(0.0), 0.0), // 3
-    //             Angle::new::<degree>(0.0),        // 3
-    //             (0.0, Angle::new::<degree>(NAN)), // 3
-    //         ),
-    //         (
-    //             (Angle::new::<degree>(0.0), 0.0), // 4
-    //             Angle::new::<degree>(0.0),        // 4
-    //             (0.0, Angle::new::<degree>(NAN)), // 4
-    //         ),
-    //         (
-    //             (Angle::new::<degree>(0.0), 0.0), // 5
-    //             Angle::new::<degree>(0.0),        // 5
-    //             (0.0, Angle::new::<degree>(NAN)), // 5
-    //         ),
-    //         (
-    //             (Angle::new::<degree>(0.0), 0.0), // 6
-    //             Angle::new::<degree>(0.0),        // 6
-    //             (0.0, Angle::new::<degree>(NAN)), // 6
-    //         ),
-    //     ];
+    #[test]
+    fn add_difs_to_setpoints_test() {
+        // dif: (Angle, f64), measured: Angle, target: (f64, Angle)
+        let inputs = vec![
+            (
+                (Angle::new::<degree>(0.0), 1.0), // 1
+                Angle::new::<degree>(0.0),        // 1
+                (1.0, Angle::new::<degree>(NAN)), // 1
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0), // 2
+                Angle::new::<degree>(0.0),         // 2
+                (1.0, Angle::new::<degree>(NAN)),  // 2
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0), // 3
+                Angle::new::<degree>(0.0),         // 3
+                (1.0, Angle::new::<degree>(NAN)),  // 3
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0), // 4
+                Angle::new::<degree>(0.0),          // 4
+                (1.0, Angle::new::<degree>(NAN)),   // 4
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0), // 5
+                Angle::new::<degree>(0.0),          // 5
+                (1.0, Angle::new::<degree>(NAN)),   // 5
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0), // 6
+                Angle::new::<degree>(90.0),       // 6
+                (1.0, Angle::new::<degree>(NAN)), // 6
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0), // 7
+                Angle::new::<degree>(90.0),        // 7
+                (1.0, Angle::new::<degree>(NAN)),  // 7
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0), // 8
+                Angle::new::<degree>(90.0),        // 8
+                (1.0, Angle::new::<degree>(NAN)),  // 8
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0), // 9
+                Angle::new::<degree>(90.0),         // 9
+                (1.0, Angle::new::<degree>(NAN)),   // 9
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0), // 10
+                Angle::new::<degree>(90.0),         // 10
+                (1.0, Angle::new::<degree>(NAN)),   // 10
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0), // 11
+                Angle::new::<degree>(-90.0),      // 11
+                (1.0, Angle::new::<degree>(NAN)), // 11
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0), // 12
+                Angle::new::<degree>(-90.0),       // 12
+                (1.0, Angle::new::<degree>(NAN)),  // 12
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0), // 13
+                Angle::new::<degree>(-90.0),       // 13
+                (1.0, Angle::new::<degree>(NAN)),  // 13
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0), // 14
+                Angle::new::<degree>(-90.0),        // 14
+                (1.0, Angle::new::<degree>(NAN)),   // 14
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0), // 15
+                Angle::new::<degree>(-90.0),        // 15
+                (1.0, Angle::new::<degree>(NAN)),   // 15
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0),  // 16
+                Angle::new::<degree>(0.0 + 720.0), // 16
+                (1.0, Angle::new::<degree>(NAN)),  // 16
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0), // 17
+                Angle::new::<degree>(0.0 + 720.0), // 17
+                (1.0, Angle::new::<degree>(NAN)),  // 17
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0), // 18
+                Angle::new::<degree>(0.0 + 720.0), // 18
+                (1.0, Angle::new::<degree>(NAN)),  // 18
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0), // 19
+                Angle::new::<degree>(0.0 + 720.0),  // 19
+                (1.0, Angle::new::<degree>(NAN)),   // 19
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0), // 20
+                Angle::new::<degree>(0.0 + 720.0),  // 20
+                (1.0, Angle::new::<degree>(NAN)),   // 20
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0),   // 21
+                Angle::new::<degree>(90.0 + 720.0), // 21
+                (1.0, Angle::new::<degree>(NAN)),   // 21
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0),  // 22
+                Angle::new::<degree>(90.0 + 720.0), // 22
+                (1.0, Angle::new::<degree>(NAN)),   // 22
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0),  // 23
+                Angle::new::<degree>(90.0 + 720.0), // 23
+                (1.0, Angle::new::<degree>(NAN)),   // 23
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0), // 24
+                Angle::new::<degree>(90.0 + 720.0), // 24
+                (1.0, Angle::new::<degree>(NAN)),   // 24
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0), // 25
+                Angle::new::<degree>(90.0 + 720.0), // 25
+                (1.0, Angle::new::<degree>(NAN)),   // 25
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0),    // 26
+                Angle::new::<degree>(-90.0 + 720.0), // 26
+                (1.0, Angle::new::<degree>(NAN)),    // 26
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0),   // 27
+                Angle::new::<degree>(-90.0 + 720.0), // 27
+                (1.0, Angle::new::<degree>(NAN)),    // 27
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0),   // 28
+                Angle::new::<degree>(-90.0 + 720.0), // 28
+                (1.0, Angle::new::<degree>(NAN)),    // 28
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0),  // 29
+                Angle::new::<degree>(-90.0 + 720.0), // 29
+                (1.0, Angle::new::<degree>(NAN)),    // 29
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0),  // 30
+                Angle::new::<degree>(-90.0 + 720.0), // 30
+                (1.0, Angle::new::<degree>(NAN)),    // 30
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0),  // 31
+                Angle::new::<degree>(0.0 - 720.0), // 31
+                (1.0, Angle::new::<degree>(NAN)),  // 31
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0), // 32
+                Angle::new::<degree>(0.0 - 720.0), // 32
+                (1.0, Angle::new::<degree>(NAN)),  // 32
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0), // 33
+                Angle::new::<degree>(0.0 - 720.0), // 33
+                (1.0, Angle::new::<degree>(NAN)),  // 33
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0), // 34
+                Angle::new::<degree>(0.0 - 720.0),  // 34
+                (1.0, Angle::new::<degree>(NAN)),   // 34
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0), // 35
+                Angle::new::<degree>(0.0 - 720.0),  // 35
+                (1.0, Angle::new::<degree>(NAN)),   // 35
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0),   // 36
+                Angle::new::<degree>(90.0 - 720.0), // 36
+                (1.0, Angle::new::<degree>(NAN)),   // 36
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0),  // 37
+                Angle::new::<degree>(90.0 - 720.0), // 37
+                (1.0, Angle::new::<degree>(NAN)),   // 37
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0),  // 38
+                Angle::new::<degree>(90.0 - 720.0), // 38
+                (1.0, Angle::new::<degree>(NAN)),   // 38
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0), // 39
+                Angle::new::<degree>(90.0 - 720.0), // 39
+                (1.0, Angle::new::<degree>(NAN)),   // 39
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0), // 40
+                Angle::new::<degree>(90.0 - 720.0), // 40
+                (1.0, Angle::new::<degree>(NAN)),   // 40
+            ),
+            (
+                (Angle::new::<degree>(0.0), 1.0),    // 41
+                Angle::new::<degree>(-90.0 - 720.0), // 41
+                (1.0, Angle::new::<degree>(NAN)),    // 41
+            ),
+            (
+                (Angle::new::<degree>(45.0), 1.0),   // 42
+                Angle::new::<degree>(-90.0 - 720.0), // 42
+                (1.0, Angle::new::<degree>(NAN)),    // 42
+            ),
+            (
+                (Angle::new::<degree>(90.0), 1.0),   // 43
+                Angle::new::<degree>(-90.0 - 720.0), // 43
+                (1.0, Angle::new::<degree>(NAN)),    // 43
+            ),
+            (
+                (Angle::new::<degree>(-45.0), 1.0),  // 44
+                Angle::new::<degree>(-90.0 - 720.0), // 44
+                (1.0, Angle::new::<degree>(NAN)),    // 44
+            ),
+            (
+                (Angle::new::<degree>(-90.0), 1.0),  // 45
+                Angle::new::<degree>(-90.0 - 720.0), // 45
+                (1.0, Angle::new::<degree>(NAN)),    // 45
+            ),
+            (
+                (Angle::new::<degree>(90.0), -1.0), // 46
+                Angle::new::<degree>(0.0),          // 46
+                (1.0, Angle::new::<degree>(NAN)),   // 46
+            ),
+        ];
 
-    //     let expected = vec![
-    //         (1.0, Angle::new::<degree>(10.0)), // 1
-    //         (1.0, Angle::new::<degree>(90.0)), // 2
-    //         (1.0, Angle::new::<degree>(90.0)), // 3
-    //         (1.0, Angle::new::<degree>(90.0)), // 4
-    //         (1.0, Angle::new::<degree>(90.0)), // 5
-    //         (1.0, Angle::new::<degree>(90.0)), // 6
-    //     ];
+        let expected = vec![
+            (1.0, Angle::new::<degree>(0.0)),            // 1
+            (1.0, Angle::new::<degree>(45.0)),           // 2
+            (1.0, Angle::new::<degree>(90.0)),           // 3
+            (1.0, Angle::new::<degree>(-45.0)),          // 4
+            (1.0, Angle::new::<degree>(-90.0)),          // 5
+            (1.0, Angle::new::<degree>(90.0)),           // 6
+            (1.0, Angle::new::<degree>(135.0)),          // 7
+            (1.0, Angle::new::<degree>(180.0)),          // 8
+            (1.0, Angle::new::<degree>(45.0)),           // 9
+            (1.0, Angle::new::<degree>(0.0)),            // 10
+            (1.0, Angle::new::<degree>(-90.0)),          // 11
+            (1.0, Angle::new::<degree>(-45.0)),          // 12
+            (1.0, Angle::new::<degree>(-0.0)),           // 13
+            (1.0, Angle::new::<degree>(-135.0)),         // 14
+            (1.0, Angle::new::<degree>(-180.0)),         // 15
+            (1.0, Angle::new::<degree>(0.0 + 720.0)),    // 16
+            (1.0, Angle::new::<degree>(45.0 + 720.0)),   // 17
+            (1.0, Angle::new::<degree>(90.0 + 720.0)),   // 18
+            (1.0, Angle::new::<degree>(-45.0 + 720.0)),  // 19
+            (1.0, Angle::new::<degree>(-90.0 + 720.0)),  // 20
+            (1.0, Angle::new::<degree>(90.0 + 720.0)),   // 21
+            (1.0, Angle::new::<degree>(135.0 + 720.0)),  // 22
+            (1.0, Angle::new::<degree>(180.0 + 720.0)),  // 23
+            (1.0, Angle::new::<degree>(45.0 + 720.0)),   // 24
+            (1.0, Angle::new::<degree>(0.0 + 720.0)),    // 25
+            (1.0, Angle::new::<degree>(-90.0 + 720.0)),  // 26
+            (1.0, Angle::new::<degree>(-45.0 + 720.0)),  // 27
+            (1.0, Angle::new::<degree>(-0.0 + 720.0)),   // 28
+            (1.0, Angle::new::<degree>(-135.0 + 720.0)), // 29
+            (1.0, Angle::new::<degree>(-180.0 + 720.0)), // 30
+            (1.0, Angle::new::<degree>(0.0 - 720.0)),    // 31
+            (1.0, Angle::new::<degree>(45.0 - 720.0)),   // 32
+            (1.0, Angle::new::<degree>(90.0 - 720.0)),   // 33
+            (1.0, Angle::new::<degree>(-45.0 - 720.0)),  // 34
+            (1.0, Angle::new::<degree>(-90.0 - 720.0)),  // 35
+            (1.0, Angle::new::<degree>(90.0 - 720.0)),   // 36
+            (1.0, Angle::new::<degree>(135.0 - 720.0)),  // 37
+            (1.0, Angle::new::<degree>(180.0 - 720.0)),  // 38
+            (1.0, Angle::new::<degree>(45.0 - 720.0)),   // 39
+            (1.0, Angle::new::<degree>(0.0 - 720.0)),    // 40
+            (1.0, Angle::new::<degree>(-90.0 - 720.0)),  // 41
+            (1.0, Angle::new::<degree>(-45.0 - 720.0)),  // 42
+            (1.0, Angle::new::<degree>(-0.0 - 720.0)),   // 43
+            (1.0, Angle::new::<degree>(-135.0 - 720.0)), // 44
+            (1.0, Angle::new::<degree>(-180.0 - 720.0)), // 45
+            (-1.0, Angle::new::<degree>(90.0)),          // 46
+        ];
 
-    //     let mut results = Vec::new();
+        let mut results = Vec::new();
 
-    //     for input in inputs {
-    //         results.push(add_difs_to_setpoints(dif, measured, target));
-    //     }
+        for input in inputs {
+            results.push(add_difs_to_setpoints(input.0, input.1, input.2));
+        }
 
-    //     let mut i = 1.0;
-    //     for result in results.clone() {
-    //         println!("result {}: ({}, {})", i, result.0.get::<degree>(), result.1);
-    //         i += 1.0;
-    //     }
-    // }
+        let mut i = 1.0;
+        println!("      (speed, angle)");
+        for result in results.clone() {
+            println!("result {}: ({}, {})", i, result.0, result.1.get::<degree>());
+            i += 1.0;
+        }
+
+        for tuple in expected.iter().zip(results.iter()) {
+            assert_approx_eq!(f64, tuple.0.0, tuple.1.0);
+            assert_approx_eq!(f64, tuple.0.1.get::<degree>(), tuple.1.1.get::<degree>());
+        }
+    }
+
+    #[test]
+    fn abs_encoder_test() {
+        // abs_zero_position: Angle,
+        // abs_reading: Angle,
+        // target: Angle,
+        // current_angle: Angle,
+        let inputs = vec![(0.418, 0.669, 0.0, 0.052)];
+
+        let expected = vec![-0.198];
+
+        let mut results = Vec::new();
+
+        for input in inputs {
+            results.push(abs_offset(
+                Angle::new::<revolution>(input.0),
+                Angle::new::<revolution>(input.1),
+                Angle::new::<revolution>(input.2),
+                Angle::new::<revolution>(input.3),
+            ))
+        }
+
+        let mut i = 1;
+        for tuple in results.iter().zip(expected.iter()) {
+            println!("result {}: {}", i, tuple.0.get::<revolution>());
+            i += 1;
+            assert_approx_eq!(
+                f64,
+                tuple.1.clone(),
+                tuple.0.get::<revolution>(),
+                epsilon = 0.002
+            );
+        }
+    }
 }
