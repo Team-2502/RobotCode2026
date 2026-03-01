@@ -159,7 +159,7 @@ impl Drivetrain {
 
     /// Resets the gyro.
     pub fn reset_heading(&mut self) {
-        self.offset = self.limelight.get_yaw() + Angle::new::<degree>(180.);
+        self.offset = self.limelight.get_yaw();
     }
 
     /// Field-orientate input from the driverstation.
@@ -170,9 +170,9 @@ impl Drivetrain {
         //     "[DEBUG]: field_orient: yaw: {:?}",
         //     self.limelight.get_yaw()
         // );
-        let oriented = Rotation2::new(
-            self.limelight.get_yaw().get::<radian>() + self.offset.get::<radian>() + 180.,
-        ) * target_transformation;
+        let oriented =
+            Rotation2::new(-self.limelight.get_yaw().get::<radian>() + self.offset.get::<radian>())
+                * target_transformation;
         // println!("{}", oriented);
         oriented
     }
