@@ -179,7 +179,7 @@ impl Drivetrain {
     /// Optimizes the setpoints.
     /// For example, instead of turning to 135 degrees from 0 degrees, turn to -45 degrees and invert speed.
     /// Targets need to be -180 to 180 degs
-    pub fn optimize_setpoints(&self, targets: Vec<(f64, Angle)>) -> Vec<(f64, Angle)> {
+    pub fn optimize_targets(&self, targets: Vec<(f64, Angle)>) -> Vec<(f64, Angle)> {
         let mut measured = vec![
             Angle::new::<revolution>(self.fl_turn.get_position() / SWERVE_TURN_RATIO),
             Angle::new::<revolution>(self.bl_turn.get_position() / SWERVE_TURN_RATIO),
@@ -343,13 +343,13 @@ impl Drivetrain {
             false => vector![x, y],
         };
 
+        self.update_pose();
+
         let targets = self.kinematics.get_targets(target_transformation, rotation);
 
-        // for each in targets.clone() {
-        //     println!("angle: {}", each.1.get::<degree>());
-        // }
+        let optimized_targets = self.optimize_targets(targets);
 
-        self.set_speeds(targets);
+        self.set_speeds(optimized_targets);
     }
 
     /// #updates the localized cords using odo and vision
@@ -435,9 +435,9 @@ impl Drivetrain {
         self.angular_velocity = self.limelight.get_angular_velocity();
     }
 
-    // pub fn reset_heading(&mut self) {
-    //     self.offset = self.limelight.get_yaw();
-    // }
+    pub fn get_yaw(&self) -> Angle {
+        self.limelight.get_yaw() + self.offset
+    }
 }
 
 fn get_angle_difs(from: Angle, to: Angle) -> Angle {
@@ -904,7 +904,7 @@ mod drivetrain_tests {
                 Angle::new::<revolution>(input.0),
                 Angle::new::<revolution>(input.1),
                 Angle::new::<revolution>(input.2),
-                Angle::new::<revolution>(input.3),
+                //Angle::new::<revolution>(input.3),
             ))
         }
 

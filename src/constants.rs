@@ -64,21 +64,24 @@ pub mod robotmap {
         pub const INTAKE_UP_POSITION: f64 = 0.0;
 
         pub const INTAKE_IN_SPEED: f64 = 0.5;
-        pub const INTAKE_REVSERSE_SPEED: f64 = 0.5;
+        pub const INTAKE_REVSERSE_SPEED: f64 = -0.5;
         pub const HANDOFF_SPEED: f64 = 1.0;
     }
 }
 
 pub mod shooter {
     pub const GEAR_RATIO_HOOD: f64 = 0.0;
+    pub const MAX_FLYWHEEL_SPEED: f64 = 100.0;
+    pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 0.88;
 }
 
 pub mod turret {
     use nalgebra::Vector2;
 
-    pub const GEAR_RATIO: f64 = 29.5;
-    pub const TURRET_MAX: f64 = 80.0;
-    pub const TURRET_MIN: f64 = -80.0;
+    // 29.5
+    pub const GEAR_RATIO: f64 = 34.5;
+    pub const TURRET_MAX: f64 = 100.0;
+    pub const TURRET_MIN: f64 = -100.0;
     // meters
     pub const OFFSET: Vector2<f64> = Vector2::new(0.0, 0.0);
     pub const TOLERANCE: f64 = 0.001;
