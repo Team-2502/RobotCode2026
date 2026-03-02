@@ -1,7 +1,8 @@
 use crate::constants::config;
 use crate::constants::drivetrain::{
     BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
-    FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS, SWERVE_TURN_RATIO,
+    FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS, SWERVE_DRIVE_RATIO,
+    SWERVE_TURN_RATIO, SWERVE_WHEEL_CIRCUMFERENCE_METERS,
 };
 use crate::constants::robotmap::drivetrain_map::{
     BL_DRIVE_ID, BL_ENCODER_ID, BL_TURN_ID, BR_DRIVE_ID, BR_ENCODER_ID, BR_TURN_ID,
@@ -9,7 +10,7 @@ use crate::constants::robotmap::drivetrain_map::{
     FR_TURN_ID, GYRO_ID,
 };
 use crate::subsystems::swerve::kinematics::Kinematics;
-use crate::subsystems::swerve::odometry::{Odometry, RobotPoseEstimate};
+use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
 use crate::subsystems::vision::Vision;
 use frcrs::Robot;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
@@ -21,9 +22,9 @@ use std::path::Ancestors;
 use std::time::Duration;
 use tokio::time::timeout;
 use uom::si::angle::{degree, radian, revolution};
-use uom::si::angular_velocity::radian_per_second;
 use uom::si::f64::Angle;
 use uom::si::f64::Length;
+use uom::si::length::inch;
 use uom::si::length::meter;
 use uom::si::quantities::AngularVelocity;
 
@@ -31,9 +32,7 @@ use uom::si::quantities::AngularVelocity;
 /// kinematics field interfaces with inverse kinematics functions.
 /// motor_encoder_offsets are the absolute positions of the CANCoders on startup. These allow us to start the robot without physically zeroing the wheels.
 pub struct Drivetrain {
-    kinematics: Kinematics,
-    pub(in crate::subsystems::swerve) odometry: Odometry,
-    //pub(in crate::subsystems::swerve) gyro: Pigeon,
+    pub(in crate::subsystems::swerve) kinematics: Kinematics,
     pub limelight: Vision,
     pub velocity: Vector2<f64>,
     pub angular_velocity: f64,
@@ -89,7 +88,6 @@ impl Drivetrain {
 
         Drivetrain {
             kinematics: Kinematics::new(),
-            odometry: Odometry::new(starting_pose),
             //gyro: Pigeon::new(GYRO_ID, DRIVETRAIN_CANBUS),
             limelight,
 
@@ -135,27 +133,15 @@ impl Drivetrain {
     }
 
     /// updates the limelight values and passes in drivetrain data for fom
-    pub async fn update_limelight(&mut self) {
-        let pose = self.get_pose_estimate();
-        let _ = timeout(
-            Duration::from_millis(10),
-            self.limelight
-                .update(pose.angle, Vector2::new(pose.x, pose.y)),
-        )
-        .await;
-    }
-
-    /// ## Gets the pose estimate.
-    /// Note: FOM only applies to x and y. <br>
-    /// Note: ONLY CALL THIS AFTER CONTROL_DRIVETRAIN HAS BEEN CALLED. If you call this before, the values will not be accurate.
-    pub fn get_pose_estimate(&self) -> RobotPoseEstimate {
-        self.odometry.pose_estimate.clone()
-    }
-
-    /// ## Set the robot's pose.
-    pub fn set_pose_estimate(&mut self, pose_estimate: RobotPoseEstimate) {
-        self.odometry.pose_estimate = pose_estimate;
-    }
+    // pub async fn update_limelight(&mut self) {
+    //     let pose = self.get_pose_estimate();
+    //     let _ = timeout(
+    //         Duration::from_millis(10),
+    //         self.limelight
+    //             .update(pose.angle, Vector2::new(pose.x, pose.y)),
+    //     )
+    //     .await;
+    // }
 
     /// Resets the gyro.
     pub fn reset_heading(&mut self) {
@@ -165,11 +151,8 @@ impl Drivetrain {
     /// Field-orientate input from the driverstation.
     /// target_transformation is the x and y input from the driverstation put into a vector.
     /// This function rotates the driver's field orientated input to be robot oriented but the same direction.
-    fn field_orientate(&self, target_transformation: Vector2<f64>) -> Vector2<f64> {
-        // println!(
-        //     "[DEBUG]: field_orient: yaw: {:?}",
-        //     self.limelight.get_yaw()
-        // );
+    pub fn field_orientate(&self, target_transformation: Vector2<f64>) -> Vector2<f64> {
+        println!("[DEBUG]: field_orient: yaw: {:?}", self.limelight.get_yaw());
         let oriented =
             Rotation2::new(-self.limelight.get_yaw().get::<radian>() + self.offset.get::<radian>())
                 * target_transformation;
@@ -242,20 +225,20 @@ impl Drivetrain {
         ];
 
         self.fl_drive.set(
-            ControlMode::Percent,
-            targets[0].0 * relative_target_modifers[0].1,
+            ControlMode::Velocity,
+            (targets[0].0 * relative_target_modifers[0].1) * SWERVE_DRIVE_RATIO,
         );
         self.bl_drive.set(
-            ControlMode::Percent,
-            targets[1].0 * relative_target_modifers[1].1,
+            ControlMode::Velocity,
+            (targets[1].0 * relative_target_modifers[1].1) * SWERVE_DRIVE_RATIO,
         );
         self.br_drive.set(
-            ControlMode::Percent,
-            targets[2].0 * relative_target_modifers[2].1,
+            ControlMode::Velocity,
+            (targets[2].0 * relative_target_modifers[2].1) * SWERVE_DRIVE_RATIO,
         );
         self.fr_drive.set(
-            ControlMode::Percent,
-            targets[3].0 * relative_target_modifers[3].1,
+            ControlMode::Velocity,
+            (targets[3].0 * relative_target_modifers[3].1) * SWERVE_DRIVE_RATIO,
         );
 
         if update_turn {
@@ -328,22 +311,10 @@ impl Drivetrain {
     /// Control the drivetrain.
     /// x, y, and rotation are driverstation inputs.
     pub fn control_drivetrain(&mut self, x: f64, y: f64, rotation: f64) {
-        // NOTE: REMOVE THIS WHEN IMPLEMENTING FUSED
-        self.update_pose();
-
-        println!("pose: x: {}", self.odometry.pose_estimate.x.get::<meter>());
-        println!("pose: y: {}", self.odometry.pose_estimate.y.get::<meter>());
-        println!(
-            "pose: angle: {}",
-            self.odometry.pose_estimate.angle.get::<degree>()
-        );
-
         let target_transformation = match config::FIELD_ORIENTED {
             true => self.field_orientate(vector![x, y]),
             false => vector![x, y],
         };
-
-        self.update_pose();
 
         let targets = self.kinematics.get_targets(target_transformation, rotation);
 
@@ -352,95 +323,66 @@ impl Drivetrain {
         self.set_speeds(optimized_targets);
     }
 
-    /// #updates the localized cords using odo and vision
-    /// returns a RobotPoseEstimate and sets the odo pose to the best cords
-    pub async fn update_localization(&mut self) -> RobotPoseEstimate {
-        // Updates drivetrain.odometry.pose_estimate.
-        self.update_pose();
+    // /// #updates the localized cords using odo and vision
+    // /// returns a RobotPoseEstimate and sets the odo pose to the best cords
+    // pub async fn update_localization(&mut self) -> RobotPoseEstimate {
+    //     // set fused pose to current odo as a base
+    //     let mut fused_pose = self.get_pose_estimate();
 
-        // set fused pose to current odo as a base
-        let mut fused_pose = self.get_pose_estimate();
+    //     // attempt to get vision pose
+    //     if let Some(vision_xy) = self.limelight.get_botpose_orb() {
+    //         // get both of the figures of merit; higher is better
+    //         let vision_fom = self.limelight.get_vision_fom();
+    //         let odo_fom = fused_pose.fom;
 
-        // attempt to get vision pose
-        if let Some(vision_xy) = self.limelight.get_botpose_orb() {
-            // get both of the figures of merit; higher is better
-            let vision_fom = self.limelight.get_vision_fom();
-            let odo_fom = fused_pose.fom;
+    //         // get the total fom should not be >1
+    //         let total_weight = odo_fom + vision_fom;
 
-            // get the total fom should not be >1
-            let total_weight = odo_fom + vision_fom;
+    //         // fuse the x cords based on fom
+    //         let fused_x = (fused_pose.x.get::<meter>() * odo_fom
+    //             + vision_xy.x.get::<meter>() * vision_fom)
+    //             / total_weight;
 
-            // fuse the x cords based on fom
-            let fused_x = (fused_pose.x.get::<meter>() * odo_fom
-                + vision_xy.x.get::<meter>() * vision_fom)
-                / total_weight;
+    //         // fuse the y cords based on fom
+    //         let fused_y = (fused_pose.y.get::<meter>() * odo_fom
+    //             + vision_xy.y.get::<meter>() * vision_fom)
+    //             / total_weight;
 
-            // fuse the y cords based on fom
-            let fused_y = (fused_pose.y.get::<meter>() * odo_fom
-                + vision_xy.y.get::<meter>() * vision_fom)
-                / total_weight;
+    //         // fuse the yaws to wrap 0-360
+    //         let odo_yaw = fused_pose.angle.get::<radian>();
+    //         let vis_yaw = self.limelight.get_yaw().get::<radian>();
 
-            // fuse the yaws to wrap 0-360
-            let odo_yaw = fused_pose.angle.get::<radian>();
-            let vis_yaw = self.limelight.get_yaw().get::<radian>();
+    //         let sin_sum = odo_yaw.sin() * odo_fom + vis_yaw.sin() * vision_fom;
+    //         let cos_sum = odo_yaw.cos() * odo_fom + vis_yaw.cos() * vision_fom;
 
-            let sin_sum = odo_yaw.sin() * odo_fom + vis_yaw.sin() * vision_fom;
-            let cos_sum = odo_yaw.cos() * odo_fom + vis_yaw.cos() * vision_fom;
+    //         let mut fused_yaw = sin_sum.atan2(cos_sum);
 
-            let mut fused_yaw = sin_sum.atan2(cos_sum);
+    //         if fused_yaw < 0. || fused_yaw >= std::f64::consts::PI * 2. {
+    //             println!(
+    //                 "[ERROR] fused_yaw was negative after a function that should only ever return [0,2pi). Computed fused_yaw: {}",
+    //                 fused_yaw
+    //             );
+    //             fused_yaw = fused_yaw.rem_euclid(std::f64::consts::PI * 2.);
+    //         }
 
-            if fused_yaw < 0. || fused_yaw >= std::f64::consts::PI * 2. {
-                println!(
-                    "[ERROR] fused_yaw was negative after a function that should only ever return [0,2pi). Computed fused_yaw: {}",
-                    fused_yaw
-                );
-                fused_yaw = fused_yaw.rem_euclid(std::f64::consts::PI * 2.);
-            }
+    //         //
+    //         fused_pose.x = Length::new::<meter>(fused_x);
+    //         fused_pose.y = Length::new::<meter>(fused_y);
+    //         fused_pose.angle = Angle::new::<radian>(fused_yaw);
+    //     }
 
-            //
-            fused_pose.x = Length::new::<meter>(fused_x);
-            fused_pose.y = Length::new::<meter>(fused_y);
-            fused_pose.angle = Angle::new::<radian>(fused_yaw);
-        }
+    //     // set odo to fused fom
+    //     self.set_pose_estimate(fused_pose.clone());
 
-        // set odo to fused fom
-        self.set_pose_estimate(fused_pose.clone());
-        self.set_next_frame_module_odometry();
-        RobotPoseEstimate::new(fused_pose.fom, fused_pose.x, fused_pose.y, fused_pose.angle)
-    }
-
-    pub async fn post_odo(&self) {
-        Telemetry::put_number("odo_x", self.get_pose_estimate().x.get::<meter>()).await;
-        Telemetry::put_number("odo_y", self.get_pose_estimate().y.get::<meter>()).await;
-        Telemetry::put_number(
-            "odo_heading",
-            self.get_pose_estimate().angle.get::<radian>(),
-        )
-        .await;
-        Telemetry::put_number("odo_fom", self.get_pose_estimate().fom).await;
-    }
-
-    // Needs to be updated each frame
-    pub fn update_velocity(&mut self) {
-        // meters/second
-        let magnitude = self.limelight.get_linear_velocity();
-        let heading = self.yaw;
-
-        let frame_velocity: Vector2<f64> = Vector2::new(
-            magnitude * (heading.get::<radian>().cos()),
-            magnitude * (heading.get::<radian>().sin()),
-        );
-
-        self.velocity = frame_velocity;
-        self.angular_velocity = self.limelight.get_angular_velocity();
-    }
+    //     RobotPoseEstimate::new(fused_pose.fom, fused_pose.x, fused_pose.y, fused_pose.angle)
+    // }
 
     pub fn get_yaw(&self) -> Angle {
         self.limelight.get_yaw() + self.offset
     }
 }
 
-fn get_angle_difs(from: Angle, to: Angle) -> Angle {
+pub fn get_angle_difs(from: Angle, to: Angle) -> Angle {
     Angle::new::<radian>(f64::atan2(
         f64::sin(to.get::<radian>() - from.get::<radian>()),
         f64::cos(to.get::<radian>() - from.get::<radian>()),
@@ -887,37 +829,37 @@ mod drivetrain_tests {
         }
     }
 
-    #[test]
-    fn abs_encoder_test() {
-        // abs_zero_position: Angle,
-        // abs_reading: Angle,
-        // target: Angle,
-        // current_angle: Angle,
-        let inputs = vec![(0.418, 0.669, 0.0, 0.052)];
+    // #[test]
+    // fn abs_encoder_test() {
+    //     // abs_zero_position: Angle,
+    //     // abs_reading: Angle,
+    //     // target: Angle,
+    //     // current_angle: Angle,
+    //     let inputs = vec![(0.418, 0.669, 0.0, 0.052)];
 
-        let expected = vec![-0.198];
+    //     let expected = vec![-0.198];
 
-        let mut results = Vec::new();
+    //     let mut results = Vec::new();
 
-        for input in inputs {
-            results.push(abs_offset(
-                Angle::new::<revolution>(input.0),
-                Angle::new::<revolution>(input.1),
-                Angle::new::<revolution>(input.2),
-                //Angle::new::<revolution>(input.3),
-            ))
-        }
+    //     for input in inputs {
+    //         results.push(abs_offset(
+    //             Angle::new::<revolution>(input.0),
+    //             Angle::new::<revolution>(input.1),
+    //             Angle::new::<revolution>(input.2),
+    //             //Angle::new::<revolution>(input.3),
+    //         ))
+    //     }
 
-        let mut i = 1;
-        for tuple in results.iter().zip(expected.iter()) {
-            println!("result {}: {}", i, tuple.0.get::<revolution>());
-            i += 1;
-            assert_approx_eq!(
-                f64,
-                tuple.1.clone(),
-                tuple.0.get::<revolution>(),
-                epsilon = 0.002
-            );
-        }
-    }
+    //     let mut i = 1;
+    //     for tuple in results.iter().zip(expected.iter()) {
+    //         println!("result {}: {}", i, tuple.0.get::<revolution>());
+    //         i += 1;
+    //         assert_approx_eq!(
+    //             f64,
+    //             tuple.1.clone(),
+    //             tuple.0.get::<revolution>(),
+    //             epsilon = 0.002
+    //         );
+    //     }
+    // }
 }

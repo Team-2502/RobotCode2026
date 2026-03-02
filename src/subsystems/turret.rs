@@ -2,7 +2,7 @@ use crate::Controllers;
 use crate::constants::config::HUB;
 use crate::constants::robotmap::turret::SPIN_MOTOR_ID;
 use crate::constants::turret::{GEAR_RATIO, TURRET_MAX, TURRET_MIN};
-use crate::subsystems::swerve::odometry::RobotPoseEstimate;
+use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
 use frcrs::ctre::{ControlMode, Talon};
 use uom::si::angle::degree;
 use uom::si::f64::{Angle, Length};
@@ -84,11 +84,10 @@ impl Turret {
     }
 
     pub fn set_angle(&mut self, mut angle: f64) {
+        angle = self.apply_soft_stop(angle);
         let field_relative_angle = angle - self.drivetrain_angle.get::<degree>();
-        println!("{}", field_relative_angle);
-        let angle_new = self.apply_soft_stop(angle);
-        //println!("cool: {}", field_relative_angle);
-        self.move_to_angle(angle_new);
+        println!("cool: {}", field_relative_angle);
+        self.move_to_angle(field_relative_angle);
     }
 
     pub fn set_speed(&self, speed: f64) {
@@ -129,7 +128,7 @@ impl Turret {
         let angle = self.turret_angle.get::<degree>() + joystick;
         // println!("here: {}", angle);
         self.turret_angle = Angle::new::<degree>(angle);
-        self.set_angle(angle);
+        self.move_to_angle(self.apply_soft_stop(angle));
         // println!("moved? {}", self.apply_soft_stop(angle));
     }
 
@@ -149,7 +148,7 @@ pub fn get_angle_to_hub(pose: RobotPoseEstimate) -> Angle {
 
 #[cfg(test)]
 mod tests {
-    use crate::subsystems::swerve::odometry::RobotPoseEstimate;
+    use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
     use crate::subsystems::turret::get_angle_to_hub;
     use uom::si::angle::{degree, radian};
     use uom::si::f64::{Angle, Length};
