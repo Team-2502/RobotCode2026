@@ -133,11 +133,8 @@ pub mod drivetrain {
     pub const SWERVE_TURN_RATIO: f64 = 12.8;
     pub const SWERVE_DRIVE_RATIO: f64 = 6.12;
     pub const SWERVE_WHEEL_CIRCUMFERENCE_METERS: f64 = 0.364;
-    pub const ARC_ODOMETRY_MINIMUM_DELTA_ANGLE_RADIANS: f64 = 0.00001;
-    pub const ARC_ODOMETRY_FOM_DAMPENING: f64 = 0.02; // How much to distrust higher values for arc radius.
     pub const DRIVETRAIN_ERROR_THRESHOLD: f64 = 0.5;
 
-    // -2.537
     pub const FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.418212890625;
     pub const BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.575927734375;
     pub const BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.811767578125;

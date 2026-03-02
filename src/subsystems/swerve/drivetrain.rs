@@ -25,8 +25,8 @@ use tokio::time::timeout;
 use uom::si::angle::{degree, radian, revolution};
 use uom::si::f64::Angle;
 use uom::si::f64::Length;
-use uom::si::length::meter;
 use uom::si::length::{inch, mile};
+use uom::si::length::{meter, point_printers};
 use uom::si::quantities::AngularVelocity;
 
 /// Drivetrain struct.
@@ -159,7 +159,6 @@ impl Drivetrain {
     /// target_transformation is the x and y input from the driverstation put into a vector.
     /// This function rotates the driver's field orientated input to be robot oriented but the same direction.
     pub fn field_orientate(&self, target_transformation: Vector2<f64>) -> Vector2<f64> {
-        println!("[DEBUG]: field_orient: yaw: {:?}", self.limelight.get_yaw());
         let oriented =
             Rotation2::new(-self.limelight.get_yaw().get::<radian>() + self.offset.get::<radian>())
                 * target_transformation;
@@ -230,6 +229,11 @@ impl Drivetrain {
                 targets[3].1,
             )),
         ];
+
+        println!(
+            "set_speeds: fl_velocity: {}",
+            targets[0].0 * relative_target_modifers[0].1 * SWERVE_DRIVE_RATIO
+        );
 
         self.fl_drive.set(
             ControlMode::Velocity,

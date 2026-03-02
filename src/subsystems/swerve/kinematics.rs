@@ -8,6 +8,8 @@ use crate::constants::{
 use frcrs::networktables::SmartDashboard;
 use nalgebra::{Matrix1x3, SMatrix, Vector2, dmatrix, matrix};
 use std::f64::consts::PI;
+use std::time::Instant;
+use tokio::time::error::Elapsed;
 use uom::si::angle::degree;
 use uom::si::{angle::radian, f64::Angle, f64::Length, length::meter};
 
@@ -16,6 +18,7 @@ use uom::si::{angle::radian, f64::Angle, f64::Length, length::meter};
 pub struct Kinematics {
     ik_matrix: SMatrix<f64, 8, 3>,
     fk_matrix: SMatrix<f64, 3, 8>,
+    timer: Instant,
 }
 
 #[derive(Clone)]
@@ -71,16 +74,19 @@ impl Kinematics {
         Kinematics {
             ik_matrix,
             fk_matrix,
+            timer: Instant::now(),
         }
     }
 
     pub fn get_targets(&self, translation: Vector2<f64>, rot: f64) -> Vec<(f64, Angle)> {
+        // input unit: m/s
         let input_matrix: SMatrix<f64, 3, 1> = matrix![
             translation.x * MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND;
             translation.y * MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND;
             rot * MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND;
         ];
 
+        // in m/s
         let setpoint_matrix = self.ik_matrix.clone() * input_matrix;
 
         let mut setpoints = Vec::new();
@@ -117,13 +123,13 @@ impl Kinematics {
             setpoints_matrix[(2 * i + 1, 0)] = distance * f64::sin(angle);
         }
 
-        let translations = self.fk_matrix.clone() * setpoints_matrix;
+        let translations_matrix = self.fk_matrix.clone() * setpoints_matrix;
 
-        println!("{:?}", translations);
+        println!("{:?}", translations_matrix);
 
         let fom = self.get_targets(
-            Vector2::new(translations[(1, 1)], translations[(2, 1)]),
-            translations[(3, 1)],
+            Vector2::new(translations_matrix[(0, 0)], translations_matrix[(1, 0)]),
+            translations_matrix[(2, 0)],
         );
 
         let mut rmse = 0.0;
@@ -138,8 +144,22 @@ impl Kinematics {
 
         println!("rmse: {}", rmse);
 
+        let time_step_secs = self.timer.elapsed().as_secs() as f64;
+
+        let translation_vector_meters = Vector2::new(
+            translations_matrix[(0, 0)] * time_step_secs.clone(),
+            translations_matrix[(1, 0)] * time_step_secs.clone(),
+        );
+
+        let yaw_change = Angle::new::<radian>(translations_matrix[(2, 0)] * time_step_secs);
+
+        println!(
+            "translation: {:?}, yaw: {:?}",
+            translation_vector_meters, yaw_change
+        );
+
         RobotPoseEstimate {
-            fom: (rmse),
+            fom: (10.0),
             x: (Length::new::<meter>(1.0)),
             y: (Length::new::<meter>(1.0)),
             angle: (Angle::new::<radian>(1.0)),
@@ -157,7 +177,7 @@ mod kinematics_tests {
     #[test]
     fn throwaway() {
         let kinematics = Kinematics::new();
-        let results = kinematics.get_targets(Vector2::new(0.0, 0.0), 1.0);
+        let results = kinematics.get_targets(Vector2::new(1.0, 0.0), 1.0);
         for result in results.clone() {
             println!(
                 "ik: setpoint f64: {}, angle: {}",
