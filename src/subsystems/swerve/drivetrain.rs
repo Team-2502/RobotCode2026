@@ -145,7 +145,7 @@ impl Drivetrain {
 
     /// Resets the gyro.
     pub fn reset_heading(&mut self) {
-        self.offset = self.limelight.get_yaw();
+        self.offset = self.limelight.get_field_yaw() - self.limelight.get_yaw();
     }
 
     /// Field-orientate input from the driverstation.
@@ -311,6 +311,16 @@ impl Drivetrain {
     /// Control the drivetrain.
     /// x, y, and rotation are driverstation inputs.
     pub fn control_drivetrain(&mut self, x: f64, y: f64, rotation: f64) {
+        // NOTE: REMOVE THIS WHEN IMPLEMENTING FUSED
+        self.update_pose();
+
+        // println!("pose: x: {}", self.odometry.pose_estimate.x.get::<meter>());
+        // println!("pose: y: {}", self.odometry.pose_estimate.y.get::<meter>());
+        // println!(
+        //     "pose: angle: {}",
+        //     self.odometry.pose_estimate.angle.get::<degree>()
+        // );
+
         let target_transformation = match config::FIELD_ORIENTED {
             true => self.field_orientate(vector![x, y]),
             false => vector![x, y],
