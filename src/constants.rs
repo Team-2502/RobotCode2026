@@ -81,8 +81,10 @@ pub mod turret {
     // 29.5
     // 34.5
     pub const GEAR_RATIO: f64 = 34.5;
-    pub const TURRET_MAX: f64 = 80.0;
-    pub const TURRET_MIN: f64 = -80.0;
+    pub const TURRET_MAX: f64 = 180.0;
+    pub const TURRET_MIN: f64 = -180.0;
+    pub const TURRET_CLAMP: f64 = 4.0;
+
     // meters
     pub const OFFSET: Vector2<f64> = Vector2::new(0.0, 0.0);
     pub const TOLERANCE: f64 = 0.001;

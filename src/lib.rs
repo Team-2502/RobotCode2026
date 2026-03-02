@@ -159,12 +159,19 @@ pub async fn teleop(ferris: &mut Ferris) {
                     shooter
                         .turret
                         .set_angle(get_angle_to_hub(pose.clone()).get::<degree>());
+
+                    let distance_hub = Length::new::<meter>(distance(HUB, pose.clone()));
+
+                    let current_flywheel_speed = shooter.get_speed();
+                    shooter.set_velocity(get_turret_speed_target(distance_hub));
+                    shooter.set_hood(get_hood_angle_target(distance_hub, current_flywheel_speed));
                 }
                 TurretMode::Manual => {
                     shooter.turret.set_angle(0.);
                 }
                 TurretMode::Idle => {
                     shooter.turret.stop();
+                    shooter.stop();
                 }
                 TurretMode::Test => {
                     shooter
@@ -198,22 +205,22 @@ pub async fn teleop(ferris: &mut Ferris) {
             if let Ok(mut intake) = ferris.intake.try_borrow_mut() {
                 //shooter.set_shooter(ferris.controllers.operator.get_throttle());
                 //
-                if ferris.controllers.right_drive.get_throttle() >= 0.0
-                    && ferris.controllers.right_drive.get_throttle() >= 0.0
-                {
-                    let distance = Length::new::<meter>(
-                        ((ferris.controllers.right_drive.get_throttle() * 15.0) + 5.0) / 3.28084,
-                    );
+                // if ferris.controllers.right_drive.get_throttle() >= 0.0
+                //     && ferris.controllers.right_drive.get_throttle() >= 0.0
+                // {
+                //     let distance = Length::new::<meter>(
+                //         ((ferris.controllers.right_drive.get_throttle() * 15.0) + 5.0) / 3.28084,
+                //     );
 
-                    println!(
-                        "[DEBUG]: distance: {:.01}",
-                        distance.get::<meter>() * 3.28084
-                    );
+                //     println!(
+                //         "[DEBUG]: distance: {:.01}",
+                //         distance.get::<meter>() * 3.28084
+                //     );
 
-                    let current_flywheel_speed = shooter.get_speed();
-                    shooter.set_velocity(get_turret_speed_target(distance));
-                    shooter.set_hood(get_hood_angle_target(distance, current_flywheel_speed));
-                }
+                //     let current_flywheel_speed = shooter.get_speed();
+                //     shooter.set_velocity(get_turret_speed_target(distance));
+                //     shooter.set_hood(get_hood_angle_target(distance, current_flywheel_speed));
+                // }
                 // maybe zero maybe one i forogt what trigger is
                 // TODO: make toggle work (probably also a debouncer then...)
                 if ferris.controllers.operator.get(1) {

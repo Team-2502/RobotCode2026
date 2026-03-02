@@ -159,7 +159,7 @@ impl Drivetrain {
 
     /// Resets the gyro.
     pub fn reset_heading(&mut self) {
-        self.offset = self.limelight.get_yaw();
+        self.offset = self.limelight.get_field_yaw() - self.limelight.get_yaw();
     }
 
     /// Field-orientate input from the driverstation.
