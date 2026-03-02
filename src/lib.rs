@@ -3,7 +3,9 @@ use crate::constants::config::{HUB, MAX_ITER};
 use crate::constants::robotmap::intake::{HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
 use crate::constants::robotmap::shooter::HOOD_MAX;
 use crate::subsystems::intake::Intake;
-use crate::subsystems::shooter::{Shooter, ShootingTarget};
+use crate::subsystems::shooter::{
+    Shooter, ShootingTarget, get_hood_angle_target, get_turret_speed_target,
+};
 use crate::subsystems::swerve::drivetrain::Drivetrain;
 use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
 use crate::subsystems::turret::{TurretMode, get_angle_to_hub};
@@ -92,7 +94,7 @@ pub async fn teleop(ferris: &mut Ferris) {
     let deadzone_output_range = 0.0..1.0;
     let deadzone_input_range = 0.1..1.0;
     if let Ok(mut drivetrain) = ferris.drivetrain.try_borrow_mut() {
-        // drivetrain.update_limelight().await;
+        drivetrain.update_limelight().await;
         drivetrain.control_drivetrain(
             deadzone(
                 -ferris.controllers.left_drive.get_x(),

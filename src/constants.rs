@@ -1,4 +1,6 @@
 pub mod config {
+    use std::f64::consts::PI;
+
     use nalgebra::Vector2;
 
     /// Wheel-Wheel width of robot.
@@ -7,9 +9,9 @@ pub mod config {
     pub const WHEELBASE_LENGTH_METERS: f64 = 0.4953;
 
     pub const FIELD_ORIENTED: bool = true;
-    pub const MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND: f64 = 3.0;
+    pub const MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND: f64 = 6.0;
     pub const MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND: f64 = 16.3;
-    pub const MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND: f64 = 6.28;
+    pub const MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND: f64 = 2.0 * PI;
 
     pub const HALF_FIELD_WIDTH_METERS: f64 = 17.55 / 2.;
     pub const HALF_FIELD_LENGTH_METERS: f64 = 8.05 / 2.;

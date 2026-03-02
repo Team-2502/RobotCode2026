@@ -130,7 +130,7 @@ impl Turret {
         let angle = self.turret_angle.get::<degree>() + joystick;
         // println!("here: {}", angle);
         self.turret_angle = Angle::new::<degree>(angle);
-        self.move_to_angle(self.apply_soft_stop(angle));
+        self.move_to_angle(apply_soft_stop(angle));
         // println!("moved? {}", self.apply_soft_stop(angle));
     }
 

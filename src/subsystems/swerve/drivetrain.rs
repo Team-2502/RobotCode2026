@@ -16,6 +16,7 @@ use frcrs::Robot;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
 use frcrs::telemetry::Telemetry;
 use nalgebra::{Rotation2, Vector2, vector};
+use std::f64::NAN;
 use std::f64::consts::PI;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::Ancestors;
@@ -24,8 +25,8 @@ use tokio::time::timeout;
 use uom::si::angle::{degree, radian, revolution};
 use uom::si::f64::Angle;
 use uom::si::f64::Length;
-use uom::si::length::inch;
 use uom::si::length::meter;
+use uom::si::length::{inch, mile};
 use uom::si::quantities::AngularVelocity;
 
 /// Drivetrain struct.
@@ -133,15 +134,21 @@ impl Drivetrain {
     }
 
     /// updates the limelight values and passes in drivetrain data for fom
-    // pub async fn update_limelight(&mut self) {
-    //     let pose = self.get_pose_estimate();
-    //     let _ = timeout(
-    //         Duration::from_millis(10),
-    //         self.limelight
-    //             .update(pose.angle, Vector2::new(pose.x, pose.y)),
-    //     )
-    //     .await;
-    // }
+    pub async fn update_limelight(&mut self) {
+        // #TODO: REMOVE THIS AFTER ODO.GET_POSE DONE
+        let pose = RobotPoseEstimate {
+            fom: 0.0,
+            x: Length::new::<mile>(9999999999.0),
+            y: Length::new::<mile>(9999999999.0),
+            angle: Angle::new::<revolution>(9999999999.),
+        };
+        let _ = timeout(
+            Duration::from_millis(10),
+            self.limelight
+                .update(pose.angle, Vector2::new(pose.x, pose.y)),
+        )
+        .await;
+    }
 
     /// Resets the gyro.
     pub fn reset_heading(&mut self) {
@@ -311,9 +318,6 @@ impl Drivetrain {
     /// Control the drivetrain.
     /// x, y, and rotation are driverstation inputs.
     pub fn control_drivetrain(&mut self, x: f64, y: f64, rotation: f64) {
-        // NOTE: REMOVE THIS WHEN IMPLEMENTING FUSED
-        self.update_pose();
-
         // println!("pose: x: {}", self.odometry.pose_estimate.x.get::<meter>());
         // println!("pose: y: {}", self.odometry.pose_estimate.y.get::<meter>());
         // println!(
