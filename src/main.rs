@@ -1,6 +1,6 @@
 #![warn(non_snake_case)]
 
-use RobotCode2026::auto::auto::Auto;
+// use RobotCode2026::auto::auto::Auto;
 use RobotCode2026::subsystems::turret::TurretMode;
 use RobotCode2026::{Controllers, Ferris, teleop};
 use frcrs::input::RobotState;
@@ -41,7 +41,7 @@ fn main() {
         // println!("hello");
 
         // puts the auto chooser up on the telemetry server
-        Telemetry::put_selector("auto chooser", Auto::names()).await;
+        // Telemetry::put_selector("auto chooser", Auto::names()).await;
         Telemetry::put_selector("justice for cam :)", TurretMode::names()).await;
 
         // this line is used if we are using a usb camera and want to see its feed on shuffleboard
@@ -109,42 +109,42 @@ fn main() {
                 }
             }
 
-            if state.enabled() && state.auto() {
-                // Update dt before using it in auto
-                if let Ok(mut ferris_mut) = ferris.try_borrow_mut() {
-                    ferris_mut.dt = dt;
+            // if state.enabled() && state.auto() {
+            //     // Update dt before using it in auto
+            //     if let Ok(mut ferris_mut) = ferris.try_borrow_mut() {
+            //         ferris_mut.dt = dt;
 
-                    // Now access drivetrain
-                    if let Ok(mut drivetrain) = ferris_mut.drivetrain.try_borrow_mut() {
-                        drivetrain.update_limelight().await;
-                        drivetrain.update_localization().await;
-                    }
-                }
+            //         // Now access drivetrain
+            //         if let Ok(mut drivetrain) = ferris_mut.drivetrain.try_borrow_mut() {
+            //             drivetrain.update_limelight().await;
+            //             drivetrain.update_localization().await;
+            //         }
+            //     }
 
-                // start auto
-                if auto.is_none() {
-                    // create a ferris clone to use in auto
-                    let ferris_clone = Rc::clone(&ferris);
+            //     // start auto
+            //     if auto.is_none() {
+            //         // create a ferris clone to use in auto
+            //         let ferris_clone = Rc::clone(&ferris);
 
-                    // if an auto is chosen from telemetry run that
-                    if let Some(selected_auto) = Telemetry::get_selection("auto chooser").await {
-                        let chosen = Auto::from_dashboard(selected_auto.as_str());
+            //         // if an auto is chosen from telemetry run that
+            //         if let Some(selected_auto) = Telemetry::get_selection("auto chooser").await {
+            //             let chosen = Auto::from_dashboard(selected_auto.as_str());
 
-                        let run = Auto::run_auto(ferris_clone, chosen);
-                        auto = Some(local.spawn_local(run).abort_handle());
-                    } else {
-                        // if no auto is chosen run the default auto (nothing)
-                        eprintln!("Failed to get selected auto from telemetry, running default");
+            //             let run = Auto::run_auto(ferris_clone, chosen);
+            //             auto = Some(local.spawn_local(run).abort_handle());
+            //         } else {
+            //             // if no auto is chosen run the default auto (nothing)
+            //             eprintln!("Failed to get selected auto from telemetry, running default");
 
-                        let run = Auto::run_auto(ferris_clone, Auto::Nothing);
-                        auto = Some(local.spawn_local(run).abort_handle());
-                    }
-                }
-            } else if let Some(auto) = auto.take() {
-                // if auto is already running before it should abort it
-                println!("Aborted");
-                auto.abort();
-            }
+            //             let run = Auto::run_auto(ferris_clone, Auto::Nothing);
+            //             auto = Some(local.spawn_local(run).abort_handle());
+            //         }
+            //     }
+            // } else if let Some(auto) = auto.take() {
+            //     // if auto is already running before it should abort it
+            //     println!("Aborted");
+            //     auto.abort();
+            // }
 
             // post our loop rate to telemetry
             Telemetry::put_number("Loop Rate", 1. / dt.as_secs_f64()).await;

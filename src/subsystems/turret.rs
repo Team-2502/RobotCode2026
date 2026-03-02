@@ -2,7 +2,7 @@ use crate::Controllers;
 use crate::constants::config::HUB;
 use crate::constants::robotmap::turret::SPIN_MOTOR_ID;
 use crate::constants::turret::{GEAR_RATIO, TURRET_CLAMP, TURRET_MAX, TURRET_MIN};
-use crate::subsystems::swerve::odometry::RobotPoseEstimate;
+use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
 use frcrs::ctre::{ControlMode, Talon};
 use uom::si::angle::degree;
 use uom::si::f64::{Angle, Length};
@@ -130,7 +130,7 @@ impl Turret {
         let angle = self.turret_angle.get::<degree>() + joystick;
         // println!("here: {}", angle);
         self.turret_angle = Angle::new::<degree>(angle);
-        self.set_angle(angle);
+        self.move_to_angle(self.apply_soft_stop(angle));
         // println!("moved? {}", self.apply_soft_stop(angle));
     }
 
@@ -189,7 +189,7 @@ pub fn apply_soft_stop(desired_deg: f64) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use crate::subsystems::swerve::odometry::RobotPoseEstimate;
+    use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
     use crate::subsystems::turret::{apply_soft_stop, get_angle_to_hub};
     use uom::si::angle::{degree, radian};
     use uom::si::f64::{Angle, Length};
