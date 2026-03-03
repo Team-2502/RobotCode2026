@@ -130,7 +130,9 @@ pub async fn teleop(ferris: &mut Ferris) {
 
         // shooter logic here because it needs velocities and pose
         if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
-            shooter.turret.update_turret(drivetrain.limelight_side.get_yaw());
+            shooter
+                .turret
+                .update_turret(drivetrain.limelight_side.get_yaw());
             match ferris.turret_mode {
                 TurretMode::Track => {
                     // shooter
