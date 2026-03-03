@@ -94,8 +94,7 @@ pub async fn teleop(ferris: &mut Ferris) {
     let deadzone_output_range = 0.0..1.0;
     let deadzone_input_range = 0.1..1.0;
     if let Ok(mut drivetrain) = ferris.drivetrain.try_borrow_mut() {
-        drivetrain.update_limelight().await;
-        // drivetrain.update_localization().await;
+        // drivetrain.update_drivetrain().await;
         drivetrain.control_drivetrain(
             deadzone(
                 -ferris.controllers.left_drive.get_x(),

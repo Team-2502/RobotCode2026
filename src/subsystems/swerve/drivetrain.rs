@@ -9,25 +9,20 @@ use crate::constants::robotmap::drivetrain_map::{
     DRIVETRAIN_CANBUS, FL_DRIVE_ID, FL_ENCODER_ID, FL_TURN_ID, FR_DRIVE_ID, FR_ENCODER_ID,
     FR_TURN_ID, GYRO_ID,
 };
+use crate::subsystems::localization::Localization;
 use crate::subsystems::swerve::kinematics::Kinematics;
 use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
 use crate::subsystems::vision::Vision;
-use frcrs::Robot;
-use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
-use frcrs::telemetry::Telemetry;
+use frcrs::ctre::{CanCoder, ControlMode, Talon};
 use nalgebra::{Rotation2, Vector2, vector};
-use std::f64::NAN;
-use std::f64::consts::PI;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::path::Ancestors;
 use std::time::Duration;
+use tokio::task::LocalEnterGuard;
 use tokio::time::timeout;
 use uom::si::angle::{degree, radian, revolution};
 use uom::si::f64::Angle;
 use uom::si::f64::Length;
-use uom::si::length::{inch, mile};
-use uom::si::length::{meter, point_printers};
-use uom::si::quantities::AngularVelocity;
+use uom::si::length::mile;
 
 /// Drivetrain struct.
 /// kinematics field interfaces with inverse kinematics functions.
@@ -38,14 +33,14 @@ pub struct Drivetrain {
     pub limelight_front: Vision,
 
     pub(in crate::subsystems::swerve) kinematics: Kinematics,
+    localization: Localization,
+    last_modules: Vec<(f64, Angle)>,
 
     pub velocity: Vector2<f64>,
     pub angular_velocity: f64,
 
     pub yaw: Angle,
     pub offset: Angle,
-
-    motor_encoder_offsets: [Angle; 4],
 
     //pub(crate::subsystems::swerve) makes this pub to everything in crate::subsystems::swerve
     fl_encoder: CanCoder,
@@ -87,28 +82,19 @@ impl Drivetrain {
         let velocity = Vector2::new(0.0, 0.0);
         let angular_velocity = 0.0;
 
-        // .get_absolute returns the CANCoder's rotation from -1 to 1
-
-        let motor_encoder_offsets = [
-            Angle::new::<revolution>(fl_encoder.get_absolute()),
-            Angle::new::<revolution>(bl_encoder.get_absolute()),
-            Angle::new::<revolution>(br_encoder.get_absolute()),
-            Angle::new::<revolution>(fr_encoder.get_absolute()),
-        ];
-
         Drivetrain {
-            kinematics: Kinematics::new(),
-            //gyro: Pigeon::new(GYRO_ID, DRIVETRAIN_CANBUS),
             limelight_front,
             limelight_side,
+
+            kinematics: Kinematics::new(),
+            localization: Localization::new(),
+            last_modules: Vec::new(),
 
             velocity,
             angular_velocity,
 
             yaw: Angle::new::<degree>(0.0),
             offset: Angle::new::<degree>(0.0),
-
-            motor_encoder_offsets,
 
             fl_encoder,
             fl_drive: Talon::new(FL_DRIVE_ID, DRIVETRAIN_CANBUS),
@@ -144,7 +130,7 @@ impl Drivetrain {
     }
 
     /// updates the limelight values and passes in drivetrain data for fom
-    pub async fn update_limelight(&mut self) {
+    async fn update_limelight(&mut self) {
         // #TODO: REMOVE THIS AFTER ODO.GET_POSE DONE
         let pose = RobotPoseEstimate {
             fom: 0.0,
@@ -284,61 +270,11 @@ impl Drivetrain {
                     + relative_target_modifers[3].0.get::<revolution>() * SWERVE_TURN_RATIO,
             );
         }
-
-        // println!("[DEBUG]: set_speeds: input: {:?}", targets);
-        // set drive motor speeds based on targets
-        // println!("[DEBUG]: set_speeds: setting fl_drive to: {}", targets[0].0);
-        // println!("[DEBUG]: set_speeds: setting bl_drive to: {}", targets[1].0);
-        // println!("[DEBUG]: set_speeds: setting br_drive to: {}", targets[2].0);
-        // println!("[DEBUG]: set_speeds: setting fr_drive to: {}", targets[3].0);
-
-        // set turn motors based on targets
-        // println!(
-        //     "[DEBUG]: set_speeds: setting fl_turn to: {}",
-        //     (targets[0].1.get::<revolution>() + self.motor_encoder_offsets[0]) * SWERVE_TURN_RATIO
-        // );
-        // println!(
-        //     "[DEBUG]: set_speeds: setting bl_turn to: {}",
-        //     (targets[1].1.get::<revolution>() + self.motor_encoder_offsets[1]) * SWERVE_TURN_RATIO
-        // );
-        // println!(
-        //     "[DEBUG]: set_speeds: setting br_turn to: {}",
-        //     (targets[2].1.get::<revolution>() + self.motor_encoder_offsets[2]) * SWERVE_TURN_RATIO
-        // );
-        // println!(
-        //     "[DEBUG]: set_speeds: setting fr_turn to: {}",
-        //     (targets[3].1.get::<revolution>() + self.motor_encoder_offsets[3]) * SWERVE_TURN_RATIO
-        // );
-
-        // println!("constant offsets: {:?}", self.motor_encoder_offsets);
-        // println!(
-        //     "current frame abs encoder: fl: {}",
-        //     self.fl_encoder.get_absolute()
-        // );
-        // println!(
-        //     "current frame abs encoder: bl: {}",
-        //     self.bl_encoder.get_absolute()
-        // );
-        // println!(
-        //     "current frame abs encoder: br: {}",
-        //     self.br_encoder.get_absolute()
-        // );
-        // println!(
-        //     "current frame abs encoder: fr: {}",
-        //     self.fr_encoder.get_absolute()
-        // );
     }
 
     /// Control the drivetrain.
     /// x, y, and rotation are driverstation inputs.
     pub fn control_drivetrain(&mut self, x: f64, y: f64, rotation: f64) {
-        // println!("pose: x: {}", self.odometry.pose_estimate.x.get::<meter>());
-        // println!("pose: y: {}", self.odometry.pose_estimate.y.get::<meter>());
-        // println!(
-        //     "pose: angle: {}",
-        //     self.odometry.pose_estimate.angle.get::<degree>()
-        // );
-
         let target_transformation = match config::FIELD_ORIENTED {
             true => self.field_orientate(vector![x, y]),
             false => vector![x, y],
@@ -351,62 +287,83 @@ impl Drivetrain {
         self.set_speeds(optimized_targets);
     }
 
-    // /// #updates the localized cords using odo and vision
-    // /// returns a RobotPoseEstimate and sets the odo pose to the best cords
-    // pub async fn update_localization(&mut self) -> RobotPoseEstimate {
-    //     // set fused pose to current odo as a base
-    //     let mut fused_pose = self.get_pose_estimate();
-
-    //     // attempt to get vision pose
-    //     if let Some(vision_xy) = self.limelight.get_botpose_orb() {
-    //         // get both of the figures of merit; higher is better
-    //         let vision_fom = self.limelight.get_vision_fom();
-    //         let odo_fom = fused_pose.fom;
-
-    //         // get the total fom should not be >1
-    //         let total_weight = odo_fom + vision_fom;
-
-    //         // fuse the x cords based on fom
-    //         let fused_x = (fused_pose.x.get::<meter>() * odo_fom
-    //             + vision_xy.x.get::<meter>() * vision_fom)
-    //             / total_weight;
-
-    //         // fuse the y cords based on fom
-    //         let fused_y = (fused_pose.y.get::<meter>() * odo_fom
-    //             + vision_xy.y.get::<meter>() * vision_fom)
-    //             / total_weight;
-
-    //         // fuse the yaws to wrap 0-360
-    //         let odo_yaw = fused_pose.angle.get::<radian>();
-    //         let vis_yaw = self.limelight.get_yaw().get::<radian>();
-
-    //         let sin_sum = odo_yaw.sin() * odo_fom + vis_yaw.sin() * vision_fom;
-    //         let cos_sum = odo_yaw.cos() * odo_fom + vis_yaw.cos() * vision_fom;
-
-    //         let mut fused_yaw = sin_sum.atan2(cos_sum);
-
-    //         if fused_yaw < 0. || fused_yaw >= std::f64::consts::PI * 2. {
-    //             println!(
-    //                 "[ERROR] fused_yaw was negative after a function that should only ever return [0,2pi). Computed fused_yaw: {}",
-    //                 fused_yaw
-    //             );
-    //             fused_yaw = fused_yaw.rem_euclid(std::f64::consts::PI * 2.);
-    //         }
-
-    //         //
-    //         fused_pose.x = Length::new::<meter>(fused_x);
-    //         fused_pose.y = Length::new::<meter>(fused_y);
-    //         fused_pose.angle = Angle::new::<radian>(fused_yaw);
-    //     }
-
-    //     // set odo to fused fom
-    //     self.set_pose_estimate(fused_pose.clone());
-
-    //     RobotPoseEstimate::new(fused_pose.fom, fused_pose.x, fused_pose.y, fused_pose.angle)
-    // }
-
     pub fn get_yaw(&self) -> Angle {
         self.limelight_side.get_yaw() + self.offset
+    }
+
+    // TODO: finish this, all info should be accessed via drivetrain.localization.get_pose_estimate() at end
+    // - what are we passing into localization.update_pose()? -> ll info, idk where will is setting it up
+    // - what are we passing into localization.translation_from_odometry()? -> where/how are we making translation error?
+    //      > we have rmse from forward kinematics as error
+    // also I need to remember that there is no updating in lib as of rn
+    // - what are we passing into localization.update_yaw()?
+    // pub async fn update_drivetrain(&mut self) {
+    //     self.update_limelight().await;
+    //     let differences = self.get_module_differences();
+    //     let fk_pose = self.kinematics.forward_kinematics(differences);
+    // }
+
+    fn get_module_differences(&mut self) -> Vec<(f64, Angle)> {
+        if self.last_modules.is_empty() {
+            self.last_modules = vec![
+                (
+                    self.fl_drive.get_velocity(),
+                    Angle::new::<revolution>(self.fl_turn.get_position()),
+                ),
+                (
+                    self.bl_drive.get_velocity(),
+                    Angle::new::<revolution>(self.bl_turn.get_position()),
+                ),
+                (
+                    self.br_drive.get_velocity(),
+                    Angle::new::<revolution>(self.br_turn.get_position()),
+                ),
+                (
+                    self.fr_drive.get_velocity(),
+                    Angle::new::<revolution>(self.fr_turn.get_position()),
+                ),
+            ];
+        }
+
+        let measured = vec![
+            (
+                self.fl_drive.get_velocity(),
+                Angle::new::<revolution>(self.fl_turn.get_position()),
+            ),
+            (
+                self.bl_drive.get_velocity(),
+                Angle::new::<revolution>(self.bl_turn.get_position()),
+            ),
+            (
+                self.br_drive.get_velocity(),
+                Angle::new::<revolution>(self.br_turn.get_position()),
+            ),
+            (
+                self.fr_drive.get_velocity(),
+                Angle::new::<revolution>(self.fr_turn.get_position()),
+            ),
+        ];
+        let mut differences = vec![
+            (
+                measured[0].0 - self.last_modules[0].0,
+                get_angle_difs(measured[0].1, self.last_modules[0].1),
+            ),
+            (
+                measured[1].0 - self.last_modules[1].0,
+                get_angle_difs(measured[1].1, self.last_modules[1].1),
+            ),
+            (
+                measured[2].0 - self.last_modules[2].0,
+                get_angle_difs(measured[2].1, self.last_modules[2].1),
+            ),
+            (
+                measured[3].0 - self.last_modules[3].0,
+                get_angle_difs(measured[3].1, self.last_modules[3].1),
+            ),
+        ];
+        self.last_modules = measured;
+
+        differences
     }
 }
 

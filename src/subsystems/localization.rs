@@ -1,5 +1,3 @@
-use std::convert::identity;
-
 use nalgebra::{ComplexField, SMatrix, SVector, Vector2, matrix};
 use uom::si::angle::radian;
 use uom::si::f64::{Angle, Length};

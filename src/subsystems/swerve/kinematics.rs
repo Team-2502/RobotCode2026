@@ -113,6 +113,7 @@ impl Kinematics {
         setpoints
     }
 
+    /// Note: returned angle is a CHANGE
     pub fn forward_kinematics(&self, differences: Vec<(f64, Angle)>) -> RobotPoseEstimate {
         let mut setpoints_matrix: SMatrix<f64, 8, 1> = SMatrix::zeros();
         for i in 0..=3 {
@@ -159,34 +160,34 @@ impl Kinematics {
         );
 
         RobotPoseEstimate {
-            fom: (10.0),
-            x: (Length::new::<meter>(1.0)),
-            y: (Length::new::<meter>(1.0)),
-            angle: (Angle::new::<radian>(1.0)),
+            fom: rmse,
+            x: Length::new::<meter>(translation_vector_meters.x),
+            y: Length::new::<meter>(translation_vector_meters.y),
+            angle: yaw_change,
         }
     }
 }
 
-#[cfg(test)]
-mod kinematics_tests {
-    use uom::si::angle::degree;
+// #[cfg(test)]
+// mod kinematics_tests {
+//     use uom::si::angle::degree;
 
-    use super::*;
-    use crate::subsystems::swerve::kinematics::Kinematics;
+//     use super::*;
+//     use crate::subsystems::swerve::kinematics::Kinematics;
 
-    #[test]
-    fn throwaway() {
-        let kinematics = Kinematics::new();
-        let results = kinematics.get_targets(Vector2::new(1.0, 0.0), 1.0);
-        for result in results.clone() {
-            println!(
-                "ik: setpoint f64: {}, angle: {}",
-                result.0,
-                result.1.get::<degree>()
-            )
-        }
+//     #[test]
+//     fn throwaway() {
+//         let kinematics = Kinematics::new();
+//         let results = kinematics.get_targets(Vector2::new(1.0, 0.0), 1.0);
+//         for result in results.clone() {
+//             println!(
+//                 "ik: setpoint f64: {}, angle: {}",
+//                 result.0,
+//                 result.1.get::<degree>()
+//             )
+//         }
 
-        kinematics.forward_kinematics(results);
-        panic!()
-    }
-}
+//         kinematics.forward_kinematics(results);
+//         panic!()
+//     }
+// }
