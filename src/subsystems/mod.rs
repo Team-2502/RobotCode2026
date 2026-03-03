@@ -1,4 +1,5 @@
 pub mod intake;
+mod localization;
 pub mod shooter;
 pub mod swerve;
 pub mod turret;
