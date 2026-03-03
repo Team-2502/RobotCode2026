@@ -170,7 +170,7 @@ impl Drivetrain {
     /// This function rotates the driver's field orientated input to be robot oriented but the same direction.
     pub fn field_orientate(&self, target_transformation: Vector2<f64>) -> Vector2<f64> {
         let oriented =
-            Rotation2::new(-self.limelight.get_yaw().get::<radian>() + self.offset.get::<radian>())
+            Rotation2::new(-self.limelight_side.get_yaw().get::<radian>() + self.offset.get::<radian>())
                 * target_transformation;
         // println!("{}", oriented);
         oriented
