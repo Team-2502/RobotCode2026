@@ -305,6 +305,25 @@ impl Vision {
         Angle::new::<degree>(self.results.botpose_wpiblue[5])
     }
 
+    pub fn get_location_error(&self) -> Vector2<Length> {
+        Vector2::new(
+            Length::new::<meter>(self.results.stdev_mt1[0]),
+            Length::new::<meter>(self.results.stdev_mt1[1]),
+        )
+    }
+
+    pub fn has_tag(&self) -> bool {
+        if self.results.botpose_tagcount > 0 {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get_yaw_error(&self) -> Angle {
+        Angle::new::<degree>(self.results.stdev_mt1[5])
+    }
+
     // {"cameraQuat":{"w":0.6321377276274888,"x":0.774783983401699,"y":-0.004118024448506402,"z":-0.009732124577505519},"cid":9281,"cpu":75.11737060546875,"finalYaw":-1.0707001893496237,"finalimu":[-1.0707001893496237,0.5657632629803511,-11.573459341930416,-1.0707001893496237,-0.38499999046325684,-0.17499999701976776,-0.2800000011920929,-0.20276400446891785,-0.010003999806940556,0.9882000088691711],"fps":60.90412521362305,"hailoCount":1,"hailoPower":3.75,"hailoTemp":74.0,"hwType":6,"ignoreNT":0,"interfaceNeedsRefresh":0,"name":"","pipeImgCount":2,"pipelineIndex":0,"pipelineType":"pipe_fiducial","ram":34.567813873291016,"snapshotMode":0,"temp":71.05000305175781}
 
     // //radians per second
@@ -344,6 +363,8 @@ impl Vision {
             )
         }
     }
+
+    pub fn get_limelight_data(&self) {}
 }
 
 pub fn distance(p1: Vector2<f64>, p2: RobotPoseEstimate) -> f64 {

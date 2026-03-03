@@ -127,7 +127,7 @@ pub async fn teleop(ferris: &mut Ferris) {
         //Telemetry::put_number("justics for cam (i32 editon)", drivetrain.limelight.results.stdev_mt2[0]).await;
         //drivetrain.update_localization().await;
 
-        let pose = drivetrain.limelight.get_pose();
+        let pose = drivetrain.limelight_side.get_pose();
         // Telemetry::set_robot_pose(
         //     (
         //         pose.clone().x.get::<meter>() / 17.55,
@@ -138,7 +138,11 @@ pub async fn teleop(ferris: &mut Ferris) {
         // )
         // .await;
 
-        Telemetry::put_number("ll_yaw", drivetrain.limelight.get_yaw().get::<degree>()).await;
+        Telemetry::put_number(
+            "ll_yaw",
+            drivetrain.limelight_side.get_yaw().get::<degree>(),
+        )
+        .await;
 
         // shooter logic here because it needs velocities and pose
         if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {

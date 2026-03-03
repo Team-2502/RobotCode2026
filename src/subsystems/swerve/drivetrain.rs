@@ -34,7 +34,9 @@ pub struct Drivetrain {
     kinematics: Kinematics,
     pub(in crate::subsystems::swerve) odometry: Odometry,
     //pub(in crate::subsystems::swerve) gyro: Pigeon,
-    pub limelight: Vision,
+    pub limelight_side: Vision,
+    pub limelight_front: Vision,
+
     pub velocity: Vector2<f64>,
     pub angular_velocity: f64,
 
@@ -70,7 +72,12 @@ impl Drivetrain {
         let br_encoder = CanCoder::new(BR_ENCODER_ID, DRIVETRAIN_CANBUS);
         let fr_encoder = CanCoder::new(FR_ENCODER_ID, DRIVETRAIN_CANBUS);
 
-        let limelight = Vision::new(SocketAddr::new(
+        let limelight_front = Vision::new(SocketAddr::new(
+            IpAddr::V4(Ipv4Addr::new(10, 25, 2, 121)),
+            5807,
+        ));
+
+        let limelight_side = Vision::new(SocketAddr::new(
             IpAddr::V4(Ipv4Addr::new(10, 25, 2, 12)),
             5807,
         ));
@@ -91,7 +98,8 @@ impl Drivetrain {
             kinematics: Kinematics::new(),
             odometry: Odometry::new(starting_pose),
             //gyro: Pigeon::new(GYRO_ID, DRIVETRAIN_CANBUS),
-            limelight,
+            limelight_front,
+            limelight_side,
 
             velocity,
             angular_velocity,
@@ -139,7 +147,7 @@ impl Drivetrain {
         let pose = self.get_pose_estimate();
         let _ = timeout(
             Duration::from_millis(10),
-            self.limelight
+            self.limelight_side
                 .update(pose.angle, Vector2::new(pose.x, pose.y)),
         )
         .await;
@@ -159,7 +167,7 @@ impl Drivetrain {
 
     /// Resets the gyro.
     pub fn reset_heading(&mut self) {
-        self.offset = self.limelight.get_field_yaw() - self.limelight.get_yaw();
+        self.offset = self.limelight_side.get_field_yaw() - self.limelight_side.get_yaw();
     }
 
     /// Field-orientate input from the driverstation.
@@ -170,9 +178,9 @@ impl Drivetrain {
         //     "[DEBUG]: field_orient: yaw: {:?}",
         //     self.limelight.get_yaw()
         // );
-        let oriented =
-            Rotation2::new(-self.limelight.get_yaw().get::<radian>() + self.offset.get::<radian>())
-                * target_transformation;
+        let oriented = Rotation2::new(
+            -self.limelight_side.get_yaw().get::<radian>() + self.offset.get::<radian>(),
+        ) * target_transformation;
         // println!("{}", oriented);
         oriented
     }
@@ -362,9 +370,9 @@ impl Drivetrain {
         let mut fused_pose = self.get_pose_estimate();
 
         // attempt to get vision pose
-        if let Some(vision_xy) = self.limelight.get_botpose_orb() {
+        if let Some(vision_xy) = self.limelight_side.get_botpose_orb() {
             // get both of the figures of merit; higher is better
-            let vision_fom = self.limelight.get_vision_fom();
+            let vision_fom = self.limelight_side.get_vision_fom();
             let odo_fom = fused_pose.fom;
 
             // get the total fom should not be >1
@@ -382,7 +390,7 @@ impl Drivetrain {
 
             // fuse the yaws to wrap 0-360
             let odo_yaw = fused_pose.angle.get::<radian>();
-            let vis_yaw = self.limelight.get_yaw().get::<radian>();
+            let vis_yaw = self.limelight_side.get_yaw().get::<radian>();
 
             let sin_sum = odo_yaw.sin() * odo_fom + vis_yaw.sin() * vision_fom;
             let cos_sum = odo_yaw.cos() * odo_fom + vis_yaw.cos() * vision_fom;
@@ -423,7 +431,7 @@ impl Drivetrain {
     // Needs to be updated each frame
     pub fn update_velocity(&mut self) {
         // meters/second
-        let magnitude = self.limelight.get_linear_velocity();
+        let magnitude = self.limelight_side.get_linear_velocity();
         let heading = self.yaw;
 
         let frame_velocity: Vector2<f64> = Vector2::new(
@@ -436,7 +444,7 @@ impl Drivetrain {
     }
 
     pub fn get_yaw(&self) -> Angle {
-        self.limelight.get_yaw() + self.offset
+        self.limelight_side.get_yaw() + self.offset
     }
 }
 
