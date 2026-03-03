@@ -1,12 +1,18 @@
 pub mod config {
+    use std::f64::consts::PI;
+
     use nalgebra::Vector2;
 
     /// Wheel-Wheel width of robot.
-    pub const WHEELBASE_WIDTH_INCHES: f64 = 22.5;
+    pub const WHEELBASE_WIDTH_METERS: f64 = 0.5715;
     /// Wheel-Wheel length of robot.
-    pub const WHEELBASE_LENGTH_INCHES: f64 = 19.5;
+    pub const WHEELBASE_LENGTH_METERS: f64 = 0.4953;
 
     pub const FIELD_ORIENTED: bool = true;
+    pub const MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND: f64 = 6.0;
+    pub const MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND: f64 = 16.3;
+    pub const MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND: f64 = 2.0 * PI;
+
     pub const HALF_FIELD_WIDTH_METERS: f64 = 17.55 / 2.;
     pub const HALF_FIELD_LENGTH_METERS: f64 = 8.05 / 2.;
 
@@ -125,13 +131,10 @@ pub mod vision {
 
 pub mod drivetrain {
     pub const SWERVE_TURN_RATIO: f64 = 12.8;
-    pub const SWERVE_DRIVE_RATIO: f64 = 1.0 / 6.12;
-    pub const SWERVE_WHEEL_DIAMETER_INCHES: f64 = 4.0;
-    pub const ARC_ODOMETRY_MINIMUM_DELTA_ANGLE_RADIANS: f64 = 0.00001;
-    pub const ARC_ODOMETRY_FOM_DAMPENING: f64 = 0.02; // How much to distrust higher values for arc radius.
+    pub const SWERVE_DRIVE_RATIO: f64 = 6.12;
+    pub const SWERVE_WHEEL_CIRCUMFERENCE_METERS: f64 = 0.364;
     pub const DRIVETRAIN_ERROR_THRESHOLD: f64 = 0.5;
 
-    // -2.537
     pub const FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.418212890625;
     pub const BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.575927734375;
     pub const BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.811767578125;

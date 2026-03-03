@@ -8,7 +8,7 @@ use crate::constants::shooter::{
     GEAR_RATIO_HOOD, MAX_FLYWHEEL_SPEED, SHOOTER_DISTANCE_ERROR_SMUDGE,
 };
 use crate::constants::turret::{OFFSET, TOLERANCE};
-use crate::subsystems::swerve::odometry::RobotPoseEstimate;
+use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
 use crate::subsystems::turret::Turret;
 use frcrs::alliance_station;
 use frcrs::ctre::{ControlMode, Talon};
