@@ -33,8 +33,12 @@ use uom::si::quantities::AngularVelocity;
 /// kinematics field interfaces with inverse kinematics functions.
 /// motor_encoder_offsets are the absolute positions of the CANCoders on startup. These allow us to start the robot without physically zeroing the wheels.
 pub struct Drivetrain {
+    //pub(in crate::subsystems::swerve) gyro: Pigeon,
+    pub limelight_side: Vision,
+    pub limelight_front: Vision,
+
     pub(in crate::subsystems::swerve) kinematics: Kinematics,
-    pub limelight: Vision,
+
     pub velocity: Vector2<f64>,
     pub angular_velocity: f64,
 
@@ -70,7 +74,12 @@ impl Drivetrain {
         let br_encoder = CanCoder::new(BR_ENCODER_ID, DRIVETRAIN_CANBUS);
         let fr_encoder = CanCoder::new(FR_ENCODER_ID, DRIVETRAIN_CANBUS);
 
-        let limelight = Vision::new(SocketAddr::new(
+        let limelight_front = Vision::new(SocketAddr::new(
+            IpAddr::V4(Ipv4Addr::new(10, 25, 2, 121)),
+            5807,
+        ));
+
+        let limelight_side = Vision::new(SocketAddr::new(
             IpAddr::V4(Ipv4Addr::new(10, 25, 2, 12)),
             5807,
         ));
@@ -90,7 +99,8 @@ impl Drivetrain {
         Drivetrain {
             kinematics: Kinematics::new(),
             //gyro: Pigeon::new(GYRO_ID, DRIVETRAIN_CANBUS),
-            limelight,
+            limelight_front,
+            limelight_side,
 
             velocity,
             angular_velocity,
@@ -144,7 +154,7 @@ impl Drivetrain {
         };
         let _ = timeout(
             Duration::from_millis(10),
-            self.limelight
+            self.limelight_side
                 .update(pose.angle, Vector2::new(pose.x, pose.y)),
         )
         .await;
@@ -152,16 +162,16 @@ impl Drivetrain {
 
     /// Resets the gyro.
     pub fn reset_heading(&mut self) {
-        self.offset = self.limelight.get_field_yaw() - self.limelight.get_yaw();
+        self.offset = self.limelight_side.get_field_yaw() - self.limelight_side.get_yaw();
     }
 
     /// Field-orientate input from the driverstation.
     /// target_transformation is the x and y input from the driverstation put into a vector.
     /// This function rotates the driver's field orientated input to be robot oriented but the same direction.
     pub fn field_orientate(&self, target_transformation: Vector2<f64>) -> Vector2<f64> {
-        let oriented =
-            Rotation2::new(-self.limelight.get_yaw().get::<radian>() + self.offset.get::<radian>())
-                * target_transformation;
+        let oriented = Rotation2::new(
+            -self.limelight_side.get_yaw().get::<radian>() + self.offset.get::<radian>(),
+        ) * target_transformation;
         // println!("{}", oriented);
         oriented
     }
@@ -396,7 +406,7 @@ impl Drivetrain {
     // }
 
     pub fn get_yaw(&self) -> Angle {
-        self.limelight.get_yaw() + self.offset
+        self.limelight_side.get_yaw() + self.offset
     }
 }
 

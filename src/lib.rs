@@ -117,7 +117,7 @@ pub async fn teleop(ferris: &mut Ferris) {
             drivetrain.reset_heading();
         }
 
-        let pose = drivetrain.limelight.get_pose();
+        let pose = drivetrain.limelight_side.get_pose();
         Telemetry::set_robot_pose(
             (
                 pose.clone().x.get::<meter>() / 17.55,
@@ -130,7 +130,9 @@ pub async fn teleop(ferris: &mut Ferris) {
 
         // shooter logic here because it needs velocities and pose
         if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
-            shooter.turret.update_turret(drivetrain.limelight.get_yaw());
+            shooter
+                .turret
+                .update_turret(drivetrain.limelight_side.get_yaw());
             match ferris.turret_mode {
                 TurretMode::Track => {
                     // shooter
