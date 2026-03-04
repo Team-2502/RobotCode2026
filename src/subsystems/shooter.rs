@@ -2,10 +2,10 @@ use crate::constants::config::{
     HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS, HUB, PASS_LEFT, PASS_RIGHT,
 };
 use crate::constants::robotmap::shooter::{
-    HOOD_MOTOR_ID, SHOOTER_MOTOR_LEFT_ID, SHOOTER_MOTOR_RIGHT_ID, SHOOTER_SPEED,
+    HOOD_MOTOR_ID, SHOOTER_MOTOR_LEFT_ID, SHOOTER_MOTOR_RIGHT_ID,
 };
 use crate::constants::shooter::{
-    GEAR_RATIO_HOOD, MAX_FLYWHEEL_SPEED, SHOOTER_DISTANCE_ERROR_SMUDGE,
+    MAX_FLYWHEEL_SPEED, SHOOTER_DISTANCE_ERROR_SMUDGE,
 };
 use crate::constants::turret::{OFFSET, TOLERANCE};
 use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
@@ -15,7 +15,6 @@ use frcrs::ctre::{ControlMode, Talon};
 use frcrs::telemetry::Telemetry;
 use nalgebra::Vector2;
 use uom::si::angle::radian;
-use uom::si::angular_velocity::radian_per_second;
 use uom::si::f64::Length;
 use uom::si::length::meter;
 
@@ -242,8 +241,6 @@ impl Shooter {
     // }
 
     pub fn set_hood(&mut self, angle: f64) {
-        let target_rot = angle / 360.0 * GEAR_RATIO_HOOD;
-
         self.hood_motor.set(ControlMode::Position, angle);
     }
 
@@ -425,7 +422,7 @@ pub fn flip(target: Vector2<f64>) -> Vector2<f64> {
 pub fn get_turret_speed_target(distance: Length) -> f64 {
     let distance_feet: f64 =
         distance.get::<meter>() as f64 * 3.28084 * SHOOTER_DISTANCE_ERROR_SMUDGE;
-    let mut target =
+    let target =
         (0.0652772 * (distance_feet * distance_feet)) + (0.954121 * distance_feet) + 38.92606;
 
     target.clamp(0.0, MAX_FLYWHEEL_SPEED)

@@ -1,7 +1,8 @@
 use crate::constants::vision;
+use crate::subsystems::swerve::drivetrain::get_angle_difs;
 use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
 use frcrs::limelight::{Limelight, LimelightResults, LimelightStatus};
-use nalgebra::{Quaternion, Rotation2, Vector2, Vector3};
+use nalgebra::{Quaternion, Vector2, Vector3};
 use serde_json::Value;
 use std::fs::File;
 use std::net::SocketAddr;
@@ -12,12 +13,6 @@ use uom::si::{
     f64::{Angle, Length},
     length::meter,
 };
-
-use crate::constants::vision::{
-    LIMELIGHT_BASE_FOM, LIMELIGHT_INACCURACY_PER_ANGULAR_VELOCITY,
-    LIMELIGHT_INACCURACY_PER_LINEAR_VELOCITY,
-};
-use tokio::time::Instant;
 
 #[derive(Clone)]
 /// The vision struct containing
@@ -34,11 +29,8 @@ pub struct Vision {
     last_results: LimelightResults,
     pub status: LimelightStatus,
     saved_id: i32,
-    drivetrain_angle: Angle,
-    last_drivetrain_angle: Angle,
-    last_update_time: Instant,
-    robot_position: Vector2<Length>,
-    last_robot_position: Vector2<Length>,
+    gyro_offset: Angle,
+    pub gyro_offset_set: bool,
 }
 
 /// the field position
@@ -62,20 +54,15 @@ impl Vision {
             last_results: LimelightResults::default(),
             status: LimelightStatus::default(),
             saved_id: 0,
-            drivetrain_angle: Angle::new::<degree>(0.),
-            last_drivetrain_angle: Angle::new::<degree>(0.),
-            last_update_time: Instant::now(),
-            robot_position: Vector2::new(Length::new::<meter>(0.), Length::new::<meter>(0.)),
-            last_robot_position: Vector2::new(Length::new::<meter>(0.), Length::new::<meter>(0.)),
+            gyro_offset: Angle::new::<degree>(0.0),
+            gyro_offset_set: false,
         }
     }
     /// Updates the results from the limelight
     ///
     /// returns nothing, but updates vision struct values
-    pub async fn update(&mut self, drivetrain_angle: Angle, robot_position: Vector2<Length>) {
+    pub async fn update(&mut self) {
         self.last_results = self.results.clone();
-        self.last_robot_position = self.robot_position;
-        self.robot_position = robot_position;
 
         let status = self.limelight.status().await;
         if let Ok(s) = status {
@@ -94,15 +81,21 @@ impl Vision {
             println!("status: {:?}", response);
         }
 
-        self.last_drivetrain_angle = self.drivetrain_angle;
-        self.drivetrain_angle = drivetrain_angle;
-        self.last_update_time = Instant::now();
-
         if !self.results.Fiducial.is_empty()
             && self.results.Fiducial[0].fID != -1
             && self.results.Fiducial[0].fID != self.saved_id
         {
             self.saved_id = self.results.Fiducial[0].fID;
+        }
+
+        if self.get_botpose_orb().is_some() {
+            let current_offset = self.get_field_yaw() - self.get_raw_yaw();
+            if self.gyro_offset_set {
+                self.gyro_offset += 0.5 * get_angle_difs(self.gyro_offset, current_offset)
+            } else {
+                self.gyro_offset = current_offset;
+                self.gyro_offset_set = true;
+            }
         }
     }
 
@@ -211,44 +204,6 @@ impl Vision {
         }
     }
 
-    /// estimates robot position (always blue origin) given a drivetrain angle (CCW+) and last updates' limelight measurements
-    /// uses 2D calculations: distance from tag center & angle to tag center
-    ///
-    /// returns Option::None if no tag is currently targeted
-    pub fn get_position_from_tag_2d(&self) -> Option<Vector2<Length>> {
-        let id = self.get_id();
-        let dist = self.get_dist()?;
-
-        let drivetrain_angle = self.drivetrain_angle;
-
-        let tag_data = self.get_tag_position(id)?;
-        let tag_xy = Vector2::new(tag_data.coordinate?.x, tag_data.coordinate?.y);
-
-        let angle_to_tag: Angle = (drivetrain_angle)
-            + Angle::new::<degree>(vision::LIMELIGHT_YAW_DEGREES)
-            - self.get_tx();
-
-        let limelight_to_tag: Vector2<Length> = Vector2::new(
-            dist * f64::cos(angle_to_tag.get::<radian>()),
-            dist * f64::sin(angle_to_tag.get::<radian>()),
-        );
-
-        let robot_center_to_limelight_unrotated_inches: Vector2<f64> = Vector2::new(
-            vision::ROBOT_CENTER_TO_LIMELIGHT_INCHES.x,
-            vision::ROBOT_CENTER_TO_LIMELIGHT_INCHES.y,
-        );
-
-        let drivetrain_angle_rotation = Rotation2::new(drivetrain_angle.get::<radian>());
-        let robot_to_limelight_inches =
-            drivetrain_angle_rotation * robot_center_to_limelight_unrotated_inches;
-        let robot_to_limelight: Vector2<Length> = Vector2::new(
-            Length::new::<inch>(robot_to_limelight_inches.x),
-            Length::new::<inch>(robot_to_limelight_inches.y),
-        );
-
-        Some(tag_xy - limelight_to_tag - robot_to_limelight)
-    }
-
     /// Returns the botpose: x, y
     pub fn get_botpose_orb(&self) -> Option<Vector2<Length>> {
         let pose: Vector2<Length> = Vector2::new(
@@ -262,41 +217,17 @@ impl Vision {
         }
     }
 
-    /// gets the fom of the limelight returns it as a f64 the higher the more confident
-    pub fn get_vision_fom(&self) -> f64 {
-        let dt = Instant::now() - self.last_update_time;
+    /// returns the yaw in degrees
+    pub fn get_yaw(&self) -> Option<Angle> {
+        if !self.gyro_offset_set {
+            return None;
+        }
 
-        // get the angular drift as the drivetrain moves
-        let angular_velocity_rad_per_sec = (self.drivetrain_angle.get::<radian>()
-            - self.last_drivetrain_angle.get::<radian>())
-            / dt.as_secs_f64();
-
-        // get the movement of the robot since the last frame
-        let robot_position_meters: Vector2<f64> = Vector2::new(
-            self.robot_position.x.get::<meter>(),
-            self.robot_position.y.get::<meter>(),
-        );
-        let last_robot_position_meters: Vector2<f64> = Vector2::new(
-            self.last_robot_position.x.get::<meter>(),
-            self.last_robot_position.y.get::<meter>(),
-        );
-
-        // get the linear velocity of the robot
-        let linear_velocity_meters_per_sec =
-            (robot_position_meters - last_robot_position_meters).magnitude() / dt.as_secs_f64();
-
-        // total uncertainty the higher the more expected error
-        let uncertainty = LIMELIGHT_INACCURACY_PER_ANGULAR_VELOCITY
-            * angular_velocity_rad_per_sec.abs()
-            + LIMELIGHT_INACCURACY_PER_LINEAR_VELOCITY * linear_velocity_meters_per_sec.abs()
-            + LIMELIGHT_BASE_FOM;
-
-        // steal dampening from odo fom and make higher is better to match them up and clamp it to be 0 - 1
-        1.0 / (uncertainty + 1.0).clamp(0.0, 1.0)
+        let yaw_deg = self.status.finalYaw + self.gyro_offset.get::<degree>();
+        Some(Angle::new::<degree>(yaw_deg))
     }
 
-    /// returns the yaw in degrees
-    pub fn get_yaw(&self) -> Angle {
+    pub fn get_raw_yaw(&self) -> Angle {
         let yaw_deg = self.status.finalYaw;
         Angle::new::<degree>(yaw_deg)
     }
@@ -330,39 +261,6 @@ impl Vision {
     // pub fn get_angular_velocity(&self) -> f64 {
     //     self.results.imu.unwrap_or([0.0; 10])[6]
     // }
-
-    pub fn get_linear_velocity(&self) -> f64 {
-        let dt = (Instant::now() - self.last_update_time).as_secs_f64();
-
-        let current_pos = Vector2::new(
-            self.robot_position.x.get::<meter>(),
-            self.robot_position.y.get::<meter>(),
-        );
-        let last_pos = Vector2::new(
-            self.last_robot_position.x.get::<meter>(),
-            self.last_robot_position.y.get::<meter>(),
-        );
-
-        (current_pos - last_pos).magnitude() / dt
-    }
-
-    pub fn get_pose(&self) -> RobotPoseEstimate {
-        if let Some(pose) = self.get_botpose_orb() {
-            RobotPoseEstimate {
-                fom: 1.0,
-                x: self.get_botpose_orb().unwrap().x,
-                y: self.get_botpose_orb().unwrap().y,
-                angle: self.get_yaw(),
-            }
-        } else {
-            RobotPoseEstimate::new(
-                0.,
-                Length::new::<meter>(0.),
-                Length::new::<meter>(0.),
-                Angle::new::<radian>(0.),
-            )
-        }
-    }
 
     pub fn get_limelight_data(&self) {}
 }

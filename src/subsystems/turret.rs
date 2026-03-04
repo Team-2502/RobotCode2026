@@ -1,11 +1,10 @@
-use crate::Controllers;
 use crate::constants::config::HUB;
 use crate::constants::robotmap::turret::SPIN_MOTOR_ID;
 use crate::constants::turret::{GEAR_RATIO, TURRET_CLAMP, TURRET_MAX, TURRET_MIN};
 use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
 use frcrs::ctre::{ControlMode, Talon};
 use uom::si::angle::degree;
-use uom::si::f64::{Angle, Length};
+use uom::si::f64::Angle;
 use uom::si::length::meter;
 
 #[derive(PartialEq, Clone)]
@@ -32,7 +31,6 @@ impl TurretMode {
             TurretMode::Manual => "man",
             TurretMode::Track => "track",
             TurretMode::Test => "test",
-            _ => "none",
         }
     }
 

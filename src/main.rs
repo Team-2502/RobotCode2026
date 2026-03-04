@@ -2,7 +2,7 @@
 
 // use RobotCode2026::auto::auto::Auto;
 use RobotCode2026::subsystems::turret::TurretMode;
-use RobotCode2026::{Controllers, Ferris, teleop};
+use RobotCode2026::{Ferris, teleop};
 use frcrs::input::RobotState;
 use frcrs::networktables::NetworkTable;
 use frcrs::telemetry::Telemetry;
@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
 use tokio::task;
-use tokio::task::{AbortHandle, spawn_local};
+use tokio::task::spawn_local;
 use tokio::time::sleep;
 use tokio::time::{Duration, Instant};
 
@@ -22,7 +22,7 @@ fn main() {
     let local = task::LocalSet::new();
 
     // we create our ferris here
-    let mut ferris = Rc::new(RefCell::new(Ferris::new()));
+    let ferris = Rc::new(RefCell::new(Ferris::new()));
 
     runtime.block_on(local.run_until(async {
         // we check to make sure hal is initialized if not we panic
@@ -51,7 +51,7 @@ fn main() {
         let mut last_loop = Instant::now();
 
         // initialize the auto handle
-        let mut auto: Option<AbortHandle> = None;
+        // let mut auto: Option<AbortHandle> = None;
 
         // Watchdog setup
         let last_loop_time = Arc::new(AtomicU64::new(0));

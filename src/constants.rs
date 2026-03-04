@@ -9,8 +9,8 @@ pub mod config {
     pub const WHEELBASE_LENGTH_METERS: f64 = 0.4953;
 
     pub const FIELD_ORIENTED: bool = true;
-    pub const MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND: f64 = 6.0;
     pub const MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND: f64 = 16.3;
+    pub const MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND: f64 = 6.0;
     pub const MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND: f64 = 2.0 * PI;
 
     pub const HALF_FIELD_WIDTH_METERS: f64 = 17.55 / 2.;
@@ -25,7 +25,7 @@ pub mod config {
 
 pub mod robotmap {
     pub mod drivetrain_map {
-        pub const GYRO_ID: i32 = 0;
+        pub const GYRO_ID: i32 = 23;
         pub const DRIVETRAIN_CANBUS: Option<String> = None;
 
         pub const FL_ENCODER_ID: i32 = 1;
@@ -133,7 +133,8 @@ pub mod drivetrain {
     pub const SWERVE_TURN_RATIO: f64 = 12.8;
     pub const SWERVE_DRIVE_RATIO: f64 = 6.12;
     pub const SWERVE_WHEEL_CIRCUMFERENCE_METERS: f64 = 0.364;
-    pub const DRIVETRAIN_ERROR_THRESHOLD: f64 = 0.5;
+
+    pub const WHEEL_ENCODER_STD_DEV: f64 = 0.0005;
 
     pub const FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.418212890625;
     pub const BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.575927734375;

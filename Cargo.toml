@@ -1,3 +1,4 @@
+#[allow(non_snake_case)]
 [package]
 name = "RobotCode2026"
 version = "0.1.0"

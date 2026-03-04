@@ -1,4 +1,4 @@
-use nalgebra::{ComplexField, SMatrix, SVector, Vector2, matrix};
+use nalgebra::{SMatrix, SVector, Vector2, matrix};
 use uom::si::angle::radian;
 use uom::si::f64::{Angle, Length};
 use uom::si::length::meter;
@@ -58,7 +58,7 @@ impl Localization {
         robot_translation_error: Vector2<f64>,
         yaw_error: f64,
     ) {
-        let mut pose_shift: SMatrix<f64, 3, 1> = matrix![
+        let pose_shift: SMatrix<f64, 3, 1> = matrix![
             robot_translation.x;
             robot_translation.y;
             yaw_change.get::<radian>();
@@ -102,7 +102,7 @@ impl Localization {
         self.update_measurement(measurement, state_to_measurement, measurement_confidence, 0);
     }
 
-    pub fn update_pose(
+    pub fn update_pose_from_limelight(
         &mut self,
         robot_pose: Vector2<Length>,
         new_yaw: Angle,
@@ -112,7 +112,7 @@ impl Localization {
         let measurement: SMatrix<f64, 3, 1> = matrix![
             robot_pose.x.get::<meter>();
             robot_pose.y.get::<meter>();
-            yaw_error.get::<radian>();
+            new_yaw.get::<radian>();
         ];
 
         let state_to_measurement = SMatrix::<f64, 3, 3>::identity();

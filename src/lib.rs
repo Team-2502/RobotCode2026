@@ -1,5 +1,5 @@
 // use crate::auto::path::drive;
-use crate::constants::config::{HUB, MAX_ITER};
+use crate::constants::config::HUB;
 use crate::constants::robotmap::intake::{HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
 use crate::constants::robotmap::shooter::HOOD_MAX;
 use crate::subsystems::intake::Intake;
@@ -94,7 +94,7 @@ pub async fn teleop(ferris: &mut Ferris) {
     let deadzone_output_range = 0.0..1.0;
     let deadzone_input_range = 0.1..1.0;
     if let Ok(mut drivetrain) = ferris.drivetrain.try_borrow_mut() {
-        // drivetrain.update_drivetrain().await;
+        drivetrain.update_pose().await;
         drivetrain.control_drivetrain(
             deadzone(
                 -ferris.controllers.left_drive.get_x(),
@@ -116,12 +116,12 @@ pub async fn teleop(ferris: &mut Ferris) {
             drivetrain.reset_heading();
         }
 
-        let pose = drivetrain.limelight_side.get_pose();
+        let (pose, yaw, _, _) = drivetrain.localization.get_state();
         Telemetry::set_robot_pose(
             (
-                pose.clone().x.get::<meter>() / 17.55,
-                pose.clone().y.get::<meter>() / 8.05,
-                pose.clone().angle.get::<degree>(),
+                pose.x.get::<meter>() / 17.55,
+                pose.y.get::<meter>() / 8.05,
+                yaw.get::<degree>(),
             ),
             alliance_station().red(),
         )
@@ -129,9 +129,14 @@ pub async fn teleop(ferris: &mut Ferris) {
 
         // shooter logic here because it needs velocities and pose
         if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
-            shooter
-                .turret
-                .update_turret(drivetrain.limelight_side.get_yaw());
+            let (pose, yaw, _, _) = drivetrain.localization.get_state();
+            let robot_pose = RobotPoseEstimate {
+                fom: 0.0,
+                x: pose.x,
+                y: pose.y,
+                angle: yaw,
+            };
+            shooter.turret.update_turret(yaw);
             match ferris.turret_mode {
                 TurretMode::Track => {
                     // shooter
@@ -146,9 +151,9 @@ pub async fn teleop(ferris: &mut Ferris) {
 
                     shooter
                         .turret
-                        .set_angle(get_angle_to_hub(pose.clone()).get::<degree>());
+                        .set_angle(get_angle_to_hub(robot_pose.clone()).get::<degree>());
 
-                    let distance_hub = Length::new::<meter>(distance(HUB, pose.clone()));
+                    let distance_hub = Length::new::<meter>(distance(HUB, robot_pose.clone()));
 
                     let current_flywheel_speed = shooter.get_speed();
                     shooter.set_velocity(get_turret_speed_target(distance_hub));
@@ -185,13 +190,13 @@ pub async fn teleop(ferris: &mut Ferris) {
 
             // println!("avg: {}", ferris.avg);
 
-            let hub_distance = distance(HUB, pose.clone());
+            let hub_distance = distance(HUB, robot_pose.clone());
             Telemetry::put_number("da hub", hub_distance).await;
-            Telemetry::put_number("ll_X", pose.clone().x.get::<meter>()).await;
-            Telemetry::put_number("ll_Y", pose.clone().y.get::<meter>()).await;
-            Telemetry::put_number("ll_YAW", pose.clone().angle.get::<degree>()).await;
+            Telemetry::put_number("ll_X", pose.x.get::<meter>()).await;
+            Telemetry::put_number("ll_Y", pose.y.get::<meter>()).await;
+            Telemetry::put_number("ll_YAW", yaw.get::<degree>()).await;
 
-            if let Ok(mut intake) = ferris.intake.try_borrow_mut() {
+            if let Ok(intake) = ferris.intake.try_borrow_mut() {
                 //shooter.set_shooter(ferris.controllers.operator.get_throttle());
                 //
                 // if ferris.controllers.right_drive.get_throttle() >= 0.0
