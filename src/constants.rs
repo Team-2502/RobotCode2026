@@ -17,8 +17,8 @@ pub mod config {
     pub const HALF_FIELD_LENGTH_METERS: f64 = 8.05 / 2.;
 
     pub const HUB: Vector2<f64> = Vector2::new(11.85, 4.02);
-    pub const PASS_RIGHT: Vector2<f64> = Vector2::new(0.0, 0.0);
-    pub const PASS_LEFT: Vector2<f64> = Vector2::new(0.0, 0.0);
+    pub const PASS_RIGHT: Vector2<f64> = Vector2::new(12.5, 5.6);
+    pub const PASS_LEFT: Vector2<f64> = Vector2::new(12.5, 2.25);
 
     pub const MAX_ITER: i32 = 12;
 }

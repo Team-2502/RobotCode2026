@@ -4,9 +4,7 @@ use crate::constants::config::{
 use crate::constants::robotmap::shooter::{
     HOOD_MOTOR_ID, SHOOTER_MOTOR_LEFT_ID, SHOOTER_MOTOR_RIGHT_ID,
 };
-use crate::constants::shooter::{
-    MAX_FLYWHEEL_SPEED, SHOOTER_DISTANCE_ERROR_SMUDGE,
-};
+use crate::constants::shooter::{MAX_FLYWHEEL_SPEED, SHOOTER_DISTANCE_ERROR_SMUDGE};
 use crate::constants::turret::{OFFSET, TOLERANCE};
 use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
 use crate::subsystems::turret::Turret;
@@ -208,6 +206,17 @@ pub struct Shooter {
     hood_motor: Talon,
 
     pub turret: Turret,
+}
+impl ShootingTarget {
+    pub fn name(&self) -> &'static str {
+        match self {
+            ShootingTarget::Hub => "hub",
+            ShootingTarget::PassLeft => "pass_l",
+            ShootingTarget::PassRight => "pass_r",
+            ShootingTarget::Idle => "idle",
+            ShootingTarget::PassTelemetry => "telem",
+        }
+    }
 }
 
 impl Shooter {

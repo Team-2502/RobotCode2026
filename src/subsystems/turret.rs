@@ -1,7 +1,9 @@
 use crate::constants::config::HUB;
 use crate::constants::robotmap::turret::SPIN_MOTOR_ID;
 use crate::constants::turret::{GEAR_RATIO, TURRET_CLAMP, TURRET_MAX, TURRET_MIN};
+use crate::subsystems::shooter::flip;
 use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
+use frcrs::alliance_station;
 use frcrs::ctre::{ControlMode, Talon};
 use uom::si::angle::degree;
 use uom::si::f64::Angle;
@@ -22,6 +24,7 @@ pub struct Turret {
 
     pub turret_angle: Angle,
     pub desired_angle: Angle,
+    pub offset: f64,
 }
 
 impl TurretMode {
@@ -72,6 +75,7 @@ impl Turret {
 
             turret_angle: Angle::new::<degree>(0.),
             desired_angle: Angle::new::<degree>(0.),
+            offset: 0.0,
         }
     }
 
@@ -88,7 +92,7 @@ impl Turret {
     }
 
     pub fn set_angle(&mut self, angle: f64) {
-        let field_relative_angle = angle - self.drivetrain_angle.get::<degree>();
+        let field_relative_angle = angle - self.drivetrain_angle.get::<degree>() + self.offset;
         let new_angle = apply_soft_stop(field_relative_angle);
         // println!("{}", field_relative_angle);
         // let angle_new = self.apply_soft_stop(field_relative_angle);
@@ -98,6 +102,10 @@ impl Turret {
 
     pub fn set_speed(&self, speed: f64) {
         self.spin_motor.set(ControlMode::Percent, speed);
+    }
+
+    pub fn offset_turret(&mut self, amount: f64) {
+        self.offset = self.offset + amount;
     }
 
     // fn apply_soft_stop(&self, desired_deg: f64) -> f64 {
@@ -142,10 +150,15 @@ impl Turret {
 }
 
 pub fn get_angle_to_hub(pose: RobotPoseEstimate) -> Angle {
+    let target = match alliance_station().red() {
+        true => HUB,
+        false => flip(HUB),
+    };
+
     let x = pose.x.get::<meter>();
     let y = pose.y.get::<meter>();
-    let dx = HUB.x - x;
-    let dy = HUB.y - y;
+    let dx = target.x - x;
+    let dy = target.y - y;
 
     Angle::new::<degree>(dy.atan2(dx).to_degrees())
 }
