@@ -43,6 +43,11 @@ fn main() {
         // puts the auto chooser up on the telemetry server
         // Telemetry::put_selector("auto chooser", Auto::names()).await;
         Telemetry::put_selector("justice for cam :)", TurretMode::names()).await;
+        Telemetry::put_selector(
+            "airstrike mode",
+            vec!["bomb the field".to_string(), "nah we chill".to_string()],
+        )
+        .await;
 
         // this line is used if we are using a usb camera and want to see its feed on shuffleboard
         // SmartDashboard::start_camera_server();

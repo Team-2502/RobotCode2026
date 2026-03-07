@@ -239,9 +239,9 @@ impl Vision {
     }
 }
 
-pub fn distance(p1: Vector2<f64>, p2: Vector2<Length>) -> f64 {
-    let dx = p2.x.get::<meter>() - p1.x;
-    let dy = p2.y.get::<meter>() - p1.y;
+pub fn distance(p1: Vector2<Length>, p2: Vector2<Length>) -> f64 {
+    let dx = p2.x.get::<meter>() - p1.x.get::<meter>();
+    let dy = p2.y.get::<meter>() - p1.y.get::<meter>();
     (dx * dx + dy * dy).sqrt()
 }
 

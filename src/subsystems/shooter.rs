@@ -1,13 +1,13 @@
-use crate::constants::config::{
-    HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS,
-};
+use crate::constants::config::{HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS};
 use crate::constants::robotmap::shooter::{
     HOOD_MOTOR_ID, SHOOTER_MOTOR_LEFT_ID, SHOOTER_MOTOR_RIGHT_ID,
 };
 use crate::constants::shooter::{MAX_FLYWHEEL_SPEED, SHOOTER_DISTANCE_ERROR_SMUDGE};
 use crate::constants::turret::{OFFSET, TOLERANCE};
+use crate::subsystems::swerve::drivetrain::get_angle_difs;
 use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
-use crate::subsystems::turret::{get_angle_to_hub, Turret};
+use crate::subsystems::turret::{Turret, get_angle_to_hub};
+use crate::subsystems::vision::distance;
 use frcrs::alliance_station;
 use frcrs::ctre::{ControlMode, Talon};
 use frcrs::telemetry::Telemetry;
@@ -16,12 +16,9 @@ use uom::si::angle::radian;
 use uom::si::f64::Angle;
 use uom::si::f64::Length;
 use uom::si::length::meter;
-use crate::subsystems::swerve::drivetrain::get_angle_difs;
-use crate::subsystems::vision::distance;
 
 #[derive(PartialEq, Clone)]
 pub enum ShootingTarget {
-    Idle,
     Hub,
     PassTop,
     PassBottom,
@@ -207,6 +204,7 @@ pub struct Shooter {
     shooter_motor_left: Talon,
     shooter_motor_right: Talon,
     hood_motor: Talon,
+    
 
     pub turret: Turret,
 }
@@ -216,7 +214,7 @@ impl ShootingTarget {
             ShootingTarget::Hub => "hub",
             ShootingTarget::PassTop => "pass_l",
             ShootingTarget::PassBottom => "pass_r",
-            ShootingTarget::Idle => "idle",
+            //ShootingTarget::Idle => "idle",
             ShootingTarget::PassTelemetry => "telem",
         }
     }
@@ -256,13 +254,19 @@ impl Shooter {
         self.hood_motor.set(ControlMode::Position, angle);
     }
 
-    pub fn shoot_to(&mut self, current_pose: Vector2<Length>, current_yaw: Angle, target: Vector2<f64>) {
-        let distance_hub = Length::new::<meter>(distance(target, current_pose));
+    pub fn shoot_to(
+        &mut self,
+        current_pose: Vector2<Length>,
+        current_yaw: Angle,
+        target: Vector2<Length>,
+    ) {
+        let distance_target = Length::new::<meter>(distance(target, current_pose));
 
         let current_flywheel_speed = self.get_speed();
-        self.set_velocity(get_shooter_speed_target(distance_hub));
-        self.set_hood(get_hood_angle_target(distance_hub, current_flywheel_speed));
-        self.turret.set_angle(get_angle_difs(current_yaw, get_angle_to_hub(current_pose)))
+        self.set_velocity(get_shooter_speed_target(distance_target));
+        self.set_hood(get_hood_angle_target(distance_target, current_flywheel_speed));
+        self.turret
+            .set_angle(get_angle_difs(current_yaw, get_angle_to_hub(current_pose)))
     }
 
     pub fn get_speed(&self) -> f64 {

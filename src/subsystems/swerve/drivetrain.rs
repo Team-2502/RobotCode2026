@@ -1,4 +1,6 @@
-use crate::constants::config;
+use crate::constants::config::{
+    self, BLUE_HUB_X_INCHES, HALF_FIELD_WIDTH_METERS, RED_HUB_X_INCHES,
+};
 use crate::constants::drivetrain::{
     BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
     FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
@@ -22,7 +24,7 @@ use std::time::Duration;
 use tokio::time::timeout;
 use uom::si::angle::{degree, radian, revolution};
 use uom::si::f64::{Angle, Length};
-use uom::si::length::meter;
+use uom::si::length::{inch, meter};
 
 /// Drivetrain struct.
 /// kinematics field interfaces with inverse kinematics functions.
@@ -54,6 +56,15 @@ pub struct Drivetrain {
     fr_encoder: CanCoder,
     pub(in crate::subsystems::swerve) fr_drive: Talon,
     pub(in crate::subsystems::swerve) fr_turn: Talon,
+}
+
+pub enum FieldZone {
+    BLUE_TOP,
+    BLUE_BOTTOM,
+    MIDDLE_TOP,
+    MIDDLE_BOTTOM,
+    RED_TOP,
+    RED_BOTTOM,
 }
 
 impl Drivetrain {
@@ -430,6 +441,27 @@ impl Drivetrain {
         ];
         self.last_modules = measured;
         (differences, measured_angles)
+    }
+
+    pub fn get_zone(&self) -> FieldZone {
+        let (pose, _, _, _) = self.localization.get_state();
+        if pose.y.get::<meter>() < HALF_FIELD_WIDTH_METERS {
+            if pose.x.get::<inch>() < BLUE_HUB_X_INCHES {
+                FieldZone::BLUE_BOTTOM
+            } else if pose.x.get::<inch>() < RED_HUB_X_INCHES {
+                FieldZone::MIDDLE_BOTTOM
+            } else {
+                FieldZone::RED_BOTTOM
+            }
+        } else {
+            if pose.x.get::<inch>() < BLUE_HUB_X_INCHES {
+                FieldZone::BLUE_TOP
+            } else if pose.x.get::<inch>() < RED_HUB_X_INCHES {
+                FieldZone::MIDDLE_TOP
+            } else {
+                FieldZone::RED_TOP
+            }
+        }
     }
 }
 

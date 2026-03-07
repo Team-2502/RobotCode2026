@@ -26,7 +26,7 @@ pub struct Turret {
 
     pub turret_angle: Angle,
     pub desired_angle: Angle,
-    pub offset: f64,
+    pub offset: Angle,
 }
 
 impl TurretMode {
@@ -73,11 +73,11 @@ impl Turret {
 
         Turret {
             spin_motor,
-            drivetrain_angle: Angle::new::<degree>(0.),
+            drivetrain_angle: Angle::new::<degree>(0.0),
 
-            turret_angle: Angle::new::<degree>(0.),
-            desired_angle: Angle::new::<degree>(0.),
-            offset: 0.0,
+            turret_angle: Angle::new::<degree>(0.0),
+            desired_angle: Angle::new::<degree>(0.0),
+            offset: Angle::new::<degree>(0.0),
         }
     }
 
@@ -109,7 +109,7 @@ impl Turret {
         self.spin_motor.set(ControlMode::Percent, speed);
     }
 
-    pub fn offset_turret(&mut self, amount: f64) {
+    pub fn offset_turret(&mut self, amount: Angle) {
         self.offset = self.offset + amount;
     }
 
