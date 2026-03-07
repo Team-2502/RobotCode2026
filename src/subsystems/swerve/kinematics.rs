@@ -17,7 +17,7 @@ pub struct Kinematics {
     timer: Instant,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RobotPoseEstimate {
     pub fom: f64,
     pub x: Length,

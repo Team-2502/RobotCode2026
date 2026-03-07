@@ -16,7 +16,8 @@ pub mod config {
     pub const HALF_FIELD_WIDTH_METERS: f64 = 17.55 / 2.;
     pub const HALF_FIELD_LENGTH_METERS: f64 = 8.05 / 2.;
 
-    pub const HUB: Vector2<f64> = Vector2::new(11.85, 4.02);
+    pub const HUB_RED: Vector2<f64> = Vector2::new(11.85, 4.02);
+    pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.0625, 4.02);
     pub const PASS_RIGHT: Vector2<f64> = Vector2::new(12.5, 5.6);
     pub const PASS_LEFT: Vector2<f64> = Vector2::new(12.5, 2.25);
 
@@ -135,6 +136,8 @@ pub mod drivetrain {
     pub const SWERVE_WHEEL_CIRCUMFERENCE_METERS: f64 = 0.364;
 
     pub const WHEEL_ENCODER_STD_DEV: f64 = 0.0005;
+
+    pub const GYRO_OFFSET_UPDATE_RATIO: f64 = 0.25;
 
     pub const FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.418212890625;
     pub const BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.575927734375;

@@ -1,9 +1,5 @@
 use crate::constants::config;
-use crate::constants::drivetrain::{
-    BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
-    FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS, SWERVE_DRIVE_RATIO,
-    SWERVE_TURN_RATIO,
-};
+use crate::constants::drivetrain::{BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS, GYRO_OFFSET_UPDATE_RATIO, SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO};
 use crate::constants::robotmap::drivetrain_map::{
     BL_DRIVE_ID, BL_ENCODER_ID, BL_TURN_ID, BR_DRIVE_ID, BR_ENCODER_ID, BR_TURN_ID,
     DRIVETRAIN_CANBUS, FL_DRIVE_ID, FL_ENCODER_ID, FL_TURN_ID, FR_DRIVE_ID, FR_ENCODER_ID,
@@ -21,7 +17,8 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 use tokio::time::timeout;
 use uom::si::angle::{degree, radian, revolution};
-use uom::si::f64::Angle;
+use uom::si::f64::{Angle, Length};
+use uom::si::length::meter;
 
 /// Drivetrain struct.
 /// kinematics field interfaces with inverse kinematics functions.
@@ -133,60 +130,96 @@ impl Drivetrain {
     // TODO: gyro things
     /// updates the limelight values and passes in drivetrain data for fom
     pub async fn update_pose(&mut self) {
-        // let gyro_angle = Angle::new::<degree>(self.gyro.get_angle());
+        let gyro_angle_old = self.get_offset_gyro_yaw();
+        let gyro_angle = Angle::new::<radian>(self.gyro.get_rotation().z);
+        let gyro_yaw_error = Angle::new::<degree>(0.2);
+
+        if self.gyro_set {
+            self.localization.update_yaw(gyro_angle + self.gyro_offset, gyro_yaw_error.get::<radian>());
+        }
+
+
+        let (pose, _, _, _) = self.localization.get_state();
+        println!("update_pose: current localized botpose: {:?}", pose);
+
         self.update_odo();
         let front_update_handle =
             timeout(Duration::from_millis(100), self.limelight_front.update());
         let side_update_handle = timeout(Duration::from_millis(100), self.limelight_side.update());
 
-        // if front_update_handle.await.is_ok() {
-        //     println!("entered front update");
-        //     if self.limelight_front.get_botpose_orb().is_some() {
-        //         self.localization.update_pose_from_limelight(
-        //             self.limelight_front.get_botpose_orb().unwrap(),
-        //             self.limelight_front.get_field_yaw(),
-        //             self.limelight_front.get_location_error(),
-        //             self.limelight_front.get_yaw_error(),
-        //         );
-        //         // let current_offset = self.limelight_front.get_field_yaw() - gyro_angle;
-        //         // if self.gyro_set {
-        //         //     self.gyro_offset += 0.5 * get_angle_difs(current_offset, self.gyro_offset)
-        //         // } else {
-        //         //     self.gyro_offset = current_offset;
-        //         //     self.gyro_set = true;
-        //         // }
-        //     }
+        if front_update_handle.await.is_ok() {
+            println!("entered front update");
+            // println!("(unused in code) ll imu yaw: {}", self.limelight_front.status.finalYaw);
+            // println!("(unused in code) ll field yaw: {}", self.limelight_front.get_field_yaw().get::<degree>());
+            if self.limelight_front.get_botpose().is_some() {
+                self.localization.update_pose_from_limelight(
+                    self.limelight_front.get_botpose().unwrap(),
+                    self.limelight_front.get_field_yaw(),
+                    self.limelight_front.get_location_error(),
+                    self.limelight_front.get_yaw_error(),
+                );
+                let current_offset = self.limelight_front.get_field_yaw() - gyro_angle;
+                if self.gyro_set {
+                    self.gyro_offset += GYRO_OFFSET_UPDATE_RATIO * get_angle_difs(self.gyro_offset, current_offset)
+                } else {
+                    self.gyro_offset = current_offset;
+                    self.gyro_set = true;
+                }
 
-        //     // TODO: implement this
-        //     // // 0.002 is how much to trust gyro; estimated noise
-        //     let ll_front_yaw = self.limelight_front.get_yaw();
-        //     if ll_front_yaw.is_some() {
-        //         self.localization.update_yaw(ll_front_yaw.unwrap(), 0.002);
-        //     }
-        // }
+            }
+
+            // before: self.limelight_front.get_field_yaw()
+        }
 
         if side_update_handle.await.is_ok() {
             println!("entered side update");
-            println!(
-                "pigeon gyro: {:?} + 90",
-                self.gyro.get_rotation().z * PI / 180.0
-            );
-            if self.limelight_side.get_botpose_orb().is_some() {
+            if self.limelight_side.get_botpose().is_some() {
                 self.localization.update_pose_from_limelight(
-                    self.limelight_side.get_botpose_orb().unwrap(),
-                    Angle::new::<degree>(self.gyro.get_rotation()[(0, 0)] + 90.0),
-                    self.limelight_side.get_location_error(),
+                    self.limelight_side.get_botpose().unwrap(),
+                    self.limelight_side.get_field_yaw(),
+                    /*self.limelight_side.get_location_error(),*/ Vector2::new(Length::new::<meter>(0.0001), Length::new::<meter>(0.0001)),
                     self.limelight_side.get_yaw_error(),
                 );
-            }
-
-            // TODO: implement this
-            // // 0.002 is how much to trust gyro; estimated noise
-            let ll_side_yaw = self.limelight_side.get_yaw();
-            if ll_side_yaw.is_some() {
-                self.localization.update_yaw(ll_side_yaw.unwrap(), 0.002);
+                let current_offset = self.limelight_side.get_field_yaw() - gyro_angle;
+                if self.gyro_set {
+                    self.gyro_offset += GYRO_OFFSET_UPDATE_RATIO * get_angle_difs(self.gyro_offset, current_offset)
+                } else {
+                    self.gyro_offset = current_offset;
+                    self.gyro_set = true;
+                }
             }
         }
+
+        // if side_update_handle.await.is_ok() {
+        //     println!("entered side update");
+        //     println!(
+        //         "pigeon gyro: {:?} + 90",
+        //         self.gyro.get_rotation().z * PI / 180.0
+        //     );
+        //     if self.limelight_side.get_botpose_orb().is_some() {
+        //         self.localization.update_pose_from_limelight(
+        //             self.limelight_side.get_botpose_orb().unwrap(),
+        //             Angle::new::<degree>(self.gyro.get_rotation()[(0, 0)] + 90.0),
+        //             self.limelight_side.get_location_error(),
+        //             self.limelight_side.get_yaw_error(),
+        //         );
+        //     }
+        //
+        //     // TODO: implement this
+        //     // // 0.002 is how much to trust gyro; estimated noise
+        //     let ll_side_yaw = self.limelight_side.get_yaw();
+        //     if ll_side_yaw.is_some() {
+        //         self.localization.update_yaw(ll_side_yaw.unwrap(), 0.002);
+        //     }
+        // }
+    }
+
+    fn get_offset_gyro_yaw(&self) -> Angle {
+        Angle::new::<radian>(self.gyro.get_rotation().z) - self.gyro_offset
+    }
+
+    pub fn set_gyro_offset(&mut self) {
+        self.gyro_offset = Angle::new::<radian>(self.gyro.get_rotation().z);
     }
 
     /// Resets the gyro.
@@ -197,14 +230,22 @@ impl Drivetrain {
     /// Field-orientate input from the driverstation.
     /// target_transformation is the x and y input from the driverstation put into a vector.
     /// This function rotates the driver's field orientated input to be robot oriented but the same direction.
-    pub fn field_orientate(&self, target_transformation: Vector2<f64>) -> Vector2<f64> {
+    pub fn field_orientate(&mut self, target_transformation: Vector2<f64>) -> Vector2<f64> {
         let (_, yaw, _, _) = self.localization.get_state();
-
+        //
         if alliance_station().red() {
-            Rotation2::new(-yaw.get::<radian>() + PI) * target_transformation
-        } else {
             Rotation2::new(-yaw.get::<radian>()) * target_transformation
+        } else {
+            Rotation2::new(-yaw.get::<radian>() + PI) * target_transformation
         }
+        // let yaw = self.get_offset_gyro_yaw();
+        // println!("field orient input yaw: {:?}", yaw);
+        //
+        // if alliance_station().red() {
+        //     Rotation2::new(-yaw.get::<radian>() + PI) * target_transformation
+        // } else {
+        //     Rotation2::new(-yaw.get::<radian>()) * target_transformation
+        // }
     }
 
     /// ## Sets drivetrain motor speeds.
@@ -287,6 +328,8 @@ impl Drivetrain {
             true => self.field_orientate(vector![x, y]),
             false => vector![x, y],
         };
+
+        println!("target_transformation: {:?}", target_transformation);
 
         let targets = self.kinematics.get_targets(target_transformation, rotation);
 

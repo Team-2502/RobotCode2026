@@ -45,6 +45,7 @@ impl Localization {
             .transpose();
 
         self.set_state(self.state + gain * innovation);
+
         let eye = SMatrix::<f64, 3, 3>::identity();
         self.state_confidence = transform(eye - gain * state_to_measurement, self.state_confidence)
             + transform(gain, measurement_confidence);
@@ -116,12 +117,14 @@ impl Localization {
         ];
 
         let state_to_measurement = SMatrix::<f64, 3, 3>::identity();
+
         let measurement_confidence = matrix![
             pose_error.x.get::<meter>() * pose_error.x.get::<meter>(), 0.0, 0.0;
             0.0, pose_error.y.get::<meter>() * pose_error.y.get::<meter>(), 0.0;
             0.0, 0.0, yaw_error.get::<radian>() * yaw_error.get::<radian>();
         ];
-        self.update_measurement(measurement, state_to_measurement, measurement_confidence, 0);
+
+        self.update_measurement(measurement, state_to_measurement, measurement_confidence, 2);
     }
 
     /// Returns: Pose, Yaw, Pose Error, Yaw Error
@@ -151,3 +154,27 @@ fn transform<const R: usize, const C: usize>(
 ) -> SMatrix<f64, R, R> {
     transformation * mat * transformation.transpose()
 }
+
+// #[cfg(test)]
+// mod localization_tests {
+//     use uom::si::angle::degree;
+//     use super::*;
+//
+//     #[test]
+//     fn confidence_test() {
+//         let mut local = Localization::new();
+//         println!("before: state: {:?}, confidence: {:?}", local.state, local.state_confidence);
+//         local.update_yaw(Angle::new::<degree>(180.0), 0.01);
+//
+//         println!("after: state: {:?}, confidence: {:?}", local.state, local.state_confidence);
+//
+//         local.update_pose_from_limelight(
+//             Vector2::new(Length::new::<meter>(14.0), Length::new::<meter>(2.0)),
+//             Angle::new::<degree>(90.0),
+//             Vector2::new(Length::new::<meter>(0.01), Length::new::<meter>(0.01)),
+//             Angle::new::<degree>(0.001),
+//         );
+//         println!("after: state: {:?}, confidence: {:?}", local.state, local.state_confidence);
+//         panic!()
+//     }
+// }

@@ -27,10 +27,10 @@ pub struct Vision {
     pub limelight: Limelight,
     pub results: LimelightResults,
     last_results: LimelightResults,
-    pub status: LimelightStatus,
+    // pub status: LimelightStatus,
     saved_id: i32,
-    gyro_offset: Angle,
-    pub gyro_offset_set: bool,
+    // gyro_offset: Angle,
+    // pub gyro_offset_set: bool,
 }
 
 /// the field position
@@ -52,10 +52,7 @@ impl Vision {
             limelight,
             results: LimelightResults::default(),
             last_results: LimelightResults::default(),
-            status: LimelightStatus::default(),
             saved_id: 0,
-            gyro_offset: Angle::new::<degree>(0.0),
-            gyro_offset_set: false,
         }
     }
     /// Updates the results from the limelight
@@ -63,13 +60,6 @@ impl Vision {
     /// returns nothing, but updates vision struct values
     pub async fn update(&mut self) {
         self.last_results = self.results.clone();
-
-        let status = self.limelight.status().await;
-        if let Ok(s) = status {
-            self.status = s;
-        } else {
-            eprintln!("failed to fetch status from limelight")
-        }
 
         let results = self.limelight.results().await;
         if let Ok(r) = results {
@@ -86,16 +76,6 @@ impl Vision {
             && self.results.Fiducial[0].fID != self.saved_id
         {
             self.saved_id = self.results.Fiducial[0].fID;
-        }
-
-        if self.get_botpose_orb().is_some() {
-            let current_offset = self.get_field_yaw() - self.get_raw_yaw();
-            if self.gyro_offset_set {
-                self.gyro_offset += 0.5 * get_angle_difs(self.gyro_offset, current_offset)
-            } else {
-                self.gyro_offset = current_offset;
-                self.gyro_offset_set = true;
-            }
         }
     }
 
@@ -205,7 +185,7 @@ impl Vision {
     }
 
     /// Returns the botpose: x, y
-    pub fn get_botpose_orb(&self) -> Option<Vector2<Length>> {
+    pub fn get_botpose(&self) -> Option<Vector2<Length>> {
         let pose: Vector2<Length> = Vector2::new(
             Length::new::<meter>(self.results.botpose_wpiblue[0]),
             Length::new::<meter>(self.results.botpose_wpiblue[1]),
@@ -215,21 +195,6 @@ impl Vision {
         } else {
             Some(pose)
         }
-    }
-
-    /// returns the yaw in degrees
-    pub fn get_yaw(&self) -> Option<Angle> {
-        if !self.gyro_offset_set {
-            return None;
-        }
-
-        let yaw_deg = self.status.finalYaw + self.gyro_offset.get::<degree>();
-        Some(Angle::new::<degree>(yaw_deg))
-    }
-
-    pub fn get_raw_yaw(&self) -> Angle {
-        let yaw_deg = self.status.finalYaw;
-        Angle::new::<degree>(yaw_deg)
     }
 
     pub fn get_field_yaw(&self) -> Angle {
@@ -263,9 +228,18 @@ impl Vision {
     // }
 
     pub fn get_limelight_data(&self) {}
+
+    pub fn get_pose(&self) -> RobotPoseEstimate {
+        RobotPoseEstimate::new(
+            1.0,
+            Length::new::<meter>(self.results.botpose_wpiblue[0]),
+            Length::new::<meter>(self.results.botpose_wpiblue[1]),
+            Angle::new::<degree>(self.results.botpose_wpiblue[5]),
+        )
+    }
 }
 
-pub fn distance(p1: Vector2<f64>, p2: RobotPoseEstimate) -> f64 {
+pub fn distance(p1: Vector2<f64>, p2: Vector2<Length>) -> f64 {
     let dx = p2.x.get::<meter>() - p1[0];
     let dy = p2.y.get::<meter>() - p1[1];
     (dx * dx + dy * dy).sqrt()
