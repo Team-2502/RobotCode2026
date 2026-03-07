@@ -68,7 +68,7 @@ pub enum FieldZone {
 
 impl Drivetrain {
     /// Returns a new Drivetrain. CAN IDs and CanBus set in constants::robotmap::drivetrain_map
-    pub fn new(starting_pose: Vector2<Length>, starting_yaw: Angle) -> Drivetrain {
+    pub fn new(/*starting_pose: Vector2<Length>, starting_yaw: Angle*/) -> Drivetrain {
         // make the encoders before rest of robot - we need them to get CANCoder offsets
         let fl_encoder = CanCoder::new(FL_ENCODER_ID, DRIVETRAIN_CANBUS);
         let bl_encoder = CanCoder::new(BL_ENCODER_ID, DRIVETRAIN_CANBUS);
@@ -93,7 +93,7 @@ impl Drivetrain {
             limelight_side,
 
             kinematics: Kinematics::new(),
-            localization: Localization::new(starting_pose, starting_yaw),
+            localization: Localization::new(),
             last_modules: Vec::new(),
 
             fl_encoder,

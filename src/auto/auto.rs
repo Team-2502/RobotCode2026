@@ -1,5 +1,8 @@
 use crate::Ferris;
 use crate::auto::path::{drive, get_waypoint};
+use crate::constants::config::{HUB_BLUE, HUB_RED};
+use frcrs::alliance_station;
+use nalgebra::Vector2;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::ops::Deref;
@@ -15,6 +18,7 @@ use uom::si::length::meter;
 pub enum Auto {
     Nothing,
     Test,
+    DasAuto,
 }
 
 impl Auto {
@@ -22,6 +26,7 @@ impl Auto {
         match s {
             "Nothing" => Auto::Nothing,
             "Test" => Auto::Test,
+            "Das Auto" => Auto::DasAuto,
             _ => Auto::Nothing,
         }
     }
@@ -30,6 +35,7 @@ impl Auto {
         match self {
             Auto::Nothing => "Nothing",
             Auto::Test => "Test",
+            Auto::DasAuto => "Das Auto",
             //_ => "none",
         }
     }
@@ -52,6 +58,9 @@ impl Auto {
             }
             Auto::Nothing => {
                 println!("No auto was selected!");
+            }
+            Auto::DasAuto => {
+                das_auto(Rc::clone(&ferris)).await.expect("auto is geeked");
             }
         }
     }
@@ -87,13 +96,25 @@ pub async fn test(robot: Rc<RefCell<Ferris>>) -> Result<(), Box<dyn std::error::
 pub async fn das_auto(robot: Rc<RefCell<Ferris>>) -> Result<(), Box<dyn std::error::Error>> {
     let robot = robot.borrow_mut();
     let mut drivetrain = robot.drivetrain.deref().borrow_mut();
-    let shooter = robot.shooter.deref().borrow_mut();
+    let mut shooter = robot.shooter.deref().borrow_mut();
     let intake = robot.intake.deref().borrow_mut();
+
+    let (pose, yaw, _, _) = drivetrain.localization.get_state();
+
+    let hub = match alliance_station().red() {
+        true => Vector2::new(
+            Length::new::<meter>(HUB_RED.x),
+            Length::new::<meter>(HUB_RED.y),
+        ),
+        false => Vector2::new(
+            Length::new::<meter>(HUB_BLUE.x),
+            Length::new::<meter>(HUB_BLUE.y),
+        ),
+    };
 
     drive("das_auto", &mut drivetrain, 1).await?;
 
-    // turret spin shit
-    //shooter distance shit
+    shooter.shoot_to(pose, yaw, hub);
 
     intake.set_handoff(1.0);
 
@@ -101,7 +122,7 @@ pub async fn das_auto(robot: Rc<RefCell<Ferris>>) -> Result<(), Box<dyn std::err
 
     intake.set_intake_speed(0.5);
 
-    sleep(Duration::from_millis(5000)).await;
+    sleep(Duration::from_millis(8000)).await;
 
     intake.stop();
     shooter.turret.stop();

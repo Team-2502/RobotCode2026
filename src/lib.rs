@@ -67,10 +67,7 @@ impl Ferris {
 
             // todo: figure out start pose stuff
             // temp hardcoded startpose
-            drivetrain: Rc::new(RefCell::new(Drivetrain::new(
-                Vector2::new(Length::new::<meter>(0.0), Length::new::<meter>(0.0)),
-                Angle::new::<degree>(0.0),
-            ))),
+            drivetrain: Rc::new(RefCell::new(Drivetrain::new())),
             shooter: Rc::new(RefCell::new(Shooter::new())),
             intake: Rc::new(RefCell::new(Intake::new())),
 
@@ -150,39 +147,43 @@ pub async fn teleop(ferris: &mut Ferris) {
                 .await;
 
             // todo: assign ids
-            if ferris.controllers.operator.get(1000) {
+            if ferris.controllers.operator.get(6) {
                 shooter.distance_offset += Length::new::<inch>(4.0);
             }
 
-            if ferris.controllers.operator.get(1000) {
+            if ferris.controllers.operator.get(9) {
                 shooter.distance_offset -= Length::new::<inch>(4.0);
             }
 
-            if ferris.controllers.operator.get(1000) {
+            if ferris.controllers.operator.get(10) {
                 shooter.turret.yaw_offset += Angle::new::<degree>(0.5);
             }
 
-            if ferris.controllers.operator.get(1000) {
+            if ferris.controllers.operator.get(8) {
                 shooter.turret.yaw_offset -= Angle::new::<degree>(0.5);
             }
 
-            if ferris.controllers.operator.get(1000) {
+            if ferris.controllers.operator.get(11) {
                 if shooter.manual_toggle {
                     shooter.manual_toggle = false;
                     shooter.idle_toggle = false;
+                    ferris.turret_mode = TurretMode::Track;
                 } else {
                     shooter.manual_toggle = true;
                     shooter.idle_toggle = false;
+                    ferris.turret_mode = TurretMode::Manual;
                 }
             }
 
-            if ferris.controllers.operator.get(1000) {
+            if ferris.controllers.operator.get(16) {
                 if shooter.idle_toggle {
                     shooter.manual_toggle = false;
                     shooter.idle_toggle = false;
+                    ferris.turret_mode = TurretMode::Track;
                 } else {
                     shooter.idle_toggle = false;
                     shooter.idle_toggle = true;
+                    ferris.turret_mode = TurretMode::Idle;
                 }
             }
 
