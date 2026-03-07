@@ -1,5 +1,9 @@
 use crate::constants::config;
-use crate::constants::drivetrain::{BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS, GYRO_OFFSET_UPDATE_RATIO, SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO};
+use crate::constants::drivetrain::{
+    BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
+    FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
+    GYRO_OFFSET_UPDATE_RATIO, SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO,
+};
 use crate::constants::robotmap::drivetrain_map::{
     BL_DRIVE_ID, BL_ENCODER_ID, BL_TURN_ID, BR_DRIVE_ID, BR_ENCODER_ID, BR_TURN_ID,
     DRIVETRAIN_CANBUS, FL_DRIVE_ID, FL_ENCODER_ID, FL_TURN_ID, FR_DRIVE_ID, FR_ENCODER_ID,
@@ -135,9 +139,11 @@ impl Drivetrain {
         let gyro_yaw_error = Angle::new::<degree>(0.2);
 
         if self.gyro_set {
-            self.localization.update_yaw(gyro_angle + self.gyro_offset, gyro_yaw_error.get::<radian>());
+            self.localization.update_yaw(
+                gyro_angle + self.gyro_offset,
+                gyro_yaw_error.get::<radian>(),
+            );
         }
-
 
         let (pose, _, _, _) = self.localization.get_state();
         println!("update_pose: current localized botpose: {:?}", pose);
@@ -160,12 +166,12 @@ impl Drivetrain {
                 );
                 let current_offset = self.limelight_front.get_field_yaw() - gyro_angle;
                 if self.gyro_set {
-                    self.gyro_offset += GYRO_OFFSET_UPDATE_RATIO * get_angle_difs(self.gyro_offset, current_offset)
+                    self.gyro_offset +=
+                        GYRO_OFFSET_UPDATE_RATIO * get_angle_difs(self.gyro_offset, current_offset)
                 } else {
                     self.gyro_offset = current_offset;
                     self.gyro_set = true;
                 }
-
             }
 
             // before: self.limelight_front.get_field_yaw()
@@ -177,12 +183,14 @@ impl Drivetrain {
                 self.localization.update_pose_from_limelight(
                     self.limelight_side.get_botpose().unwrap(),
                     self.limelight_side.get_field_yaw(),
-                    /*self.limelight_side.get_location_error(),*/ Vector2::new(Length::new::<meter>(0.0001), Length::new::<meter>(0.0001)),
+                    /*self.limelight_side.get_location_error(),*/
+                    Vector2::new(Length::new::<meter>(0.0001), Length::new::<meter>(0.0001)),
                     self.limelight_side.get_yaw_error(),
                 );
                 let current_offset = self.limelight_side.get_field_yaw() - gyro_angle;
                 if self.gyro_set {
-                    self.gyro_offset += GYRO_OFFSET_UPDATE_RATIO * get_angle_difs(self.gyro_offset, current_offset)
+                    self.gyro_offset +=
+                        GYRO_OFFSET_UPDATE_RATIO * get_angle_difs(self.gyro_offset, current_offset)
                 } else {
                     self.gyro_offset = current_offset;
                     self.gyro_set = true;

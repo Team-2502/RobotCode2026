@@ -1,4 +1,4 @@
-use crate::constants::config::{HUB_RED, HUB_BLUE};
+use crate::constants::config::{HUB_BLUE, HUB_RED};
 use crate::constants::robotmap::turret::SPIN_MOTOR_ID;
 use crate::constants::turret::{GEAR_RATIO, TURRET_CLAMP, TURRET_MAX, TURRET_MIN};
 use crate::subsystems::shooter::flip;
@@ -7,8 +7,8 @@ use frcrs::alliance_station;
 use frcrs::ctre::{ControlMode, Talon};
 use nalgebra::Vector2;
 use uom::si::angle::degree;
-use uom::si::f64::Length;
 use uom::si::f64::Angle;
+use uom::si::f64::Length;
 use uom::si::length::meter;
 
 #[derive(PartialEq, Clone)]
@@ -94,7 +94,10 @@ impl Turret {
     }
 
     pub fn set_angle(&mut self, robot_turret_angle: Angle) {
-        println!("set_angle: robot angle {}", robot_turret_angle.get::<degree>());
+        println!(
+            "set_angle: robot angle {}",
+            robot_turret_angle.get::<degree>()
+        );
         let new_angle = apply_soft_stop(robot_turret_angle.get::<degree>());
         // println!("{}", field_relative_angle);
         // let angle_new = self.apply_soft_stop(field_relative_angle);
@@ -170,10 +173,16 @@ pub fn get_angle_to_hub(pose: Vector2<Length>) -> Angle {
 
 pub fn apply_soft_stop(desired_deg: f64) -> f64 {
     if desired_deg > TURRET_MAX + 360.0 {
-        panic!("PANIC: turret.rs soft stop max check: desired angle out of bounds: {}", desired_deg);
+        panic!(
+            "PANIC: turret.rs soft stop max check: desired angle out of bounds: {}",
+            desired_deg
+        );
     }
     if desired_deg < TURRET_MIN - 360.0 {
-        panic!("PANIC: turret.rs soft stop min check: desired angle out of bounds: {}", desired_deg);
+        panic!(
+            "PANIC: turret.rs soft stop min check: desired angle out of bounds: {}",
+            desired_deg
+        );
     }
     if desired_deg > TURRET_MAX {
         desired_deg - 360.0

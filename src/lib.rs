@@ -1,12 +1,12 @@
 // use crate::auto::path::drive;
-use crate::constants::config::{HUB_RED, HUB_BLUE, PASS_LEFT, PASS_RIGHT};
+use crate::constants::config::{HUB_BLUE, HUB_RED, PASS_LEFT, PASS_RIGHT};
 use crate::constants::robotmap::intake::{HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
 use crate::constants::robotmap::shooter::HOOD_MAX;
 use crate::subsystems::intake::Intake;
 use crate::subsystems::shooter::{
     Shooter, ShootingTarget, flip, get_hood_angle_target, get_turret_speed_target,
 };
-use crate::subsystems::swerve::drivetrain::{get_angle_difs, Drivetrain};
+use crate::subsystems::swerve::drivetrain::{Drivetrain, get_angle_difs};
 use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
 use crate::subsystems::turret::{TurretMode, get_angle_to_hub};
 use crate::subsystems::vision::distance;
@@ -183,13 +183,15 @@ pub async fn teleop(ferris: &mut Ferris) {
                     println!("red?: {:?}", alliance_station().red());
 
                     let (pose, _, _, _) = drivetrain.localization.get_state();
-                    let distance_hub = Length::new::<meter>(distance(target, pose) /*+ ferris.controllers.operator.get_throttle()*/);
+                    let distance_hub = Length::new::<meter>(
+                        distance(target, pose), /*+ ferris.controllers.operator.get_throttle()*/
+                    );
                     println!("da hub {:?}", distance_hub);
                     let current_flywheel_speed = shooter.get_speed();
                     shooter.set_velocity(get_turret_speed_target(distance_hub));
                     shooter.set_hood(get_hood_angle_target(distance_hub, current_flywheel_speed));
                 }
-                ShootingTarget::Idle => { shooter.stop() }
+                ShootingTarget::Idle => shooter.stop(),
                 ShootingTarget::PassLeft => {
                     let target = match alliance_station().red() {
                         true => PASS_LEFT,
@@ -240,7 +242,6 @@ pub async fn teleop(ferris: &mut Ferris) {
                 ferris.shooter_target = ShootingTarget::Idle
             } else if ferris.controllers.operator.get(11) {
                 ferris.turret_mode = TurretMode::Manual
-
             }
 
             // if ferris.controllers.operator.get(8) {
