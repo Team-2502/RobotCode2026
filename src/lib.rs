@@ -1,10 +1,10 @@
 // use crate::auto::path::drive;
-use crate::constants::config::{HUB_BLUE, HUB_RED, PASS_LEFT, PASS_RIGHT};
+use crate::constants::config::{HUB_BLUE, HUB_RED, PASS_BOTTOM, PASS_BOTTOM_OFFSET, PASS_TOP, PASS_TOP_OFFSET};
 use crate::constants::robotmap::intake::{HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
 use crate::constants::robotmap::shooter::HOOD_MAX;
 use crate::subsystems::intake::Intake;
 use crate::subsystems::shooter::{
-    Shooter, ShootingTarget, flip, get_hood_angle_target, get_turret_speed_target,
+    Shooter, ShootingTarget, flip, get_hood_angle_target, get_shooter_speed_target,
 };
 use crate::subsystems::swerve::drivetrain::{Drivetrain, get_angle_difs};
 use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
@@ -188,32 +188,32 @@ pub async fn teleop(ferris: &mut Ferris) {
                     );
                     println!("da hub {:?}", distance_hub);
                     let current_flywheel_speed = shooter.get_speed();
-                    shooter.set_velocity(get_turret_speed_target(distance_hub));
+                    shooter.set_velocity(get_shooter_speed_target(distance_hub));
                     shooter.set_hood(get_hood_angle_target(distance_hub, current_flywheel_speed));
                 }
                 ShootingTarget::Idle => shooter.stop(),
-                ShootingTarget::PassLeft => {
+                ShootingTarget::PassTop => {
                     let target = match alliance_station().red() {
-                        true => PASS_LEFT,
-                        false => flip(PASS_LEFT),
+                        true => HUB_RED + PASS_TOP_OFFSET,
+                        false => HUB_BLUE + PASS_TOP_OFFSET,
                     };
 
                     let distance_hub = Length::new::<meter>(distance(target, robot_pose.clone()));
 
                     let current_flywheel_speed = shooter.get_speed();
-                    shooter.set_velocity(get_turret_speed_target(distance_hub));
+                    shooter.set_velocity(get_shooter_speed_target(distance_hub));
                     shooter.set_hood(get_hood_angle_target(distance_hub, current_flywheel_speed));
                 }
-                ShootingTarget::PassRight => {
+                ShootingTarget::PassBottom => {
                     let target = match alliance_station().red() {
-                        true => PASS_RIGHT,
-                        false => flip(PASS_RIGHT),
+                        true => HUB_RED + PASS_BOTTOM_OFFSET,
+                        false => HUB_BLUE + PASS_BOTTOM_OFFSET,
                     };
 
                     let distance_hub = Length::new::<meter>(distance(target, robot_pose.clone()));
 
                     let current_flywheel_speed = shooter.get_speed();
-                    shooter.set_velocity(get_turret_speed_target(distance_hub));
+                    shooter.set_velocity(get_shooter_speed_target(distance_hub));
                     shooter.set_hood(get_hood_angle_target(distance_hub, current_flywheel_speed));
                 }
                 ShootingTarget::PassTelemetry => {}
@@ -232,10 +232,10 @@ pub async fn teleop(ferris: &mut Ferris) {
                 ferris.shooter_target = ShootingTarget::Hub;
                 ferris.turret_mode = TurretMode::Track;
             } else if ferris.controllers.operator.get(3) {
-                ferris.shooter_target = ShootingTarget::PassLeft;
+                ferris.shooter_target = ShootingTarget::PassTop;
                 ferris.turret_mode = TurretMode::Track;
             } else if ferris.controllers.operator.get(4) {
-                ferris.shooter_target = ShootingTarget::PassRight;
+                ferris.shooter_target = ShootingTarget::PassBottom;
                 ferris.turret_mode = TurretMode::Track;
             } else if ferris.controllers.operator.get(7) {
                 ferris.turret_mode = TurretMode::Idle;
@@ -311,3 +311,4 @@ pub async fn teleop(ferris: &mut Ferris) {
         }
     }
 }
+

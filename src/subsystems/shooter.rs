@@ -1,5 +1,5 @@
 use crate::constants::config::{
-    HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS, HUB_RED, PASS_LEFT, PASS_RIGHT,
+    HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS, HUB_RED, PASS_BOTTOM, PASS_TOP,
 };
 use crate::constants::robotmap::shooter::{
     HOOD_MOTOR_ID, SHOOTER_MOTOR_LEFT_ID, SHOOTER_MOTOR_RIGHT_ID,
@@ -7,21 +7,24 @@ use crate::constants::robotmap::shooter::{
 use crate::constants::shooter::{MAX_FLYWHEEL_SPEED, SHOOTER_DISTANCE_ERROR_SMUDGE};
 use crate::constants::turret::{OFFSET, TOLERANCE};
 use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
-use crate::subsystems::turret::Turret;
+use crate::subsystems::turret::{get_angle_to_hub, Turret};
 use frcrs::alliance_station;
 use frcrs::ctre::{ControlMode, Talon};
 use frcrs::telemetry::Telemetry;
 use nalgebra::Vector2;
 use uom::si::angle::radian;
+use uom::si::f64::Angle;
 use uom::si::f64::Length;
 use uom::si::length::meter;
+use crate::subsystems::swerve::drivetrain::get_angle_difs;
+use crate::subsystems::vision::distance;
 
 #[derive(PartialEq, Clone)]
 pub enum ShootingTarget {
     Idle,
     Hub,
-    PassLeft,
-    PassRight,
+    PassTop,
+    PassBottom,
     PassTelemetry,
 }
 
@@ -211,8 +214,8 @@ impl ShootingTarget {
     pub fn name(&self) -> &'static str {
         match self {
             ShootingTarget::Hub => "hub",
-            ShootingTarget::PassLeft => "pass_l",
-            ShootingTarget::PassRight => "pass_r",
+            ShootingTarget::PassTop => "pass_l",
+            ShootingTarget::PassBottom => "pass_r",
             ShootingTarget::Idle => "idle",
             ShootingTarget::PassTelemetry => "telem",
         }
@@ -253,114 +256,14 @@ impl Shooter {
         self.hood_motor.set(ControlMode::Position, angle);
     }
 
-    // fr ccw+ i think rad/s
-    // TODO: make unit tests to make sure im not crazy
-    // pub async fn shoot_on_move(
-    //     &mut self,
-    //     pose: RobotPoseEstimate,
-    //     linear: (f64, f64),
-    //     angular: f64,
-    //     max_iter: i32,
-    //     target: ShootingTarget,
-    // ) {
-    //     let target_cords = match target {
-    //         ShootingTarget::Hub => {
-    //             // flip for blue
-    //             if alliance_station().blue() {
-    //                 flip(HUB)
-    //             } else {
-    //                 HUB
-    //             }
-    //         }
-    //         ShootingTarget::PassLeft => {
-    //             // flip for blue
-    //             if alliance_station().blue() {
-    //                 flip(PASS_LEFT)
-    //             } else {
-    //                 PASS_LEFT
-    //             }
-    //         }
-    //         ShootingTarget::PassRight => {
-    //             // flip for blue
-    //             if alliance_station().blue() {
-    //                 flip(PASS_RIGHT)
-    //             } else {
-    //                 PASS_RIGHT
-    //             }
-    //         }
-    //         ShootingTarget::PassTelemetry => {
-    //             let target = Telemetry::get_target_point().await;
-    //             if let Some(target) = target {
-    //                 // -1..1 so we have to convert
-    //                 Vector2::new(target.x * 17.55, target.y * 8.05)
-    //             } else {
-    //                 // probably the right order but maybe now
-    //                 Vector2::new(HALF_FIELD_WIDTH_METERS, HALF_FIELD_LENGTH_METERS)
-    //             }
-    //         }
-    //         ShootingTarget::Idle => Vector2::new(0., 0.),
-    //     };
-    //
-    //     let (vx, vy) = linear;
-    //
-    //     let angle: f64 = pose.angle.get::<radian>();
-    //     let base_x: f64 = pose.x.get::<meter>();
-    //     let base_y: f64 = pose.y.get::<meter>();
-    //     let av: f64 = angular;
-    //
-    //     let ox: f64 = OFFSET.x;
-    //     let oy: f64 = OFFSET.y;
-    //
-    //     let rx = ox * angle.cos() - oy * angle.sin();
-    //     let ry = ox * angle.sin() + oy * angle.cos();
-    //
-    //     let turret_vx = vx - av * ry;
-    //     let turret_vy = vy + av * rx;
-    //
-    //     let mut dx = target_cords.x - (base_x + rx);
-    //     let mut dy = target_cords.y - (base_y + ry);
-    //     let mut distance = (dx * dx + dy * dy).sqrt();
-    //
-    //     let mut shot = lookup_shot(distance, target.clone());
-    //     let mut t = shot.time_of_flight;
-    //
-    //     for _ in 0..max_iter {
-    //         let px = base_x + rx + turret_vx * t;
-    //         let py = base_y + ry + turret_vy * t;
-    //
-    //         dx = target_cords.x - px;
-    //         dy = target_cords.y - py;
-    //         distance = (dx * dx + dy * dy).sqrt();
-    //
-    //         let new_shot = lookup_shot(distance, target.clone());
-    //
-    //         if (new_shot.time_of_flight - t).abs() < TOLERANCE {
-    //             shot = new_shot;
-    //             break;
-    //         }
-    //
-    //         t = new_shot.time_of_flight;
-    //         shot = new_shot;
-    //     }
-    //
-    //     let future_angle = angle + av * shot.time_of_flight;
-    //     let turret_angle = dy.atan2(dx) - future_angle;
-    //
-    //     match target {
-    //         ShootingTarget::Idle => {
-    //             self.turret.stop();
-    //             self.stop();
-    //         }
-    //         _ => {
-    //             self.shooter_motor_left
-    //                 .set(ControlMode::Percent, shot.flywheel_speed);
-    //             self.shooter_motor_right
-    //                 .set(ControlMode::Percent, shot.flywheel_speed);
-    //             self.set_hood(shot.hood_angle);
-    //             self.turret.set_angle(turret_angle);
-    //         }
-    //     }
-    // }
+    pub fn shoot_to(&mut self, current_pose: Vector2<Length>, current_yaw: Angle, target: Vector2<Length>) {
+        let distance_hub = Length::new::<meter>(distance(target, current_pose));
+
+        let current_flywheel_speed = self.get_speed();
+        self.set_velocity(get_shooter_speed_target(distance_hub));
+        self.set_hood(get_hood_angle_target(distance_hub, current_flywheel_speed));
+        self.turret.set_angle(get_angle_difs(current_yaw, get_angle_to_hub(current_pose)))
+    }
 
     pub fn get_speed(&self) -> f64 {
         self.shooter_motor_left.get_velocity()
@@ -428,7 +331,7 @@ pub fn flip(target: Vector2<f64>) -> Vector2<f64> {
     }
 }
 
-pub fn get_turret_speed_target(distance: Length) -> f64 {
+pub fn get_shooter_speed_target(distance: Length) -> f64 {
     let distance_feet: f64 =
         distance.get::<meter>() as f64 * 3.28084 * SHOOTER_DISTANCE_ERROR_SMUDGE;
     let target =

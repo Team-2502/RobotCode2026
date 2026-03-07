@@ -18,8 +18,8 @@ pub mod config {
 
     pub const HUB_RED: Vector2<f64> = Vector2::new(11.85, 4.02);
     pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.0625, 4.02);
-    pub const PASS_RIGHT: Vector2<f64> = Vector2::new(12.5, 5.6);
-    pub const PASS_LEFT: Vector2<f64> = Vector2::new(12.5, 2.25);
+    pub const PASS_TOP_OFFSET: Vector2<f64> = Vector2::new(0.0, 2.01);
+    pub const PASS_BOTTOM_OFFSET: Vector2<f64> = Vector2::new(0.0, -2.01);
 
     pub const MAX_ITER: i32 = 12;
 }
