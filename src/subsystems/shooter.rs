@@ -1,18 +1,17 @@
-use crate::constants::config::{HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS};
 use crate::constants::robotmap::shooter::{
     HOOD_MOTOR_ID, SHOOTER_MOTOR_LEFT_ID, SHOOTER_MOTOR_RIGHT_ID,
 };
 use crate::constants::shooter::{MAX_FLYWHEEL_SPEED, SHOOTER_DISTANCE_ERROR_SMUDGE};
-use crate::constants::turret::{OFFSET, TOLERANCE};
+
 use crate::subsystems::swerve::drivetrain::get_angle_difs;
-use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
+
 use crate::subsystems::turret::{Turret, get_angle_to_hub};
 use crate::subsystems::vision::distance;
-use frcrs::alliance_station;
+
 use frcrs::ctre::{ControlMode, Talon};
-use frcrs::telemetry::Telemetry;
+
 use nalgebra::Vector2;
-use uom::si::angle::radian;
+
 use uom::si::f64::Angle;
 use uom::si::f64::Length;
 use uom::si::length::meter;
@@ -25,186 +24,13 @@ pub enum ShootingTarget {
     PassTelemetry,
 }
 
-#[derive(Clone, Copy)]
-pub struct ShooterData {
-    distance: f64,
-    flywheel_speed: f64,
-    time_of_flight: f64,
-    hood_angle: f64,
-}
-
-#[derive(Clone, Copy)]
-pub struct ShotSolution {
-    pub hood_angle: f64,
-    pub flywheel_speed: f64,
-    pub time_of_flight: f64,
-    pub turret_angle: f64,
-}
-
-pub const SHOOTING_TABLE: [ShooterData; 10] = [
-    ShooterData {
-        // 91 in
-        distance: 2.31,
-        flywheel_speed: 0.69,
-        //<77 >60
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        // 62 37 0.596
-        // 153 in
-        // 128 3.25
-        distance: 3.89,
-        flywheel_speed: 0.78,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-        // -1.5
-    },
-    ShooterData {
-        distance: 0.0,
-        // 60 in
-        flywheel_speed: 0.0,
-        // 0.55
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        // 18
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        // 0.0 1.0 98
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-        // 2.5 77 0.78
-        //
-        // 1.25  .67 73
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    // at 5ft hood: 0.02 speed: ~46 +-0.2
-    //
-    // at 7ft hood: 0.02 speed: ~48.5 +-0.2
-    // at 7ft hood: 0.41 speed: ~46.5 +-0.2
-    //
-    // at 9ft hood: 0.57 speed: ~49.5 +-0.2
-    // at 9ft hood: 0.67 speed: ~49.5 +-0.2
-    // at 9ft hood: 0.01 speed: ~54.5 +-0.2
-    //
-    // at 11ft hood: 0.02 speed: ~61.5 +-0.2
-    // at 11ft hood: 0.78 speed: ~51.5 +-0.2
-    //
-    // at 13ft hood: 0.01 speed: ~67.5 +-0.2
-    // at 13ft hood: 0.67 speed: ~56.5 +-0.2
-    // at 13ft hood: 0.87 speed: ~54.5 +-0.2
-    //
-    // at 17ft hood: 0.01 speed: ~78.5 +-0.2
-    //
-    // at 18ft hood: 0.01 speed: ~83.5 +-0.2
-    // at 18ft hood: 0.98 speed: ~66.5 +-0.2
-];
-
-pub const PASSING_TABLE: [ShooterData; 10] = [
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-    ShooterData {
-        distance: 0.0,
-        flywheel_speed: 0.0,
-        time_of_flight: 0.0,
-        hood_angle: 0.0,
-    },
-];
-
 pub struct Shooter {
     shooter_motor_left: Talon,
     shooter_motor_right: Talon,
     hood_motor: Talon,
-    
+    pub distance_offset: Length,
+    pub manual_toggle: bool,
+    pub idle_toggle: bool,
 
     pub turret: Turret,
 }
@@ -214,7 +40,6 @@ impl ShootingTarget {
             ShootingTarget::Hub => "hub",
             ShootingTarget::PassTop => "pass_l",
             ShootingTarget::PassBottom => "pass_r",
-            //ShootingTarget::Idle => "idle",
             ShootingTarget::PassTelemetry => "telem",
         }
     }
@@ -232,6 +57,9 @@ impl Shooter {
             shooter_motor_left,
             shooter_motor_right,
             hood_motor,
+            distance_offset: Length::new::<meter>(0.0),
+            manual_toggle: false,
+            idle_toggle: false,
 
             turret,
         }
@@ -263,10 +91,17 @@ impl Shooter {
         let distance_target = Length::new::<meter>(distance(target, current_pose));
 
         let current_flywheel_speed = self.get_speed();
-        self.set_velocity(get_shooter_speed_target(distance_target));
-        self.set_hood(get_hood_angle_target(distance_target, current_flywheel_speed));
-        self.turret
-            .set_angle(get_angle_difs(current_yaw, get_angle_to_hub(current_pose)))
+        self.set_velocity(get_shooter_speed_target(
+            distance_target + self.distance_offset,
+        ));
+        self.set_hood(get_hood_angle_target(
+            distance_target + self.distance_offset,
+            current_flywheel_speed,
+        ));
+        self.turret.set_angle(get_angle_difs(
+            current_yaw,
+            get_angle_to_hub(current_pose) + self.turret.yaw_offset,
+        ))
     }
 
     pub fn get_speed(&self) -> f64 {
@@ -287,51 +122,6 @@ impl Shooter {
         self.shooter_motor_left.stop();
         self.shooter_motor_right.stop();
         self.turret.stop();
-    }
-}
-
-pub fn lookup_shot(distance: f64, target: ShootingTarget) -> ShooterData {
-    let table = match target {
-        ShootingTarget::Hub => SHOOTING_TABLE,
-        _ => PASSING_TABLE,
-    };
-
-    if distance <= table[0].distance {
-        return table[0];
-    }
-
-    let last = table.len() - 1;
-    if distance >= table[last].distance {
-        return table[last];
-    }
-
-    for i in 0..last {
-        let s0 = table[i];
-        let s1 = table[i + 1];
-
-        if distance >= s0.distance && distance <= s1.distance {
-            let t = (distance - s0.distance) / (s1.distance - s0.distance);
-
-            return ShooterData {
-                distance,
-                hood_angle: s0.hood_angle + (s1.hood_angle - s0.hood_angle) * t,
-                flywheel_speed: s0.flywheel_speed + (s1.flywheel_speed - s0.flywheel_speed) * t,
-                time_of_flight: s0.time_of_flight + (s1.time_of_flight - s0.time_of_flight) * t,
-            };
-        }
-    }
-
-    unreachable!("if you see this its broken");
-}
-
-pub fn flip(target: Vector2<f64>) -> Vector2<f64> {
-    if alliance_station().blue() {
-        Vector2::new(
-            target.x - HALF_FIELD_WIDTH_METERS + target.x,
-            target.y - HALF_FIELD_LENGTH_METERS + target.y,
-        )
-    } else {
-        target
     }
 }
 

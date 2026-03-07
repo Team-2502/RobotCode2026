@@ -1,8 +1,6 @@
-use crate::constants::config::{HUB_BLUE, HUB_RED};
+use crate::constants::config::{HUB_BLUE, HUB_RED, MANUAL_TURRET_YAW_CHANGE_SCALAR};
 use crate::constants::robotmap::turret::SPIN_MOTOR_ID;
 use crate::constants::turret::{GEAR_RATIO, TURRET_CLAMP, TURRET_MAX, TURRET_MIN};
-use crate::subsystems::shooter::flip;
-use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
 use frcrs::alliance_station;
 use frcrs::ctre::{ControlMode, Talon};
 use nalgebra::Vector2;
@@ -21,12 +19,11 @@ pub enum TurretMode {
 
 pub struct Turret {
     spin_motor: Talon,
-    //turret_offset: f64,
     drivetrain_angle: Angle,
 
     pub turret_angle: Angle,
     pub desired_angle: Angle,
-    pub offset: Angle,
+    pub yaw_offset: Angle,
 }
 
 impl TurretMode {
@@ -66,7 +63,6 @@ impl TurretMode {
     }
 }
 
-// ball park max -2.5
 impl Turret {
     pub fn new() -> Self {
         let spin_motor = Talon::new(SPIN_MOTOR_ID, None);
@@ -77,7 +73,7 @@ impl Turret {
 
             turret_angle: Angle::new::<degree>(0.0),
             desired_angle: Angle::new::<degree>(0.0),
-            offset: Angle::new::<degree>(0.0),
+            yaw_offset: Angle::new::<degree>(0.0),
         }
     }
 
@@ -99,9 +95,6 @@ impl Turret {
             robot_turret_angle.get::<degree>()
         );
         let new_angle = apply_soft_stop(robot_turret_angle.get::<degree>());
-        // println!("{}", field_relative_angle);
-        // let angle_new = self.apply_soft_stop(field_relative_angle);
-        // println!("cool: {}", field_relative_angle);
         self.move_to_angle(new_angle);
     }
 
@@ -109,39 +102,15 @@ impl Turret {
         self.spin_motor.set(ControlMode::Percent, speed);
     }
 
-    pub fn offset_turret(&mut self, amount: Angle) {
-        self.offset = self.offset + amount;
+    pub fn offset_yaw(&mut self, amount: Angle) {
+        self.yaw_offset = self.yaw_offset + amount;
     }
 
-    // fn apply_soft_stop(&self, desired_deg: f64) -> f64 {
-    //     let current = self.turret_angle.get::<degree>() % 360.;
-    //     // println!("attempting current {:?}", current);
-    //     let mut best = current;
-    //     let mut found = false;
-
-    //     for i in -1..=1 {
-    //         let candidate = desired_deg + 360.0 * i as f64;
-
-    //         if candidate < TURRET_MIN || candidate > TURRET_MAX {
-    //             continue;
-    //         }
-
-    //         // println!("testing {:?}", candidate);
-
-    //         if !found || (candidate - current).abs() < (best - current).abs() {
-    //             best = candidate;
-    //             found = true;
-    //         }
-    //     }
-
-    //     best
-    // }
-
-    pub fn man_move(&mut self, mut joystick: f64) {
+    pub fn man_yaw(&mut self, mut joystick: f64) {
         if alliance_station().blue() {
             joystick = -joystick;
         }
-        let angle = self.turret_angle.get::<degree>() + joystick;
+        let angle = self.turret_angle.get::<degree>() + MANUAL_TURRET_YAW_CHANGE_SCALAR * joystick;
         // println!("here: {}", angle);
         self.turret_angle = Angle::new::<degree>(angle);
         self.move_to_angle(apply_soft_stop(angle));
@@ -192,31 +161,6 @@ pub fn apply_soft_stop(desired_deg: f64) -> f64 {
         desired_deg
     }
 }
-
-// pub fn apply_soft_stop(desired_deg: f64) -> f64 {
-//     // let current = self.turret_angle.get::<degree>() % 360.;
-//     // println!("attempting current {:?}", current);
-//     let mut current = desired_deg;
-//     let mut best = 0.0;
-//     let mut found = false;
-
-//     for i in -1..=1 {
-//         let candidate = desired_deg + 360.0 * i as f64;
-
-//         if candidate < TURRET_MIN || candidate > TURRET_MAX {
-//             continue;
-//         }
-
-//         // println!("testing {:?}", candidate);
-
-//         if !found || (candidate - current).abs() < (best - current).abs() {
-//             best = candidate;
-//             found = true;
-//         }
-//     }
-
-//     best
-// }
 
 #[cfg(test)]
 mod tests {

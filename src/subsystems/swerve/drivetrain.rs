@@ -13,10 +13,9 @@ use crate::constants::robotmap::drivetrain_map::{
 };
 use crate::subsystems::localization::Localization;
 use crate::subsystems::swerve::kinematics::Kinematics;
-use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
 use crate::subsystems::vision::Vision;
+use frcrs::alliance_station;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
-use frcrs::{AllianceStation, alliance_station};
 use nalgebra::{Rotation2, Vector2, vector};
 use std::f64::consts::PI;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -59,17 +58,17 @@ pub struct Drivetrain {
 }
 
 pub enum FieldZone {
-    BLUE_TOP,
-    BLUE_BOTTOM,
-    MIDDLE_TOP,
-    MIDDLE_BOTTOM,
-    RED_TOP,
-    RED_BOTTOM,
+    BlueTop,
+    BlueBottom,
+    MiddleTop,
+    MiddleBottom,
+    RedTop,
+    RedBottom,
 }
 
 impl Drivetrain {
     /// Returns a new Drivetrain. CAN IDs and CanBus set in constants::robotmap::drivetrain_map
-    pub fn new(starting_pose: RobotPoseEstimate) -> Drivetrain {
+    pub fn new(starting_pose: Vector2<Length>, starting_yaw: Angle) -> Drivetrain {
         // make the encoders before rest of robot - we need them to get CANCoder offsets
         let fl_encoder = CanCoder::new(FL_ENCODER_ID, DRIVETRAIN_CANBUS);
         let bl_encoder = CanCoder::new(BL_ENCODER_ID, DRIVETRAIN_CANBUS);
@@ -94,7 +93,7 @@ impl Drivetrain {
             limelight_side,
 
             kinematics: Kinematics::new(),
-            localization: Localization::new(),
+            localization: Localization::new(starting_pose, starting_yaw),
             last_modules: Vec::new(),
 
             fl_encoder,
@@ -145,7 +144,6 @@ impl Drivetrain {
     // TODO: gyro things
     /// updates the limelight values and passes in drivetrain data for fom
     pub async fn update_pose(&mut self) {
-        let gyro_angle_old = self.get_offset_gyro_yaw();
         let gyro_angle = Angle::new::<radian>(self.gyro.get_rotation().z);
         let gyro_yaw_error = Angle::new::<degree>(0.2);
 
@@ -233,10 +231,6 @@ impl Drivetrain {
         //         self.localization.update_yaw(ll_side_yaw.unwrap(), 0.002);
         //     }
         // }
-    }
-
-    fn get_offset_gyro_yaw(&self) -> Angle {
-        Angle::new::<radian>(self.gyro.get_rotation().z) - self.gyro_offset
     }
 
     pub fn set_gyro_offset(&mut self) {
@@ -447,19 +441,19 @@ impl Drivetrain {
         let (pose, _, _, _) = self.localization.get_state();
         if pose.y.get::<meter>() < HALF_FIELD_WIDTH_METERS {
             if pose.x.get::<inch>() < BLUE_HUB_X_INCHES {
-                FieldZone::BLUE_BOTTOM
+                FieldZone::BlueBottom
             } else if pose.x.get::<inch>() < RED_HUB_X_INCHES {
-                FieldZone::MIDDLE_BOTTOM
+                FieldZone::MiddleBottom
             } else {
-                FieldZone::RED_BOTTOM
+                FieldZone::RedBottom
             }
         } else {
             if pose.x.get::<inch>() < BLUE_HUB_X_INCHES {
-                FieldZone::BLUE_TOP
+                FieldZone::BlueTop
             } else if pose.x.get::<inch>() < RED_HUB_X_INCHES {
-                FieldZone::MIDDLE_TOP
+                FieldZone::MiddleTop
             } else {
-                FieldZone::RED_TOP
+                FieldZone::RedTop
             }
         }
     }

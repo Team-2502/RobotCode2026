@@ -5,7 +5,6 @@ use crate::constants::config::{
 use crate::constants::drivetrain::{SWERVE_WHEEL_CIRCUMFERENCE_METERS, WHEEL_ENCODER_STD_DEV};
 use nalgebra::{SMatrix, Vector2, matrix};
 use std::f64::consts::PI;
-use std::time::Instant;
 use uom::si::angle::revolution;
 use uom::si::{angle::radian, f64::Angle, f64::Length};
 
@@ -14,7 +13,6 @@ use uom::si::{angle::radian, f64::Angle, f64::Length};
 pub struct Kinematics {
     ik_matrix: SMatrix<f64, 8, 3>,
     fk_matrix: SMatrix<f64, 3, 8>,
-    timer: Instant,
 }
 
 #[derive(Clone, Debug)]
@@ -70,7 +68,6 @@ impl Kinematics {
         Kinematics {
             ik_matrix,
             fk_matrix,
-            timer: Instant::now(),
         }
     }
 

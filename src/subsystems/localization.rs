@@ -9,8 +9,11 @@ pub struct Localization {
 }
 
 impl Localization {
-    pub fn new() -> Localization {
-        let state = SMatrix::zeros();
+    pub fn new(starting_pose: Vector2<Length>, starting_yaw: Angle) -> Localization {
+        let starting_x = starting_pose.x.get::<meter>();
+        let starting_y = starting_pose.y.get::<meter>();
+        let starting_angle = starting_yaw.get::<radian>();
+        let state: SMatrix<f64, 3, 1> = matrix![starting_x; starting_y; starting_angle];
         let state_confidence =
             SMatrix::<f64, 3, 3>::from_diagonal(&SVector::<f64, 3>::new(1000.0, 1000.0, 1000.0));
 
