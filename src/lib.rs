@@ -1,5 +1,5 @@
 // use crate::auto::path::drive;
-use crate::constants::config::{HUB_BLUE, HUB_RED, PASS_BOTTOM, PASS_BOTTOM_OFFSET, PASS_TOP, PASS_TOP_OFFSET};
+use crate::constants::config::{HUB_BLUE, HUB_RED, PASS_BOTTOM_OFFSET, PASS_TOP_OFFSET};
 use crate::constants::robotmap::intake::{HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
 use crate::constants::robotmap::shooter::HOOD_MAX;
 use crate::subsystems::intake::Intake;
@@ -199,6 +199,8 @@ pub async fn teleop(ferris: &mut Ferris) {
                     };
 
                     let distance_hub = Length::new::<meter>(distance(target, robot_pose.clone()));
+
+                    println!("hub dist: {:?}", distance_hub);
 
                     let current_flywheel_speed = shooter.get_speed();
                     shooter.set_velocity(get_shooter_speed_target(distance_hub));

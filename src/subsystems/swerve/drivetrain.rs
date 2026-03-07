@@ -161,8 +161,10 @@ impl Drivetrain {
                 self.localization.update_pose_from_limelight(
                     self.limelight_front.get_botpose().unwrap(),
                     self.limelight_front.get_field_yaw(),
-                    self.limelight_front.get_location_error(),
-                    self.limelight_front.get_yaw_error(),
+                    // self.limelight_front.get_location_error(),
+                    // self.limelight_front.get_yaw_error(),
+                    Vector2::new(Length::new::<meter>(0.0001), Length::new::<meter>(0.0001)),
+                    Angle::new::<degree>(0.002),
                 );
                 let current_offset = self.limelight_front.get_field_yaw() - gyro_angle;
                 if self.gyro_set {

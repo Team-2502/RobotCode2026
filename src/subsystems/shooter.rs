@@ -1,5 +1,5 @@
 use crate::constants::config::{
-    HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS, HUB_RED, PASS_BOTTOM, PASS_TOP,
+    HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS,
 };
 use crate::constants::robotmap::shooter::{
     HOOD_MOTOR_ID, SHOOTER_MOTOR_LEFT_ID, SHOOTER_MOTOR_RIGHT_ID,
@@ -256,7 +256,7 @@ impl Shooter {
         self.hood_motor.set(ControlMode::Position, angle);
     }
 
-    pub fn shoot_to(&mut self, current_pose: Vector2<Length>, current_yaw: Angle, target: Vector2<Length>) {
+    pub fn shoot_to(&mut self, current_pose: Vector2<Length>, current_yaw: Angle, target: Vector2<f64>) {
         let distance_hub = Length::new::<meter>(distance(target, current_pose));
 
         let current_flywheel_speed = self.get_speed();

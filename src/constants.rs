@@ -16,7 +16,7 @@ pub mod config {
     pub const HALF_FIELD_WIDTH_METERS: f64 = 17.55 / 2.;
     pub const HALF_FIELD_LENGTH_METERS: f64 = 8.05 / 2.;
 
-    pub const HUB_RED: Vector2<f64> = Vector2::new(11.85, 4.02);
+    pub const HUB_RED: Vector2<f64> = Vector2::new(11.915394, 4.02);
     pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.0625, 4.02);
     pub const PASS_TOP_OFFSET: Vector2<f64> = Vector2::new(0.0, 2.01);
     pub const PASS_BOTTOM_OFFSET: Vector2<f64> = Vector2::new(0.0, -2.01);
