@@ -36,6 +36,7 @@ pub async fn drive(
     let path = Path::from_trajectory(&path_content);
     let waypoints = path?.waypoints().clone();
 
+    println!("{}", waypoints.len());
     if waypoint_index >= waypoints.len() {
         return Err("waypoint index out of bounds".into());
     }

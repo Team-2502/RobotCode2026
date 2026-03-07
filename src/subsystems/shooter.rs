@@ -1,3 +1,4 @@
+use crate::constants::config::SHOOTER_INITAL_DISTANCE_OFFSET_FEET;
 use crate::constants::robotmap::shooter::{
     HOOD_MOTOR_ID, SHOOTER_MOTOR_LEFT_ID, SHOOTER_MOTOR_RIGHT_ID,
 };
@@ -14,7 +15,7 @@ use nalgebra::Vector2;
 
 use uom::si::f64::Angle;
 use uom::si::f64::Length;
-use uom::si::length::meter;
+use uom::si::length::{foot, meter};
 
 #[derive(PartialEq, Clone)]
 pub enum ShootingTarget {
@@ -57,7 +58,7 @@ impl Shooter {
             shooter_motor_left,
             shooter_motor_right,
             hood_motor,
-            distance_offset: Length::new::<meter>(0.0),
+            distance_offset: Length::new::<foot>(SHOOTER_INITAL_DISTANCE_OFFSET_FEET),
             manual_toggle: false,
             idle_toggle: false,
 

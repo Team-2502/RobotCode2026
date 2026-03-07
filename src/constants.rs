@@ -14,6 +14,7 @@ pub mod config {
     pub const MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND: f64 = 2.0 * PI;
     pub const MANUAL_TURRET_MODE_DISTANCE_MAX_METERS: f64 = 7.62;
     pub const MANUAL_TURRET_YAW_CHANGE_SCALAR: f64 = 2.0;
+    pub const SHOOTER_INITAL_DISTANCE_OFFSET_FEET: f64 = 1.0;
 
     pub const HALF_FIELD_WIDTH_METERS: f64 = 17.55 / 2.;
     pub const HALF_FIELD_LENGTH_METERS: f64 = 8.05 / 2.;
@@ -22,8 +23,8 @@ pub mod config {
 
     pub const HUB_RED: Vector2<f64> = Vector2::new(11.915394, 4.02);
     pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.0625, 4.02);
-    pub const PASS_TOP_OFFSET: Vector2<f64> = Vector2::new(0.0, 2.01);
-    pub const PASS_BOTTOM_OFFSET: Vector2<f64> = Vector2::new(0.0, -2.01);
+    pub const PASS_TOP_OFFSET_METERS: Vector2<f64> = Vector2::new(0.0, 2.01);
+    pub const PASS_BOTTOM_OFFSET_METERS: Vector2<f64> = Vector2::new(0.0, -2.01);
 
     pub const MAX_ITER: i32 = 12;
 }
@@ -83,7 +84,8 @@ pub mod robotmap {
 pub mod shooter {
     pub const GEAR_RATIO_HOOD: f64 = 0.0;
     pub const MAX_FLYWHEEL_SPEED: f64 = 100.0;
-    pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 0.88;
+    // home: pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 0.88;
+    pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 0.94;
 }
 
 pub mod turret {

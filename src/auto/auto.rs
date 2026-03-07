@@ -41,7 +41,7 @@ impl Auto {
     }
 
     pub fn iterator() -> Vec<Self> {
-        vec![Auto::Nothing]
+        vec![Auto::Nothing, Auto::DasAuto]
     }
 
     pub fn names() -> Vec<String> {
@@ -94,10 +94,13 @@ pub async fn test(robot: Rc<RefCell<Ferris>>) -> Result<(), Box<dyn std::error::
 }
 
 pub async fn das_auto(robot: Rc<RefCell<Ferris>>) -> Result<(), Box<dyn std::error::Error>> {
+    println!("auto");
     let robot = robot.borrow_mut();
     let mut drivetrain = robot.drivetrain.deref().borrow_mut();
     let mut shooter = robot.shooter.deref().borrow_mut();
     let intake = robot.intake.deref().borrow_mut();
+    
+    println!("borrowed");
 
     let (pose, yaw, _, _) = drivetrain.localization.get_state();
 
@@ -111,8 +114,12 @@ pub async fn das_auto(robot: Rc<RefCell<Ferris>>) -> Result<(), Box<dyn std::err
             Length::new::<meter>(HUB_BLUE.y),
         ),
     };
+    
+    println!("bouta drive");
 
     drive("das_auto", &mut drivetrain, 1).await?;
+    
+    println!("drove");
 
     shooter.shoot_to(pose, yaw, hub);
 
@@ -127,6 +134,7 @@ pub async fn das_auto(robot: Rc<RefCell<Ferris>>) -> Result<(), Box<dyn std::err
     intake.stop();
     shooter.turret.stop();
     shooter.stop();
+    println!("done");
 
     Ok(())
 }

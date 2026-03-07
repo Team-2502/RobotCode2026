@@ -1,6 +1,7 @@
 // use crate::auto::path::drive;
 use crate::constants::config::{
-    HUB_BLUE, HUB_RED, MANUAL_TURRET_MODE_DISTANCE_MAX_METERS, PASS_BOTTOM_OFFSET, PASS_TOP_OFFSET,
+    HUB_BLUE, HUB_RED, MANUAL_TURRET_MODE_DISTANCE_MAX_METERS, PASS_BOTTOM_OFFSET_METERS,
+    PASS_TOP_OFFSET_METERS,
 };
 use crate::constants::robotmap::intake::{HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
 use crate::subsystems::intake::Intake;
@@ -12,6 +13,7 @@ use crate::subsystems::swerve::drivetrain::FieldZone::{
     BlueBottom, BlueTop, MiddleBottom, MiddleTop, RedBottom, RedTop,
 };
 use crate::subsystems::turret::TurretMode;
+use crate::subsystems::vision::distance;
 use frcrs::input::Joystick;
 use frcrs::telemetry::Telemetry;
 use frcrs::{alliance_station, deadzone};
@@ -21,7 +23,7 @@ use std::rc::Rc;
 use std::time::Duration;
 use uom::si::angle::degree;
 use uom::si::f64::{Angle, Length};
-use uom::si::length::{inch, meter};
+use uom::si::length::{foot, inch, meter};
 
 pub mod auto;
 pub mod constants;
@@ -142,17 +144,14 @@ pub async fn teleop(ferris: &mut Ferris) {
         // Run Shooter Functions
         if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
             shooter.turret.update_turret(yaw);
-            Telemetry::put_string("turret_mode", String::from(ferris.turret_mode.name())).await;
-            Telemetry::put_string("shooter_target", String::from(ferris.shooter_target.name()))
-                .await;
 
             // todo: assign ids
             if ferris.controllers.operator.get(6) {
-                shooter.distance_offset += Length::new::<inch>(4.0);
+                shooter.distance_offset += Length::new::<inch>(0.5);
             }
 
             if ferris.controllers.operator.get(9) {
-                shooter.distance_offset -= Length::new::<inch>(4.0);
+                shooter.distance_offset -= Length::new::<inch>(0.5);
             }
 
             if ferris.controllers.operator.get(10) {
@@ -196,13 +195,13 @@ pub async fn teleop(ferris: &mut Ferris) {
                     );
                     let pass_top = hub
                         + Vector2::new(
-                            Length::new::<meter>(PASS_TOP_OFFSET.x),
-                            Length::new::<meter>(PASS_TOP_OFFSET.y),
+                            Length::new::<meter>(PASS_TOP_OFFSET_METERS.x),
+                            Length::new::<meter>(PASS_TOP_OFFSET_METERS.y),
                         );
                     let pass_bottom = hub
                         + Vector2::new(
-                            Length::new::<meter>(PASS_BOTTOM_OFFSET.x),
-                            Length::new::<meter>(PASS_BOTTOM_OFFSET.y),
+                            Length::new::<meter>(PASS_BOTTOM_OFFSET_METERS.x),
+                            Length::new::<meter>(PASS_BOTTOM_OFFSET_METERS.y),
                         );
                     (hub, pass_top, pass_bottom)
                 }
@@ -213,13 +212,13 @@ pub async fn teleop(ferris: &mut Ferris) {
                     );
                     let pass_top = hub
                         + Vector2::new(
-                            Length::new::<meter>(PASS_TOP_OFFSET.x),
-                            Length::new::<meter>(PASS_TOP_OFFSET.y),
+                            Length::new::<meter>(PASS_TOP_OFFSET_METERS.x),
+                            Length::new::<meter>(PASS_TOP_OFFSET_METERS.y),
                         );
                     let pass_bottom = hub
                         + Vector2::new(
-                            Length::new::<meter>(PASS_BOTTOM_OFFSET.x),
-                            Length::new::<meter>(PASS_BOTTOM_OFFSET.y),
+                            Length::new::<meter>(PASS_BOTTOM_OFFSET_METERS.x),
+                            Length::new::<meter>(PASS_BOTTOM_OFFSET_METERS.y),
                         );
                     (hub, pass_top, pass_bottom)
                 }
@@ -280,7 +279,10 @@ pub async fn teleop(ferris: &mut Ferris) {
 
                     match ferris.shooter_target {
                         ShootingTarget::PassTop => shooter.shoot_to(pose, yaw, pass_top),
-                        ShootingTarget::Hub => shooter.shoot_to(pose, yaw, hub),
+                        ShootingTarget::Hub => {
+                            shooter.shoot_to(pose, yaw, hub);
+                            Telemetry::put_number("da hub", distance(pose, hub)).await;
+                        }
                         ShootingTarget::PassBottom => shooter.shoot_to(pose, yaw, pass_bottom),
                         ShootingTarget::PassTelemetry => {
                             println!("ShootingTarget = PassTelemetry? Switching to Idle Mode");
@@ -306,6 +308,17 @@ pub async fn teleop(ferris: &mut Ferris) {
                     shooter.stop();
                 }
             }
+
+            Telemetry::put_string("turret_mode", String::from(ferris.turret_mode.name())).await;
+            Telemetry::put_string("shooter_target", String::from(ferris.shooter_target.name()))
+                .await;
+            Telemetry::put_number("DISTANCE OFFSET", shooter.distance_offset.get::<foot>()).await;
+            Telemetry::put_number(
+                "YAW OFFSET",
+                dbg!(shooter.turret.yaw_offset.get::<degree>()),
+            )
+            .await;
+            
 
             // Run Intake Functions
             if let Ok(intake) = ferris.intake.try_borrow_mut() {

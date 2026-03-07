@@ -154,8 +154,8 @@ impl Drivetrain {
             );
         }
 
-        let (pose, _, _, _) = self.localization.get_state();
-        println!("update_pose: current localized botpose: {:?}", pose);
+        //let (pose, _, _, _) = self.localization.get_state();
+        //println!("update_pose: current localized botpose: {:?}", pose);
 
         self.update_odo();
         let front_update_handle =
@@ -163,7 +163,7 @@ impl Drivetrain {
         let side_update_handle = timeout(Duration::from_millis(100), self.limelight_side.update());
 
         if front_update_handle.await.is_ok() {
-            println!("entered front update");
+            //println!("entered front update");
             // println!("(unused in code) ll imu yaw: {}", self.limelight_front.status.finalYaw);
             // println!("(unused in code) ll field yaw: {}", self.limelight_front.get_field_yaw().get::<degree>());
             if self.limelight_front.get_botpose().is_some() {
@@ -189,7 +189,7 @@ impl Drivetrain {
         }
 
         if side_update_handle.await.is_ok() {
-            println!("entered side update");
+            //println!("entered side update");
             if self.limelight_side.get_botpose().is_some() {
                 self.localization.update_pose_from_limelight(
                     self.limelight_side.get_botpose().unwrap(),
@@ -344,7 +344,7 @@ impl Drivetrain {
             false => vector![x, y],
         };
 
-        println!("target_transformation: {:?}", target_transformation);
+        //println!("target_transformation: {:?}", target_transformation);
 
         let targets = self.kinematics.get_targets(target_transformation, rotation);
 

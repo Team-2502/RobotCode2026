@@ -63,7 +63,7 @@ impl Vision {
         let results = self.limelight.results().await;
         if let Ok(r) = results {
             self.results = r;
-            println!("it got results bro");
+            //println!("it got results bro");
         } else {
             eprintln!("failed to fetch results from limelight");
             let response = self.limelight.response().await;
