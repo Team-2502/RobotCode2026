@@ -164,11 +164,7 @@ pub fn apply_soft_stop(desired_deg: f64) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
-    use crate::subsystems::turret::{apply_soft_stop, get_angle_to_hub};
-    use uom::si::angle::{degree, radian};
-    use uom::si::f64::{Angle, Length};
-    use uom::si::length::meter;
+    use crate::subsystems::turret::apply_soft_stop;
 
     // #[test]
     // pub fn test_angle_to_hub() {

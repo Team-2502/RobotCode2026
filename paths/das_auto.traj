@@ -1,5 +1,5 @@
 {
- "name":"NewPath_copy1",
+ "name":"das_auto",
  "version":3,
  "snapshot":{
   "waypoints":[],
@@ -8,8 +8,8 @@
  },
  "params":{
   "waypoints":[
-    {"x":{"exp":"12.33 m", "val":12.33}, "y":{"exp":"1.66 m", "val":1.66}, "heading":{"exp":"65 deg", "val":1.1344640137963142}, "intervals":40, "split":false, "fixTranslation":true, "fixHeading":true, "overrideIntervals":false},
-    {"x":{"exp":"1.336621642112732 m", "val":1.336621642112732}, "y":{"exp":"8.397335052490234 m", "val":8.397335052490234}, "heading":{"exp":"0 deg", "val":0.0}, "intervals":40, "split":false, "fixTranslation":true, "fixHeading":true, "overrideIntervals":false}],
+    {"x":{"exp":"3.619900941848755 m", "val":3.619900941848755}, "y":{"exp":"3.9857194423675537 m", "val":3.9857194423675537}, "heading":{"exp":"-3.14 rad", "val":-3.14}, "intervals":40, "split":false, "fixTranslation":true, "fixHeading":true, "overrideIntervals":false},
+    {"x":{"exp":"2.2712461948394775 m", "val":2.2712461948394775}, "y":{"exp":"3.9857194423675537 m", "val":3.9857194423675537}, "heading":{"exp":"3.14 rad", "val":3.14}, "intervals":40, "split":false, "fixTranslation":true, "fixHeading":true, "overrideIntervals":false}],
   "constraints":[
     {"from":"first", "to":null, "data":{"type":"StopPoint", "props":{}}, "enabled":true},
     {"from":"last", "to":null, "data":{"type":"StopPoint", "props":{}}, "enabled":true},
