@@ -278,12 +278,14 @@ pub async fn teleop(ferris: &mut Ferris) {
                     }
 
                     match ferris.shooter_target {
-                        ShootingTarget::PassTop => shooter.shoot_to(pose, yaw, pass_top),
+                        ShootingTarget::PassTop => shooter.shoot_to(pose, yaw, pass_top).await,
                         ShootingTarget::Hub => {
-                            shooter.shoot_to(pose, yaw, hub);
+                            shooter.shoot_to(pose, yaw, hub).await;
                             Telemetry::put_number("da hub", distance(pose, hub)).await;
                         }
-                        ShootingTarget::PassBottom => shooter.shoot_to(pose, yaw, pass_bottom),
+                        ShootingTarget::PassBottom => {
+                            shooter.shoot_to(pose, yaw, pass_bottom).await
+                        }
                         ShootingTarget::PassTelemetry => {
                             println!("ShootingTarget = PassTelemetry? Switching to Idle Mode");
                             ferris.turret_mode = TurretMode::Idle;
@@ -318,7 +320,6 @@ pub async fn teleop(ferris: &mut Ferris) {
                 dbg!(shooter.turret.yaw_offset.get::<degree>()),
             )
             .await;
-            
 
             // Run Intake Functions
             if let Ok(intake) = ferris.intake.try_borrow_mut() {

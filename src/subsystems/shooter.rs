@@ -11,8 +11,10 @@ use crate::subsystems::vision::distance;
 
 use frcrs::ctre::{ControlMode, Talon};
 
+use frcrs::telemetry::Telemetry;
 use nalgebra::Vector2;
 
+use uom::si::angle::degree;
 use uom::si::f64::Angle;
 use uom::si::f64::Length;
 use uom::si::length::{foot, meter};
@@ -83,7 +85,7 @@ impl Shooter {
         self.hood_motor.set(ControlMode::Position, angle);
     }
 
-    pub fn shoot_to(
+    pub async fn shoot_to(
         &mut self,
         current_pose: Vector2<Length>,
         current_yaw: Angle,
@@ -99,6 +101,15 @@ impl Shooter {
             distance_target + self.distance_offset,
             current_flywheel_speed,
         ));
+        Telemetry::put_number(
+            "angle target",
+            get_angle_difs(
+                current_yaw,
+                get_angle_to_hub(current_pose) + self.turret.yaw_offset,
+            )
+            .get::<degree>(),
+        )
+        .await;
         self.turret.set_angle(get_angle_difs(
             current_yaw,
             get_angle_to_hub(current_pose) + self.turret.yaw_offset,

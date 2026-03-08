@@ -85,7 +85,6 @@ impl Turret {
         let position = self.spin_motor.get_position();
         let target_rot =
             (angle / 360.0 * GEAR_RATIO).clamp(position - TURRET_CLAMP, position + TURRET_CLAMP);
-        // println!("target_rot {}", target_rot);
         self.spin_motor.set(ControlMode::Position, target_rot);
     }
 
