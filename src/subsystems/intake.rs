@@ -35,11 +35,12 @@ impl Intake {
     pub fn set_intake_speed(&self, speed: f64) {
         //self.intake_top.set(ControlMode::Percent, -speed);
         self.intake_bottom.set(ControlMode::Percent, speed);
-        self.indexer_motor.set(ControlMode::Percent, speed);
+        //self.indexer_motor.set(ControlMode::Percent, speed);
         //self.indexer_motor.set(ControlMode::Percent, speed);
     }
 
     pub fn set_handoff(&self, speed: f64) {
+        self.indexer_motor.set(ControlMode::Percent, speed);
         self.handoff_motor.set(ControlMode::Percent, -speed);
     }
 

@@ -6,12 +6,12 @@ use crate::constants::config::{
 use crate::constants::robotmap::intake::{HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
 use crate::subsystems::intake::Intake;
 use crate::subsystems::shooter::{
-    Shooter, ShootingTarget, get_hood_angle_target, get_shooter_speed_target,
+    Shooter, ShootingTarget, get_scoring_hood_angle_target, get_scoring_shooter_speed_target,
 };
-use crate::subsystems::swerve::drivetrain::Drivetrain;
 use crate::subsystems::swerve::drivetrain::FieldZone::{
     BlueBottom, BlueTop, MiddleBottom, MiddleTop, RedBottom, RedTop,
 };
+use crate::subsystems::swerve::drivetrain::{Drivetrain, get_zone, update_telemetry_robot_pose};
 use crate::subsystems::turret::TurretMode;
 use crate::subsystems::vision::distance;
 use frcrs::input::Joystick;
@@ -99,20 +99,8 @@ pub async fn teleop(ferris: &mut Ferris) {
     // run drivetrain functions each frame
     if let Ok(mut drivetrain) = ferris.drivetrain.try_borrow_mut() {
         drivetrain.update_pose().await;
-        let (pose, yaw, _, _) = drivetrain.localization.get_state();
-
-        Telemetry::put_number("robot yaw", yaw.get::<degree>()).await;
-        Telemetry::put_number("robot x", pose.x.get::<meter>()).await;
-        Telemetry::put_number("robot y", pose.y.get::<meter>()).await;
-        Telemetry::set_robot_pose(
-            (
-                pose.x.get::<meter>() / 17.55,
-                pose.y.get::<meter>() / 8.05,
-                yaw.get::<degree>(),
-            ),
-            alliance_station().red(),
-        )
-        .await;
+        let pose = drivetrain.localization.get_state();
+        update_telemetry_robot_pose(&pose).await;
 
         let deadzone_output_range = 0.0..1.0;
         let deadzone_input_range = 0.1..1.0;
@@ -143,7 +131,7 @@ pub async fn teleop(ferris: &mut Ferris) {
 
         // Run Shooter Functions
         if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
-            shooter.turret.update_turret(yaw);
+            shooter.turret.update_turret(pose.yaw);
 
             // todo: assign ids
             if ferris.controllers.operator.get(6) {
@@ -233,7 +221,7 @@ pub async fn teleop(ferris: &mut Ferris) {
             match ferris.turret_mode {
                 TurretMode::Track => {
                     // auto-assign shooting target
-                    let zone = drivetrain.get_zone();
+                    let zone = get_zone(&pose);
 
                     if alliance_station().red() {
                         match zone {
@@ -278,14 +266,16 @@ pub async fn teleop(ferris: &mut Ferris) {
                     }
 
                     match ferris.shooter_target {
-                        ShootingTarget::PassTop => shooter.shoot_to(pose, yaw, pass_top).await,
+                        ShootingTarget::PassTop => shooter.pass_to(&pose, pass_top).await,
                         ShootingTarget::Hub => {
-                            shooter.shoot_to(pose, yaw, hub).await;
-                            Telemetry::put_number("da hub", distance(pose, hub)).await;
+                            shooter.shoot_to(&pose, hub).await;
+                            Telemetry::put_number(
+                                "Hub Distance",
+                                distance(Vector2::new(pose.x, pose.y), hub),
+                            )
+                            .await;
                         }
-                        ShootingTarget::PassBottom => {
-                            shooter.shoot_to(pose, yaw, pass_bottom).await
-                        }
+                        ShootingTarget::PassBottom => shooter.pass_to(&pose, pass_bottom).await,
                         ShootingTarget::PassTelemetry => {
                             println!("ShootingTarget = PassTelemetry? Switching to Idle Mode");
                             ferris.turret_mode = TurretMode::Idle;
@@ -298,8 +288,11 @@ pub async fn teleop(ferris: &mut Ferris) {
                     let distance = percent_distance
                         * Length::new::<meter>(MANUAL_TURRET_MODE_DISTANCE_MAX_METERS);
                     let current_flywheel_speed = shooter.get_speed();
-                    shooter.set_velocity(get_shooter_speed_target(distance));
-                    shooter.set_hood(get_hood_angle_target(distance, current_flywheel_speed));
+                    shooter.set_velocity(get_scoring_shooter_speed_target(distance));
+                    shooter.set_hood(get_scoring_hood_angle_target(
+                        distance,
+                        current_flywheel_speed,
+                    ));
                 }
                 TurretMode::Idle => {
                     shooter.turret.stop();

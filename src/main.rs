@@ -39,7 +39,6 @@ fn main() {
 
         // this initializes network tables on the default port
         NetworkTable::init();
-        // println!("hello");
 
         // puts the auto chooser up on the telemetry server
         Telemetry::put_selector("auto chooser", Auto::names()).await;
@@ -51,7 +50,7 @@ fn main() {
         .await;
 
         // this line is used if we are using a usb camera and want to see its feed on shuffleboard
-        // SmartDashboard::start_camera_server();
+        //SmartDashboard::start_camera_server();
 
         // set last loop time to now
         let mut last_loop = Instant::now();

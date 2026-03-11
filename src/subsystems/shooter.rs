@@ -4,6 +4,7 @@ use crate::constants::robotmap::shooter::{
 };
 use crate::constants::shooter::{MAX_FLYWHEEL_SPEED, SHOOTER_DISTANCE_ERROR_SMUDGE};
 
+use crate::subsystems::localization::RobotPose;
 use crate::subsystems::swerve::drivetrain::get_angle_difs;
 
 use crate::subsystems::turret::{Turret, get_angle_to_hub};
@@ -15,7 +16,6 @@ use frcrs::telemetry::Telemetry;
 use nalgebra::Vector2;
 
 use uom::si::angle::degree;
-use uom::si::f64::Angle;
 use uom::si::f64::Length;
 use uom::si::length::{foot, meter};
 
@@ -40,10 +40,10 @@ pub struct Shooter {
 impl ShootingTarget {
     pub fn name(&self) -> &'static str {
         match self {
-            ShootingTarget::Hub => "hub",
-            ShootingTarget::PassTop => "pass_l",
-            ShootingTarget::PassBottom => "pass_r",
-            ShootingTarget::PassTelemetry => "telem",
+            ShootingTarget::Hub => "Shooting to Hub",
+            ShootingTarget::PassTop => "Passing Top",
+            ShootingTarget::PassBottom => "Passing Bottom",
+            ShootingTarget::PassTelemetry => "Passing from Telemetry",
         }
     }
 }
@@ -85,33 +85,56 @@ impl Shooter {
         self.hood_motor.set(ControlMode::Position, angle);
     }
 
-    pub async fn shoot_to(
-        &mut self,
-        current_pose: Vector2<Length>,
-        current_yaw: Angle,
-        target: Vector2<Length>,
-    ) {
+    pub async fn shoot_to(&mut self, pose: &RobotPose, target: Vector2<Length>) {
+        let current_pose = Vector2::new(pose.x, pose.y);
         let distance_target = Length::new::<meter>(distance(target, current_pose));
 
         let current_flywheel_speed = self.get_speed();
-        self.set_velocity(get_shooter_speed_target(
+        self.set_velocity(get_scoring_shooter_speed_target(
             distance_target + self.distance_offset,
         ));
-        self.set_hood(get_hood_angle_target(
+        self.set_hood(get_scoring_hood_angle_target(
             distance_target + self.distance_offset,
             current_flywheel_speed,
         ));
         Telemetry::put_number(
             "angle target",
             get_angle_difs(
-                current_yaw,
+                pose.yaw,
                 get_angle_to_hub(current_pose) + self.turret.yaw_offset,
             )
             .get::<degree>(),
         )
         .await;
         self.turret.set_angle(get_angle_difs(
-            current_yaw,
+            pose.yaw,
+            get_angle_to_hub(current_pose) + self.turret.yaw_offset,
+        ))
+    }
+
+    pub async fn pass_to(&mut self, pose: &RobotPose, target: Vector2<Length>) {
+        let current_pose = Vector2::new(pose.x, pose.y);
+        let distance_target = Length::new::<meter>(distance(target, current_pose));
+
+        let current_flywheel_speed = self.get_speed();
+        self.set_velocity(get_passing_shooter_speed_target(
+            distance_target + self.distance_offset,
+        ));
+        self.set_hood(get_passing_hood_angle_target(
+            distance_target + self.distance_offset,
+            current_flywheel_speed,
+        ));
+        Telemetry::put_number(
+            "angle target",
+            get_angle_difs(
+                pose.yaw,
+                get_angle_to_hub(current_pose) + self.turret.yaw_offset,
+            )
+            .get::<degree>(),
+        )
+        .await;
+        self.turret.set_angle(get_angle_difs(
+            pose.yaw,
             get_angle_to_hub(current_pose) + self.turret.yaw_offset,
         ))
     }
@@ -137,7 +160,7 @@ impl Shooter {
     }
 }
 
-pub fn get_shooter_speed_target(distance: Length) -> f64 {
+pub fn get_scoring_shooter_speed_target(distance: Length) -> f64 {
     let distance_feet: f64 =
         distance.get::<meter>() as f64 * 3.28084 * SHOOTER_DISTANCE_ERROR_SMUDGE;
     let target =
@@ -146,7 +169,7 @@ pub fn get_shooter_speed_target(distance: Length) -> f64 {
     target.clamp(0.0, MAX_FLYWHEEL_SPEED)
 }
 
-pub fn get_hood_angle_target(distance: Length, current_speed: f64) -> f64 {
+pub fn get_scoring_hood_angle_target(distance: Length, current_speed: f64) -> f64 {
     let distance_feet: f64 =
         distance.get::<meter>() as f64 * 3.28084 * SHOOTER_DISTANCE_ERROR_SMUDGE;
     let min_speed =
@@ -155,6 +178,33 @@ pub fn get_hood_angle_target(distance: Length, current_speed: f64) -> f64 {
         (0.0496249 * (distance_feet * distance_feet)) + (1.84238 * distance_feet) + 34.54472;
     let max_angle =
         (-0.0076574 * (distance_feet * distance_feet)) + (0.24567 * distance_feet) + -0.978109;
+
+    if max_angle < 0.0 || current_speed > max_speed {
+        0.0
+    } else if current_speed < min_speed {
+        max_angle
+    } else {
+        let t = 1.0 - (current_speed - min_speed) / (max_speed - min_speed);
+        max_angle * t
+    }
+}
+
+// todo: regressions
+pub fn get_passing_shooter_speed_target(distance: Length) -> f64 {
+    let distance_feet: f64 =
+        distance.get::<meter>() as f64 * 3.28084 * SHOOTER_DISTANCE_ERROR_SMUDGE;
+    let target = (0.0 * (distance_feet * distance_feet)) + (0.0 * distance_feet) + 0.0;
+
+    target.clamp(0.0, MAX_FLYWHEEL_SPEED)
+}
+
+// todo: regressions
+pub fn get_passing_hood_angle_target(distance: Length, current_speed: f64) -> f64 {
+    let distance_feet: f64 =
+        distance.get::<meter>() as f64 * 3.28084 * SHOOTER_DISTANCE_ERROR_SMUDGE;
+    let min_speed = (0.0 * (distance_feet * distance_feet)) + (0.0 * distance_feet) + 0.0;
+    let max_speed = (0.0 * (distance_feet * distance_feet)) + (0.0 * distance_feet) + 0.0;
+    let max_angle = (0.0 * (distance_feet * distance_feet)) + (0.0 * distance_feet) + 0.0;
 
     if max_angle < 0.0 || current_speed > max_speed {
         0.0

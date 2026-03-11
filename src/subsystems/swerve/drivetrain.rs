@@ -11,18 +11,19 @@ use crate::constants::robotmap::drivetrain_map::{
     DRIVETRAIN_CANBUS, FL_DRIVE_ID, FL_ENCODER_ID, FL_TURN_ID, FR_DRIVE_ID, FR_ENCODER_ID,
     FR_TURN_ID, GYRO_ID,
 };
-use crate::subsystems::localization::Localization;
+use crate::subsystems::localization::{Localization, RobotPose};
 use crate::subsystems::swerve::kinematics::Kinematics;
 use crate::subsystems::vision::Vision;
 use frcrs::alliance_station;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
+use frcrs::telemetry::Telemetry;
 use nalgebra::{Rotation2, Vector2, vector};
 use std::f64::consts::PI;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 use tokio::time::timeout;
 use uom::si::angle::{degree, radian, revolution};
-use uom::si::f64::{Angle, Length};
+use uom::si::f64::Angle;
 use uom::si::length::{inch, meter};
 
 /// Drivetrain struct.
@@ -57,6 +58,7 @@ pub struct Drivetrain {
     pub(in crate::subsystems::swerve) fr_turn: Talon,
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub enum FieldZone {
     BlueTop,
     BlueBottom,
@@ -68,7 +70,7 @@ pub enum FieldZone {
 
 impl Drivetrain {
     /// Returns a new Drivetrain. CAN IDs and CanBus set in constants::robotmap::drivetrain_map
-    pub fn new(/*starting_pose: Vector2<Length>, starting_yaw: Angle*/) -> Drivetrain {
+    pub fn new() -> Drivetrain {
         // make the encoders before rest of robot - we need them to get CANCoder offsets
         let fl_encoder = CanCoder::new(FL_ENCODER_ID, DRIVETRAIN_CANBUS);
         let bl_encoder = CanCoder::new(BL_ENCODER_ID, DRIVETRAIN_CANBUS);
@@ -170,10 +172,8 @@ impl Drivetrain {
                 self.localization.update_pose_from_limelight(
                     self.limelight_front.get_botpose().unwrap(),
                     self.limelight_front.get_field_yaw(),
-                    // self.limelight_front.get_location_error(),
-                    // self.limelight_front.get_yaw_error(),
-                    Vector2::new(Length::new::<meter>(0.0001), Length::new::<meter>(0.0001)),
-                    Angle::new::<degree>(0.002),
+                    self.limelight_front.get_location_error(),
+                    self.limelight_front.get_yaw_error(),
                 );
                 let current_offset = self.limelight_front.get_field_yaw() - gyro_angle;
                 if self.gyro_set {
@@ -184,8 +184,6 @@ impl Drivetrain {
                     self.gyro_set = true;
                 }
             }
-
-            // before: self.limelight_front.get_field_yaw()
         }
 
         if side_update_handle.await.is_ok() {
@@ -194,8 +192,7 @@ impl Drivetrain {
                 self.localization.update_pose_from_limelight(
                     self.limelight_side.get_botpose().unwrap(),
                     self.limelight_side.get_field_yaw(),
-                    /*self.limelight_side.get_location_error(),*/
-                    Vector2::new(Length::new::<meter>(0.0001), Length::new::<meter>(0.0001)),
+                    self.limelight_side.get_location_error(),
                     self.limelight_side.get_yaw_error(),
                 );
                 let current_offset = self.limelight_side.get_field_yaw() - gyro_angle;
@@ -208,29 +205,6 @@ impl Drivetrain {
                 }
             }
         }
-
-        // if side_update_handle.await.is_ok() {
-        //     println!("entered side update");
-        //     println!(
-        //         "pigeon gyro: {:?} + 90",
-        //         self.gyro.get_rotation().z * PI / 180.0
-        //     );
-        //     if self.limelight_side.get_botpose_orb().is_some() {
-        //         self.localization.update_pose_from_limelight(
-        //             self.limelight_side.get_botpose_orb().unwrap(),
-        //             Angle::new::<degree>(self.gyro.get_rotation()[(0, 0)] + 90.0),
-        //             self.limelight_side.get_location_error(),
-        //             self.limelight_side.get_yaw_error(),
-        //         );
-        //     }
-        //
-        //     // TODO: implement this
-        //     // // 0.002 is how much to trust gyro; estimated noise
-        //     let ll_side_yaw = self.limelight_side.get_yaw();
-        //     if ll_side_yaw.is_some() {
-        //         self.localization.update_yaw(ll_side_yaw.unwrap(), 0.002);
-        //     }
-        // }
     }
 
     pub fn set_gyro_offset(&mut self) {
@@ -246,12 +220,12 @@ impl Drivetrain {
     /// target_transformation is the x and y input from the driverstation put into a vector.
     /// This function rotates the driver's field orientated input to be robot oriented but the same direction.
     pub fn field_orientate(&mut self, target_transformation: Vector2<f64>) -> Vector2<f64> {
-        let (_, yaw, _, _) = self.localization.get_state();
+        let pose = self.localization.get_state();
         //
         if alliance_station().red() {
-            Rotation2::new(-yaw.get::<radian>()) * target_transformation
+            Rotation2::new(-pose.yaw.get::<radian>()) * target_transformation
         } else {
-            Rotation2::new(-yaw.get::<radian>() + PI) * target_transformation
+            Rotation2::new(-pose.yaw.get::<radian>() + PI) * target_transformation
         }
         // let yaw = self.get_offset_gyro_yaw();
         // println!("field orient input yaw: {:?}", yaw);
@@ -436,25 +410,24 @@ impl Drivetrain {
         self.last_modules = measured;
         (differences, measured_angles)
     }
+}
 
-    pub fn get_zone(&self) -> FieldZone {
-        let (pose, _, _, _) = self.localization.get_state();
-        if pose.y.get::<meter>() < HALF_FIELD_WIDTH_METERS {
-            if pose.x.get::<inch>() < BLUE_HUB_X_INCHES {
-                FieldZone::BlueBottom
-            } else if pose.x.get::<inch>() < RED_HUB_X_INCHES {
-                FieldZone::MiddleBottom
-            } else {
-                FieldZone::RedBottom
-            }
+pub fn get_zone(pose: &RobotPose) -> FieldZone {
+    if pose.y.get::<meter>() < HALF_FIELD_WIDTH_METERS {
+        if pose.x.get::<inch>() < BLUE_HUB_X_INCHES {
+            FieldZone::BlueBottom
+        } else if pose.x.get::<inch>() < RED_HUB_X_INCHES {
+            FieldZone::MiddleBottom
         } else {
-            if pose.x.get::<inch>() < BLUE_HUB_X_INCHES {
-                FieldZone::BlueTop
-            } else if pose.x.get::<inch>() < RED_HUB_X_INCHES {
-                FieldZone::MiddleTop
-            } else {
-                FieldZone::RedTop
-            }
+            FieldZone::RedBottom
+        }
+    } else {
+        if pose.x.get::<inch>() < BLUE_HUB_X_INCHES {
+            FieldZone::BlueTop
+        } else if pose.x.get::<inch>() < RED_HUB_X_INCHES {
+            FieldZone::MiddleTop
+        } else {
+            FieldZone::RedTop
         }
     }
 }
@@ -491,11 +464,27 @@ fn abs_offset(abs_zero_position: Angle, abs_reading: Angle, target: Angle) -> An
     wrap_angle(target - (abs_reading - abs_zero_position))
 }
 
+pub async fn update_telemetry_robot_pose(pose: &RobotPose) {
+    Telemetry::put_number("robot yaw", pose.yaw.get::<degree>()).await;
+    Telemetry::put_number("robot x", pose.x.get::<meter>()).await;
+    Telemetry::put_number("robot y", pose.y.get::<meter>()).await;
+    Telemetry::set_robot_pose(
+        (
+            pose.x.get::<meter>() / 17.55,
+            pose.y.get::<meter>() / 8.05,
+            pose.yaw.get::<degree>(),
+        ),
+        alliance_station().red(),
+    )
+    .await;
+}
+
 #[cfg(test)]
 mod drivetrain_tests {
     use super::*;
     use float_cmp::assert_approx_eq;
     use std::panic;
+    use uom::si::length::Length;
 
     // Measured is 0-360
     // Target is -180 to 180
@@ -595,6 +584,47 @@ mod drivetrain_tests {
         for tuple in expected.iter().zip(results.iter()) {
             assert_approx_eq!(f64, tuple.0.1, tuple.1.1);
             assert_approx_eq!(f64, tuple.0.0.get::<degree>(), tuple.1.0.get::<degree>());
+        }
+    }
+
+    #[test]
+    fn get_zone_test() {
+        let inputs = vec![
+            (10.0, 10.0, 0.0),
+            (10.0, 160.0, 0.0),
+            (300.0, 10.0, 0.0),
+            (300.0, 160.0, 0.0),
+            (500.0, 10.0, 0.0),
+            (500.0, 160.0, 0.0),
+        ];
+
+        let expected = vec![
+            FieldZone::BlueBottom,
+            FieldZone::BlueTop,
+            FieldZone::MiddleBottom,
+            FieldZone::MiddleTop,
+            FieldZone::RedBottom,
+            FieldZone::RedTop,
+        ];
+
+        let mut results: Vec<FieldZone> = vec![];
+
+        for input in inputs {
+            results.push(get_zone(&RobotPose {
+                x: Length::new::<inch>(input.0),
+                y: Length::new::<inch>(input.1),
+                yaw: Angle::new::<degree>(input.2),
+            }));
+        }
+
+        let mut i = 1.0;
+        for result in results.clone() {
+            println!("result {}: {:?}", i, result);
+            i += 1.0;
+        }
+
+        for tuple in expected.iter().zip(results.iter()) {
+            assert_eq!(tuple.0, tuple.1);
         }
     }
 }

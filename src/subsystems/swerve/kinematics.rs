@@ -6,27 +6,13 @@ use crate::constants::drivetrain::{SWERVE_WHEEL_CIRCUMFERENCE_METERS, WHEEL_ENCO
 use nalgebra::{SMatrix, Vector2, matrix};
 use std::f64::consts::PI;
 use uom::si::angle::revolution;
-use uom::si::{angle::radian, f64::Angle, f64::Length};
+use uom::si::{angle::radian, f64::Angle};
 
 /// Inverse Kinematics: Robot Transform/Rotation -> Wheel State
 /// Forward Kinematics: Wheel State -> Robot Transform/Rotation
 pub struct Kinematics {
     ik_matrix: SMatrix<f64, 8, 3>,
     fk_matrix: SMatrix<f64, 3, 8>,
-}
-
-#[derive(Clone, Debug)]
-pub struct RobotPoseEstimate {
-    pub fom: f64,
-    pub x: Length,
-    pub y: Length,
-    pub angle: Angle,
-}
-
-impl RobotPoseEstimate {
-    pub fn new(fom: f64, x: Length, y: Length, angle: Angle) -> RobotPoseEstimate {
-        Self { fom, x, y, angle }
-    }
 }
 
 impl Kinematics {

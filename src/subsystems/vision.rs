@@ -1,5 +1,4 @@
 use crate::constants::vision;
-use crate::subsystems::swerve::kinematics::RobotPoseEstimate;
 use frcrs::limelight::{Limelight, LimelightResults};
 use nalgebra::{Quaternion, Vector2, Vector3};
 use serde_json::Value;
@@ -227,15 +226,6 @@ impl Vision {
     // }
 
     pub fn get_limelight_data(&self) {}
-
-    pub fn get_pose(&self) -> RobotPoseEstimate {
-        RobotPoseEstimate::new(
-            1.0,
-            Length::new::<meter>(self.results.botpose_wpiblue[0]),
-            Length::new::<meter>(self.results.botpose_wpiblue[1]),
-            Angle::new::<degree>(self.results.botpose_wpiblue[5]),
-        )
-    }
 }
 
 pub fn distance(p1: Vector2<Length>, p2: Vector2<Length>) -> f64 {

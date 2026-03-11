@@ -86,7 +86,7 @@ pub async fn follow_path_segment(
             return;
         }
 
-        let (pose, yaw, _, _) = drivetrain.localization.get_state();
+        let pose = drivetrain.localization.get_state();
 
         let setpoint = if alliance_station().red() {
             path.get(Time::new::<second>(elapsed)).mirror(
@@ -101,7 +101,7 @@ pub async fn follow_path_segment(
         let position = Vector2::new(setpoint.x.get::<meter>(), setpoint.y.get::<meter>());
 
         angle = Angle::new::<degree>(calculate_relative_target(
-            yaw.get::<degree>(),
+            pose.yaw.get::<degree>(),
             angle.get::<degree>(),
         ));
 

@@ -97,14 +97,12 @@ pub async fn das_auto(robot: Rc<RefCell<Ferris>>) -> Result<(), Box<dyn std::err
     println!("auto");
     let robot = robot.borrow_mut();
     let mut drivetrain = robot.drivetrain.deref().borrow_mut();
-    let mut shooter = robot.shooter.deref().borrow_mut();
+    let shooter = robot.shooter.deref().borrow_mut();
     let intake = robot.intake.deref().borrow_mut();
-    
+
     println!("borrowed");
 
-    let (pose, yaw, _, _) = drivetrain.localization.get_state();
-
-    let hub = match alliance_station().red() {
+    let _hub = match alliance_station().red() {
         true => Vector2::new(
             Length::new::<meter>(HUB_RED.x),
             Length::new::<meter>(HUB_RED.y),
@@ -114,14 +112,14 @@ pub async fn das_auto(robot: Rc<RefCell<Ferris>>) -> Result<(), Box<dyn std::err
             Length::new::<meter>(HUB_BLUE.y),
         ),
     };
-    
+
     println!("bouta drive");
 
     drive("das_auto", &mut drivetrain, 1).await?;
-    
+
     println!("drove");
 
-    shooter.shoot_to(pose, yaw, hub);
+    //shooter.shoot_to(pose, yaw, hub);
 
     intake.set_handoff(1.0);
 

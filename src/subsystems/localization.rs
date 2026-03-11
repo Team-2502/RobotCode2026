@@ -8,6 +8,13 @@ pub struct Localization {
     state_confidence: SMatrix<f64, 3, 3>,
 }
 
+#[derive(Debug, Clone)]
+pub struct RobotPose {
+    pub x: Length,
+    pub y: Length,
+    pub yaw: Angle,
+}
+
 impl Localization {
     pub fn new() -> Localization {
         let state = SMatrix::zeros();
@@ -128,19 +135,12 @@ impl Localization {
     }
 
     /// Returns: Pose, Yaw, Pose Error, Yaw Error
-    pub fn get_state(&self) -> (Vector2<Length>, Angle, Vector2<Length>, Angle) {
-        (
-            Vector2::new(
-                Length::new::<meter>(self.state[(0, 0)]),
-                Length::new::<meter>(self.state[(1, 0)]),
-            ),
-            Angle::new::<radian>(self.state[(2, 0)]),
-            Vector2::new(
-                Length::new::<meter>(self.state_confidence[(0, 0)]),
-                Length::new::<meter>(self.state_confidence[(1, 1)]),
-            ),
-            Angle::new::<radian>(self.state_confidence[(2, 2)]),
-        )
+    pub fn get_state(&self) -> RobotPose {
+        RobotPose {
+            x: Length::new::<meter>(self.state[(0, 0)]),
+            y: Length::new::<meter>(self.state[(1, 0)]),
+            yaw: Angle::new::<radian>(self.state[(2, 0)]),
+        }
     }
 }
 
@@ -155,26 +155,68 @@ fn transform<const R: usize, const C: usize>(
     transformation * mat * transformation.transpose()
 }
 
-// #[cfg(test)]
-// mod localization_tests {
-//     use uom::si::angle::degree;
-//     use super::*;
-//
-//     #[test]
-//     fn confidence_test() {
-//         let mut local = Localization::new();
-//         println!("before: state: {:?}, confidence: {:?}", local.state, local.state_confidence);
-//         local.update_yaw(Angle::new::<degree>(180.0), 0.01);
-//
-//         println!("after: state: {:?}, confidence: {:?}", local.state, local.state_confidence);
-//
-//         local.update_pose_from_limelight(
-//             Vector2::new(Length::new::<meter>(14.0), Length::new::<meter>(2.0)),
-//             Angle::new::<degree>(90.0),
-//             Vector2::new(Length::new::<meter>(0.01), Length::new::<meter>(0.01)),
-//             Angle::new::<degree>(0.001),
-//         );
-//         println!("after: state: {:?}, confidence: {:?}", local.state, local.state_confidence);
-//         panic!()
-//     }
-// }
+#[cfg(test)]
+mod localization_tests {
+    use super::*;
+    use float_cmp::assert_approx_eq;
+    use uom::si::angle::degree;
+
+    #[test]
+    fn confidence_test() {
+        // translations
+        let inputs = vec![
+            (1.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (-1.0, -1.0, 0.0),
+            (0.0, 0.0, 90.0),
+            (0.0, 0.0, 90.0),
+            (0.0, 0.0, 90.0),
+            (0.0, 0.0, 90.0),
+            (0.0, 0.0, 90.0),
+            (-1.0, 0.0, 0.0),
+        ];
+
+        let expected = vec![
+            (1.0, 0.0, 0.0),
+            (1.0, 1.0, 0.0),
+            (0.0, 0.0, 0.0),
+            (0.0, 0.0, 90.0),
+            (0.0, 0.0, 180.0),
+            (0.0, 0.0, -90.0),
+            (0.0, 0.0, 0.0),
+            (0.0, 0.0, 90.0),
+            (0.0, -1.0, 90.0),
+        ];
+
+        let mut local = Localization::new();
+
+        let mut results: Vec<RobotPose> = vec![];
+        for input in inputs {
+            local.translation_from_odometry(
+                Vector2::new(input.0, input.1),
+                Angle::new::<degree>(input.2),
+                Vector2::new(0.0, 0.0),
+                0.0,
+            );
+            results.push(local.get_state());
+        }
+
+        let mut i = 1.0;
+        for result in results.clone() {
+            println!(
+                "result {}: x: {}, y: {}, yaw: {}",
+                i,
+                result.x.get::<meter>(),
+                result.y.get::<meter>(),
+                result.yaw.get::<degree>()
+            );
+            i += 1.0;
+        }
+
+        for tuple in expected.iter().zip(results.iter()) {
+            assert_approx_eq!(f64, tuple.0.0, tuple.1.x.get::<meter>(), epsilon = 0.001);
+            assert_approx_eq!(f64, tuple.0.1, tuple.1.y.get::<meter>(), epsilon = 0.001);
+            assert_approx_eq!(f64, tuple.0.2, tuple.1.yaw.get::<degree>(), epsilon = 0.001);
+        }
+    }
+}

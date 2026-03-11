@@ -16,8 +16,8 @@ pub mod config {
     pub const MANUAL_TURRET_YAW_CHANGE_SCALAR: f64 = 2.0;
     pub const SHOOTER_INITAL_DISTANCE_OFFSET_FEET: f64 = 1.0;
 
-    pub const HALF_FIELD_WIDTH_METERS: f64 = 17.55 / 2.;
-    pub const HALF_FIELD_LENGTH_METERS: f64 = 8.05 / 2.;
+    pub const HALF_FIELD_WIDTH_METERS: f64 = 8.042656 / 2.;
+    pub const HALF_FIELD_LENGTH_METERS: f64 = 16.513048 / 2.;
     pub const BLUE_HUB_X_INCHES: f64 = 182.11;
     pub const RED_HUB_X_INCHES: f64 = 469.11;
 
@@ -75,7 +75,7 @@ pub mod robotmap {
         pub const INTAKE_DOWN_POSITION: f64 = 0.0;
         pub const INTAKE_UP_POSITION: f64 = 0.0;
 
-        pub const INTAKE_IN_SPEED: f64 = 0.5;
+        pub const INTAKE_IN_SPEED: f64 = 0.75;
         pub const INTAKE_REVSERSE_SPEED: f64 = -0.5;
         pub const HANDOFF_SPEED: f64 = 1.0;
     }
