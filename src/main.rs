@@ -13,10 +13,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
 use tokio::task;
+use tokio::task::AbortHandle;
 use tokio::task::spawn_local;
 use tokio::time::sleep;
 use tokio::time::{Duration, Instant};
-use tokio::task::AbortHandle;
 
 fn main() {
     let runtime = tokio::runtime::Runtime::new().unwrap();

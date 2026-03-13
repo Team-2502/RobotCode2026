@@ -35,7 +35,7 @@ pub struct Drivetrain {
     gyro_set: bool,
     pub limelight_side: Vision,
     pub limelight_front: Vision,
-
+    // timer: Instant,
     pub(in crate::subsystems::swerve) kinematics: Kinematics,
     pub localization: Localization,
     last_modules: Vec<(Angle, Angle)>,
@@ -93,7 +93,7 @@ impl Drivetrain {
             gyro_set: false,
             limelight_front,
             limelight_side,
-
+            // timer: Instant::now(),
             kinematics: Kinematics::new(),
             localization: Localization::new(),
             last_modules: Vec::new(),
@@ -136,13 +136,25 @@ impl Drivetrain {
         let (pose_vec, yaw_change, translation_error, yaw_error) =
             self.kinematics.odometry(difs, measured_angles);
 
+        // let current_time = Instant::now();
+        // let elapsed = current_time.duration_since(self.timer).as_secs() as f64;
+        // self.timer = current_time;
+
+        // // m/s
+        // let velocity = pose_vec / elapsed;
+        // // rads/s
+        // let angular_velocity = yaw_change / elapsed;
+
         self.localization.translation_from_odometry(
             pose_vec,
             yaw_change,
             translation_error,
             yaw_error,
+            // velocity,
+            // angular_velocity,
         );
     }
+
     // TODO: gyro things
     /// updates the limelight values and passes in drivetrain data for fom
     pub async fn update_pose(&mut self) {
@@ -156,18 +168,12 @@ impl Drivetrain {
             );
         }
 
-        //let (pose, _, _, _) = self.localization.get_state();
-        //println!("update_pose: current localized botpose: {:?}", pose);
-
         self.update_odo();
         let front_update_handle =
             timeout(Duration::from_millis(100), self.limelight_front.update());
         let side_update_handle = timeout(Duration::from_millis(100), self.limelight_side.update());
 
         if front_update_handle.await.is_ok() {
-            //println!("entered front update");
-            // println!("(unused in code) ll imu yaw: {}", self.limelight_front.status.finalYaw);
-            // println!("(unused in code) ll field yaw: {}", self.limelight_front.get_field_yaw().get::<degree>());
             if self.limelight_front.get_botpose().is_some() {
                 self.localization.update_pose_from_limelight(
                     self.limelight_front.get_botpose().unwrap(),
@@ -187,7 +193,6 @@ impl Drivetrain {
         }
 
         if side_update_handle.await.is_ok() {
-            //println!("entered side update");
             if self.limelight_side.get_botpose().is_some() {
                 self.localization.update_pose_from_limelight(
                     self.limelight_side.get_botpose().unwrap(),

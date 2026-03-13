@@ -65,6 +65,8 @@ impl Localization {
         yaw_change: Angle,
         robot_translation_error: Vector2<f64>,
         yaw_error: f64,
+        // velocity: Vector2<f64>,
+        // angular_velocity: Angle,
     ) {
         let pose_shift: SMatrix<f64, 3, 1> = matrix![
             robot_translation.x;
@@ -142,6 +144,20 @@ impl Localization {
             yaw: Angle::new::<radian>(self.state[(2, 0)]),
         }
     }
+
+    pub fn get_velocity_errors(&self, elapsed_time_secs: f64) -> (Vector2<f64>, Angle) {
+        let x_error = self.state_confidence[(0, 0)];
+        let y_error = self.state_confidence[(1, 1)];
+        let yaw_error = self.state_confidence[(2, 2)];
+
+        let x_velocity_error = x_error / elapsed_time_secs;
+        let y_velocity_error = y_error / elapsed_time_secs;
+        let angular_velocity_error = yaw_error / elapsed_time_secs;
+        (
+            Vector2::new(x_velocity_error, y_velocity_error),
+            Angle::new::<radian>(angular_velocity_error),
+        )
+    }
 }
 
 fn wrap_angle(angle: f64) -> f64 {
@@ -162,7 +178,7 @@ mod localization_tests {
     use uom::si::angle::degree;
 
     #[test]
-    fn confidence_test() {
+    fn localization_test() {
         // translations
         let inputs = vec![
             (1.0, 0.0, 0.0),
