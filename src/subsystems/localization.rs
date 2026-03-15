@@ -3,9 +3,17 @@ use uom::si::angle::radian;
 use uom::si::f64::{Angle, Length};
 use uom::si::length::meter;
 
+use crate::constants::drivetrain::{
+    CURRENT_STATE_TRUST_SCALAR_DRIVE, CURRENT_STATE_TRUST_SCALAR_YAW,
+};
+use crate::constants::vision::{
+    LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT, MAX_LIMELIGHT_POSE_DIFFERENCE_METERS,
+};
+
 pub struct Localization {
     state: SMatrix<f64, 3, 1>,
     state_confidence: SMatrix<f64, 3, 3>,
+    limelight_outlier_count: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -24,6 +32,7 @@ impl Localization {
         Localization {
             state,
             state_confidence,
+            limelight_outlier_count: 0,
         }
     }
 
@@ -93,14 +102,14 @@ impl Localization {
         let error_from_prediction = yaw_rot_matrix;
         self.set_state(self.state + yaw_rot_matrix * pose_shift);
 
-        let prediciton_confidence = matrix![
-            robot_translation_error.x * robot_translation_error.x, 0.0, 0.0;
-            0.0, robot_translation_error.y * robot_translation_error.y, 0.0;
-            0.0, 0.0, yaw_error * yaw_error;
+        let prediction_confidence = matrix![
+            robot_translation_error.x * robot_translation_error.x + CURRENT_STATE_TRUST_SCALAR_DRIVE * CURRENT_STATE_TRUST_SCALAR_DRIVE, 0.0, 0.0;
+            0.0, robot_translation_error.y * robot_translation_error.y + CURRENT_STATE_TRUST_SCALAR_DRIVE * CURRENT_STATE_TRUST_SCALAR_DRIVE, 0.0;
+            0.0, 0.0, yaw_error * yaw_error + CURRENT_STATE_TRUST_SCALAR_YAW * CURRENT_STATE_TRUST_SCALAR_YAW;
         ];
 
         self.state_confidence = transform(error_from_state, self.state_confidence)
-            + transform(error_from_prediction, prediciton_confidence);
+            + transform(error_from_prediction, prediction_confidence);
 
         self.state_confidence = 0.5 * (self.state_confidence + self.state_confidence.transpose());
     }
@@ -119,6 +128,22 @@ impl Localization {
         pose_error: Vector2<Length>,
         yaw_error: Angle,
     ) {
+        let current_state = self.get_state();
+        let pose_diff_scalar = ((current_state.x - robot_pose.x)
+            * (current_state.x - robot_pose.x)
+            + (current_state.y - robot_pose.y) * (current_state.y - robot_pose.y))
+            .sqrt();
+
+        if pose_diff_scalar > Length::new::<meter>(MAX_LIMELIGHT_POSE_DIFFERENCE_METERS) {
+            self.limelight_outlier_count += 1;
+
+            if self.limelight_outlier_count < LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT {
+                return;
+            }
+        }
+
+        self.limelight_outlier_count = 0;
+
         let measurement: SMatrix<f64, 3, 1> = matrix![
             robot_pose.x.get::<meter>();
             robot_pose.y.get::<meter>();
@@ -178,7 +203,7 @@ mod localization_tests {
     use uom::si::angle::degree;
 
     #[test]
-    fn localization_test() {
+    fn odometry_update_test() {
         // translations
         let inputs = vec![
             (1.0, 0.0, 0.0),
@@ -234,5 +259,54 @@ mod localization_tests {
             assert_approx_eq!(f64, tuple.0.1, tuple.1.y.get::<meter>(), epsilon = 0.001);
             assert_approx_eq!(f64, tuple.0.2, tuple.1.yaw.get::<degree>(), epsilon = 0.001);
         }
+    }
+
+    #[test]
+    fn limelight_update_test() {
+        let mut local = Localization::new();
+        local.translation_from_odometry(
+            Vector2::new(0.0, 0.0),
+            Angle::new::<degree>(0.0),
+            Vector2::new(0.0000001, 0.0000001),
+            0.005,
+        );
+        local.update_pose_from_limelight(
+            Vector2::new(Length::new::<meter>(15.0), Length::new::<meter>(5.0)),
+            Angle::new::<degree>(0.0),
+            Vector2::new(Length::new::<meter>(0.001), Length::new::<meter>(0.001)),
+            Angle::new::<degree>(0.05),
+        );
+        println!("{}: {:?}", 0.0, local.get_state());
+        for i in 0..=15 {
+            local.translation_from_odometry(
+                Vector2::new(0.0, 0.0),
+                Angle::new::<degree>(0.0),
+                Vector2::new(0.0000001, 0.0000001),
+                0.005,
+            );
+            local.update_pose_from_limelight(
+                Vector2::new(Length::new::<meter>(14.0), Length::new::<meter>(4.0)),
+                Angle::new::<degree>(0.0),
+                Vector2::new(Length::new::<meter>(0.001), Length::new::<meter>(0.001)),
+                Angle::new::<degree>(0.05),
+            );
+            println!("{}: {:?}", i + 1, local.get_state());
+        }
+        for i in 0..=15 {
+            local.translation_from_odometry(
+                Vector2::new(0.0, 0.0),
+                Angle::new::<degree>(0.0),
+                Vector2::new(0.01, 0.01),
+                0.005,
+            );
+            local.update_pose_from_limelight(
+                Vector2::new(Length::new::<meter>(15.0), Length::new::<meter>(5.0)),
+                Angle::new::<degree>(0.0),
+                Vector2::new(Length::new::<meter>(0.001), Length::new::<meter>(0.001)),
+                Angle::new::<degree>(0.05),
+            );
+            println!("{}: {:?}", i + 16, local.get_state());
+        }
+        panic!()
     }
 }

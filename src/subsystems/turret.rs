@@ -1,10 +1,12 @@
 use crate::constants::config::{HUB_BLUE, HUB_RED, MANUAL_TURRET_YAW_CHANGE_SCALAR};
+use crate::constants::robotmap::drivetrain_map::DRIVETRAIN_CANBUS;
 use crate::constants::robotmap::turret::SPIN_MOTOR_ID;
 use crate::constants::turret::{GEAR_RATIO, TURRET_CLAMP, TURRET_MAX, TURRET_MIN};
 use frcrs::alliance_station;
 use frcrs::ctre::{ControlMode, Talon};
 use nalgebra::Vector2;
-use uom::si::angle::degree;
+use uom::si::angle::radian;
+use uom::si::angle::{degree, revolution};
 use uom::si::f64::Angle;
 use uom::si::f64::Length;
 use uom::si::length::meter;
@@ -65,7 +67,7 @@ impl TurretMode {
 
 impl Turret {
     pub fn new() -> Self {
-        let spin_motor = Talon::new(SPIN_MOTOR_ID, None);
+        let spin_motor = Talon::new(SPIN_MOTOR_ID, DRIVETRAIN_CANBUS);
 
         Turret {
             spin_motor,
@@ -81,10 +83,10 @@ impl Turret {
         self.drivetrain_angle = drivetrain_angle;
     }
 
-    pub fn move_to_angle(&self, angle: f64) {
+    pub fn move_to_angle(&self, angle: Angle) {
         let position = self.spin_motor.get_position();
-        let target_rot =
-            (angle / 360.0 * GEAR_RATIO).clamp(position - TURRET_CLAMP, position + TURRET_CLAMP);
+        let target_rot = (angle.get::<revolution>() * GEAR_RATIO)
+            .clamp(position - TURRET_CLAMP, position + TURRET_CLAMP);
         self.spin_motor.set(ControlMode::Position, target_rot);
     }
 
@@ -93,7 +95,7 @@ impl Turret {
             "set_angle: robot angle {}",
             robot_turret_angle.get::<degree>()
         );
-        let new_angle = apply_soft_stop(robot_turret_angle.get::<degree>());
+        let new_angle = apply_soft_stop(robot_turret_angle);
         self.move_to_angle(new_angle);
     }
 
@@ -112,7 +114,7 @@ impl Turret {
         let angle = self.turret_angle.get::<degree>() + MANUAL_TURRET_YAW_CHANGE_SCALAR * joystick;
         // println!("here: {}", angle);
         self.turret_angle = Angle::new::<degree>(angle);
-        self.move_to_angle(apply_soft_stop(angle));
+        self.move_to_angle(apply_soft_stop(Angle::new::<degree>(angle)));
         // println!("moved? {}", self.apply_soft_stop(angle));
     }
 
@@ -125,40 +127,20 @@ impl Turret {
     }
 }
 
-pub fn get_angle_to_hub(pose: Vector2<Length>) -> Angle {
-    let target = match alliance_station().red() {
-        true => HUB_RED,
-        false => HUB_BLUE,
-    };
-
+pub fn get_angle_to(pose: Vector2<Length>, target: Vector2<Length>) -> Angle {
     let x = pose.x.get::<meter>();
     let y = pose.y.get::<meter>();
-    let dx = target.x - x;
-    let dy = target.y - y;
+    let dx = target.x.get::<meter>() - x;
+    let dy = target.y.get::<meter>() - y;
 
     Angle::new::<degree>(dy.atan2(dx).to_degrees())
 }
 
-pub fn apply_soft_stop(desired_deg: f64) -> f64 {
-    if desired_deg > TURRET_MAX + 360.0 {
-        panic!(
-            "PANIC: turret.rs soft stop max check: desired angle out of bounds: {}",
-            desired_deg
-        );
-    }
-    if desired_deg < TURRET_MIN - 360.0 {
-        panic!(
-            "PANIC: turret.rs soft stop min check: desired angle out of bounds: {}",
-            desired_deg
-        );
-    }
-    if desired_deg > TURRET_MAX {
-        desired_deg - 360.0
-    } else if desired_deg < TURRET_MIN {
-        desired_deg + 360.0
-    } else {
-        desired_deg
-    }
+pub fn apply_soft_stop(desired_deg: Angle) -> Angle {
+    Angle::new::<radian>(f64::atan2(
+        desired_deg.get::<radian>().sin(),
+        desired_deg.get::<radian>().cos(),
+    ))
 }
 
 #[cfg(test)]
@@ -182,19 +164,4 @@ mod tests {
 
     //     assert_eq!(result, expected.get::<degree>());
     // }
-
-    #[test]
-    pub fn test_soft_stop() {
-        let expected1 = 100.0;
-        let expected2 = -170.0;
-        let expected3 = 170.0;
-
-        let result1 = apply_soft_stop(100.0);
-        let result2 = apply_soft_stop(190.0);
-        let result3 = apply_soft_stop(-190.0);
-
-        assert_eq!(result1, expected1);
-        assert_eq!(result2, expected2);
-        assert_eq!(result3, expected3);
-    }
 }

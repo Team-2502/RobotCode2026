@@ -1,16 +1,18 @@
 use crate::constants::config::{
-    self, BLUE_HUB_X_INCHES, HALF_FIELD_WIDTH_METERS, RED_HUB_X_INCHES,
+    BLUE_HUB_X_INCHES, FIELD_ORIENTED, HALF_FIELD_WIDTH_METERS,
+    MINIMUM_MODULE_VELOCITY_METERS_PER_SECOND, RED_HUB_X_INCHES,
 };
 use crate::constants::drivetrain::{
     BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
     FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
-    GYRO_OFFSET_UPDATE_RATIO, SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO,
+    GYRO_OFFSET_UPDATE_RATIO, PIGEON_YAW_STD_DEV, SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO,
 };
 use crate::constants::robotmap::drivetrain_map::{
     BL_DRIVE_ID, BL_ENCODER_ID, BL_TURN_ID, BR_DRIVE_ID, BR_ENCODER_ID, BR_TURN_ID,
     DRIVETRAIN_CANBUS, FL_DRIVE_ID, FL_ENCODER_ID, FL_TURN_ID, FR_DRIVE_ID, FR_ENCODER_ID,
     FR_TURN_ID, GYRO_ID,
 };
+use crate::constants::robotmap::shooter::SHOOTER_CANBUS;
 use crate::subsystems::localization::{Localization, RobotPose};
 use crate::subsystems::swerve::kinematics::Kinematics;
 use crate::subsystems::vision::Vision;
@@ -23,7 +25,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 use tokio::time::timeout;
 use uom::si::angle::{degree, radian, revolution};
-use uom::si::f64::Angle;
+use uom::si::f64::{Angle, Length};
 use uom::si::length::{inch, meter};
 
 /// Drivetrain struct.
@@ -88,7 +90,7 @@ impl Drivetrain {
         ));
 
         Drivetrain {
-            gyro: Pigeon::new(GYRO_ID, Some("can0".to_string())),
+            gyro: Pigeon::new(GYRO_ID, Some(SHOOTER_CANBUS.to_string())),
             gyro_offset: Angle::new::<degree>(0.0),
             gyro_set: false,
             limelight_front,
@@ -159,7 +161,7 @@ impl Drivetrain {
     /// updates the limelight values and passes in drivetrain data for fom
     pub async fn update_pose(&mut self) {
         let gyro_angle = Angle::new::<radian>(self.gyro.get_rotation().z);
-        let gyro_yaw_error = Angle::new::<degree>(0.2);
+        let gyro_yaw_error = Angle::new::<degree>(PIGEON_YAW_STD_DEV);
 
         if self.gyro_set {
             self.localization.update_yaw(
@@ -174,7 +176,7 @@ impl Drivetrain {
         let side_update_handle = timeout(Duration::from_millis(100), self.limelight_side.update());
 
         if front_update_handle.await.is_ok() {
-            if self.limelight_front.get_botpose().is_some() {
+            if self.limelight_front.has_tag() {
                 self.localization.update_pose_from_limelight(
                     self.limelight_front.get_botpose().unwrap(),
                     self.limelight_front.get_field_yaw(),
@@ -193,7 +195,7 @@ impl Drivetrain {
         }
 
         if side_update_handle.await.is_ok() {
-            if self.limelight_side.get_botpose().is_some() {
+            if self.limelight_side.has_tag() {
                 self.localization.update_pose_from_limelight(
                     self.limelight_side.get_botpose().unwrap(),
                     self.limelight_side.get_field_yaw(),
@@ -244,10 +246,10 @@ impl Drivetrain {
 
     /// ## Sets drivetrain motor speeds.
     pub fn set_speeds(&mut self, targets: Vec<(f64, Angle)>) {
-        let mut update_turn = false;
+        let mut update_modules = false;
         for tuple in &targets {
-            if tuple.0.abs() > 0.05 {
-                update_turn = true;
+            if tuple.0.abs() > MINIMUM_MODULE_VELOCITY_METERS_PER_SECOND {
+                update_modules = true;
             }
         }
 
@@ -274,24 +276,24 @@ impl Drivetrain {
             )),
         ];
 
-        self.fl_drive.set(
-            ControlMode::Velocity,
-            (targets[0].0 * relative_target_modifers[0].1) * SWERVE_DRIVE_RATIO,
-        );
-        self.bl_drive.set(
-            ControlMode::Velocity,
-            (targets[1].0 * relative_target_modifers[1].1) * SWERVE_DRIVE_RATIO,
-        );
-        self.br_drive.set(
-            ControlMode::Velocity,
-            (targets[2].0 * relative_target_modifers[2].1) * SWERVE_DRIVE_RATIO,
-        );
-        self.fr_drive.set(
-            ControlMode::Velocity,
-            (targets[3].0 * relative_target_modifers[3].1) * SWERVE_DRIVE_RATIO,
-        );
+        if update_modules {
+            self.fl_drive.set(
+                ControlMode::Velocity,
+                (targets[0].0 * relative_target_modifers[0].1) * SWERVE_DRIVE_RATIO,
+            );
+            self.bl_drive.set(
+                ControlMode::Velocity,
+                (targets[1].0 * relative_target_modifers[1].1) * SWERVE_DRIVE_RATIO,
+            );
+            self.br_drive.set(
+                ControlMode::Velocity,
+                (targets[2].0 * relative_target_modifers[2].1) * SWERVE_DRIVE_RATIO,
+            );
+            self.fr_drive.set(
+                ControlMode::Velocity,
+                (targets[3].0 * relative_target_modifers[3].1) * SWERVE_DRIVE_RATIO,
+            );
 
-        if update_turn {
             self.fl_turn.set(
                 ControlMode::Position,
                 self.fl_turn.get_position()
@@ -312,13 +314,18 @@ impl Drivetrain {
                 self.fr_turn.get_position()
                     + relative_target_modifers[3].0.get::<revolution>() * SWERVE_TURN_RATIO,
             );
+        } else {
+            self.fl_drive.set(ControlMode::Percent, 0.0);
+            self.bl_drive.set(ControlMode::Percent, 0.0);
+            self.br_drive.set(ControlMode::Percent, 0.0);
+            self.fr_drive.set(ControlMode::Percent, 0.0);
         }
     }
 
     /// Control the drivetrain.
     /// x, y, and rotation are driverstation inputs.
     pub fn control_drivetrain(&mut self, x: f64, y: f64, rotation: f64) {
-        let target_transformation = match config::FIELD_ORIENTED {
+        let target_transformation = match FIELD_ORIENTED {
             true => self.field_orientate(vector![x, y]),
             false => vector![x, y],
         };
@@ -476,7 +483,7 @@ pub async fn update_telemetry_robot_pose(pose: &RobotPose) {
     Telemetry::set_robot_pose(
         (
             pose.x.get::<meter>() / 17.55,
-            pose.y.get::<meter>() / 8.05,
+            1.0 - pose.y.get::<meter>() / 8.05,
             pose.yaw.get::<degree>(),
         ),
         alliance_station().red(),

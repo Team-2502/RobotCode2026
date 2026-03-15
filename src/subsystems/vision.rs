@@ -62,9 +62,16 @@ impl Vision {
         let results = self.limelight.results().await;
         if let Ok(r) = results {
             self.results = r;
-            //println!("it got results bro");
+            println!("it got results bro");
+            println!(
+                "vision line 66: ll pose: x: {} y: {}, yaw: {}",
+                self.results.botpose_wpiblue[0],
+                self.results.botpose_wpiblue[1],
+                self.results.botpose_wpiblue[5]
+            );
+            //println!("{:?}", self.results.Fiducial);
         } else {
-            eprintln!("failed to fetch results from limelight");
+            println!("failed to fetch results from limelight");
             let response = self.limelight.response().await;
             println!("status: {:?}", response);
         }
@@ -81,14 +88,14 @@ impl Vision {
     ///
     /// will return 0 if no tag is targeted
     pub fn get_ty(&self) -> Angle {
-        Angle::new::<degree>(self.results.ty)
+        Angle::new::<degree>(self.results.Fiducial[0].ty)
     }
 
     /// gets the targeted tag's angle from the limelight's vertical centerline as of the last update
     ///
     /// will return 0 if no tag is targeted
     pub fn get_tx(&self) -> Angle {
-        Angle::new::<degree>(self.results.tx)
+        Angle::new::<degree>(self.results.Fiducial[0].tx)
     }
 
     /// gets the id of the targeted tag as of the last update
@@ -200,14 +207,17 @@ impl Vision {
     }
 
     pub fn get_location_error(&self) -> Vector2<Length> {
+        let tag_area = self.results.Fiducial[0].ta;
+        let distance_variation_modifier = 0.00000961227 * tag_area.powf(-1.25093);
+
         Vector2::new(
-            Length::new::<meter>(self.results.stdev_mt1[0]),
-            Length::new::<meter>(self.results.stdev_mt1[1]),
+            Length::new::<meter>(self.results.stdev_mt1[0] + distance_variation_modifier),
+            Length::new::<meter>(self.results.stdev_mt1[1] + distance_variation_modifier),
         )
     }
 
     pub fn has_tag(&self) -> bool {
-        if self.results.botpose_tagcount > 0 {
+        if self.results.botpose_tagcount > 0 && !self.results.Fiducial.is_empty() {
             true
         } else {
             false
@@ -215,7 +225,10 @@ impl Vision {
     }
 
     pub fn get_yaw_error(&self) -> Angle {
-        Angle::new::<degree>(self.results.stdev_mt1[5])
+        let tag_area = self.results.Fiducial[0].ta;
+        let yaw_variation_modifier = 0.000204176 * tag_area.powf(-1.37573);
+
+        Angle::new::<degree>(self.results.stdev_mt1[5] + yaw_variation_modifier)
     }
 
     // {"cameraQuat":{"w":0.6321377276274888,"x":0.774783983401699,"y":-0.004118024448506402,"z":-0.009732124577505519},"cid":9281,"cpu":75.11737060546875,"finalYaw":-1.0707001893496237,"finalimu":[-1.0707001893496237,0.5657632629803511,-11.573459341930416,-1.0707001893496237,-0.38499999046325684,-0.17499999701976776,-0.2800000011920929,-0.20276400446891785,-0.010003999806940556,0.9882000088691711],"fps":60.90412521362305,"hailoCount":1,"hailoPower":3.75,"hailoTemp":74.0,"hwType":6,"ignoreNT":0,"interfaceNeedsRefresh":0,"name":"","pipeImgCount":2,"pipelineIndex":0,"pipelineType":"pipe_fiducial","ram":34.567813873291016,"snapshotMode":0,"temp":71.05000305175781}

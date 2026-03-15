@@ -4,14 +4,15 @@ pub mod config {
     use nalgebra::Vector2;
 
     /// Wheel-Wheel width of robot.
-    pub const WHEELBASE_WIDTH_METERS: f64 = 0.5715;
+    pub const WHEELBASE_WIDTH_METERS: f64 = 0.4953;
     /// Wheel-Wheel length of robot.
-    pub const WHEELBASE_LENGTH_METERS: f64 = 0.4953;
+    pub const WHEELBASE_LENGTH_METERS: f64 = 0.5715;
 
     pub const FIELD_ORIENTED: bool = true;
     pub const MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND: f64 = 16.3;
     pub const MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND: f64 = 6.0;
     pub const MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND: f64 = 2.0 * PI;
+    pub const MINIMUM_MODULE_VELOCITY_METERS_PER_SECOND: f64 = 0.05;
     pub const MANUAL_TURRET_MODE_DISTANCE_MAX_METERS: f64 = 7.62;
     pub const MANUAL_TURRET_YAW_CHANGE_SCALAR: f64 = 2.0;
     pub const SHOOTER_INITAL_DISTANCE_OFFSET_FEET: f64 = 1.0;
@@ -52,6 +53,7 @@ pub mod robotmap {
     }
 
     pub mod shooter {
+        pub static SHOOTER_CANBUS: &'static str = "can0";
         pub const SHOOTER_MOTOR_LEFT_ID: i32 = 13;
         pub const SHOOTER_MOTOR_RIGHT_ID: i32 = 14;
         pub const HOOD_MOTOR_ID: i32 = 15;
@@ -84,19 +86,19 @@ pub mod robotmap {
 pub mod shooter {
     pub const GEAR_RATIO_HOOD: f64 = 0.0;
     pub const MAX_FLYWHEEL_SPEED: f64 = 100.0;
-    // home: pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 0.88;
-    pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 0.94;
+    pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 0.88; /* Original */
+    // pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 0.94; /* Northern Lights */
+    // pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 1.125;
 }
 
 pub mod turret {
     use nalgebra::Vector2;
-
-    // 29.5
-    // 34.5
     pub const GEAR_RATIO: f64 = 34.5;
     pub const TURRET_MAX: f64 = 180.0;
     pub const TURRET_MIN: f64 = -180.0;
-    pub const TURRET_CLAMP: f64 = 4.0;
+    pub const TURRET_CLAMP: f64 = 2.0;
+    pub const ORIGIN_TO_TURRET_CENTER_X_INCHES: f64 = 4.0;
+    pub const ORIGIN_TO_TURRET_CENTER_Y_INCHES: f64 = 2.25;
 
     // meters
     pub const OFFSET: Vector2<f64> = Vector2::new(0.0, 0.0);
@@ -134,14 +136,22 @@ pub mod vision {
     pub const LIMELIGHT_INACCURACY_PER_ANGULAR_VELOCITY: f64 = 2.;
     ///  meters of inaccuracy per (meter/second) of drivetrain linear velocity
     pub const LIMELIGHT_INACCURACY_PER_LINEAR_VELOCITY: f64 = 2.;
+
+    pub const MAX_LIMELIGHT_POSE_DIFFERENCE_METERS: f64 = 1.0;
+    pub const LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT: u32 = 3;
 }
 
 pub mod drivetrain {
+    use std::f64::consts::PI;
+
     pub const SWERVE_TURN_RATIO: f64 = 12.8;
     pub const SWERVE_DRIVE_RATIO: f64 = 6.12;
-    pub const SWERVE_WHEEL_CIRCUMFERENCE_METERS: f64 = 0.364;
+    pub const SWERVE_WHEEL_CIRCUMFERENCE_INCHES: f64 = PI * 4.0;
 
     pub const WHEEL_ENCODER_STD_DEV: f64 = 0.0005;
+    pub const PIGEON_YAW_STD_DEV: f64 = 0.05;
+    pub const CURRENT_STATE_TRUST_SCALAR_DRIVE: f64 = 0.003;
+    pub const CURRENT_STATE_TRUST_SCALAR_YAW: f64 = 0.1;
 
     pub const GYRO_OFFSET_UPDATE_RATIO: f64 = 0.25;
 

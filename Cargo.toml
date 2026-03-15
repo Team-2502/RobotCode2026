@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 #frcrs = "0.1.6"
-frcrs = { git = "https://github.com/Team-2502/frcrs", branch = "follower_fix" }
+frcrs = { git = "https://github.com/Team-2502/frcrs" }
 nalgebra = "0.34.1"
 serde_json = "1.0.145"
 tokio = "1.47.1"
