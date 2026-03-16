@@ -25,7 +25,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 use tokio::time::timeout;
 use uom::si::angle::{degree, radian, revolution};
-use uom::si::f64::{Angle, Length};
+use uom::si::f64::Angle;
 use uom::si::length::{inch, meter};
 
 /// Drivetrain struct.

@@ -1,7 +1,7 @@
-use crate::constants::config::{HUB_BLUE, HUB_RED, MANUAL_TURRET_YAW_CHANGE_SCALAR};
+use crate::constants::config::MANUAL_TURRET_YAW_CHANGE_SCALAR;
 use crate::constants::robotmap::drivetrain_map::DRIVETRAIN_CANBUS;
 use crate::constants::robotmap::turret::SPIN_MOTOR_ID;
-use crate::constants::turret::{GEAR_RATIO, TURRET_CLAMP, TURRET_MAX, TURRET_MIN};
+use crate::constants::turret::{GEAR_RATIO, TURRET_CLAMP};
 use frcrs::alliance_station;
 use frcrs::ctre::{ControlMode, Talon};
 use nalgebra::Vector2;

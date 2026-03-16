@@ -96,7 +96,7 @@ pub mod turret {
     pub const GEAR_RATIO: f64 = 34.5;
     pub const TURRET_MAX: f64 = 180.0;
     pub const TURRET_MIN: f64 = -180.0;
-    pub const TURRET_CLAMP: f64 = 2.0;
+    pub const TURRET_CLAMP: f64 = 1.0;
     pub const ORIGIN_TO_TURRET_CENTER_X_INCHES: f64 = 4.0;
     pub const ORIGIN_TO_TURRET_CENTER_Y_INCHES: f64 = 2.25;
 
