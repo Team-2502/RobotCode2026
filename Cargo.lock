@@ -268,7 +268,7 @@ dependencies = [
 [[package]]
 name = "frcrs"
 version = "0.1.6"
-source = "git+https://github.com/Team-2502/frcrs#770fce52d5eca349ff997834e2b5ca71f43a1083"
+source = "git+https://github.com/Team-2502/frcrs#38f6a464ac3a90a0e474093b4e8bc57f42b3d083"
 dependencies = [
  "async-trait",
  "axum",
@@ -754,9 +754,9 @@ checksum = "d98f6fed1fde3f8c21bc40a1abb88dd75e67924f9cffc3ef95607bad8017f8e2"
 
 [[package]]
 name = "itoa"
-version = "1.0.17"
+version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92ecc6618181def0457392ccd0ee51198e065e016d1d527a7ac1b6dc7c1f09d2"
+checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "java-locator"

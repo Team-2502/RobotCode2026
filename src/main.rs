@@ -1,11 +1,11 @@
 #![warn(non_snake_case)]
 
 use RobotCode2026::auto::auto::Auto;
-use RobotCode2026::subsystems::swerve::drivetrain::update_telemetry_robot_pose;
 use RobotCode2026::subsystems::turret::TurretMode;
-use RobotCode2026::{Ferris, teleop};
+use RobotCode2026::{Ferris, post_shift, teleop};
 use frcrs::input::RobotMode;
 use frcrs::input::RobotState;
+use frcrs::match_time;
 use frcrs::networktables::NetworkTable;
 use frcrs::telemetry::Telemetry;
 use frcrs::{init_hal, observe_user_program_starting, refresh_data};
@@ -17,11 +17,8 @@ use std::time::SystemTime;
 use tokio::task;
 use tokio::task::AbortHandle;
 use tokio::task::spawn_local;
-use tokio::time::error::Elapsed;
 use tokio::time::sleep;
 use tokio::time::{Duration, Instant};
-use uom::si::angle::{degree, radian, revolution};
-use uom::si::f64::Angle;
 
 fn main() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
@@ -54,6 +51,8 @@ fn main() {
         )
         .await;
 
+        Telemetry::put_color("shift", frcrs::telemetry::TelemetryColor::Purple).await;
+
         // this line is used if we are using a usb camera and want to see its feed on shuffleboard
         //SmartDashboard::start_camera_server();
 
@@ -61,7 +60,7 @@ fn main() {
         let mut last_loop = Instant::now();
 
         // initialize the auto handle
-        let mut auto: Option<AbortHandle> = None;
+        let _auto: Option<AbortHandle> = None;
 
         // Watchdog setup
         let last_loop_time = Arc::new(AtomicU64::new(0));
@@ -80,16 +79,16 @@ fn main() {
 
                 // if more than 150 ms has passed the loop has overun and watchdog triggers
                 if last != 0 && now - last > 150 {
-                    println!("Loop Overrun: {}ms", now - last);
+                    //println!("Loop Overrun: {}ms", now - last);
                     if let Ok(ferris) = watchdog_ferris.try_borrow_mut() {
                         // try to stop robot with ferris.stop()
                         ferris.stop();
                     } else {
                         // if we fail to get ferris we exit code 0 (commented out during season)
-                        println!("FAILED TO GET FERRIS TO STOP");
+                        //println!("FAILED TO GET FERRIS TO STOP");
                         // exit(1);
                     }
-                    println!("Watchdog triggered: Motors stopped");
+                    //println!("Watchdog triggered: Motors stopped");
                 }
             }
         });
@@ -111,11 +110,14 @@ fn main() {
                 }
             }
 
+            Telemetry::put_number("match time", (match_time() * 100.0).trunc() / 100.0).await;
+
             if state.enabled() && state.teleop() {
                 // if enabled and in teleop run the teleop function
                 if let Ok(mut robot) = ferris.try_borrow_mut() {
                     robot.dt = dt;
                     robot.update_state();
+                    post_shift(match_time()).await;
                     teleop(&mut robot).await;
                 }
             }

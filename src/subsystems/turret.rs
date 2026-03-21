@@ -145,7 +145,7 @@ pub fn apply_soft_stop(desired_deg: Angle) -> Angle {
 
 #[cfg(test)]
 mod tests {
-    use crate::subsystems::turret::apply_soft_stop;
+    //use crate::subsystems::turret::apply_soft_stop;
 
     // #[test]
     // pub fn test_angle_to_hub() {
