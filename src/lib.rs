@@ -19,6 +19,7 @@ use frcrs::telemetry::Telemetry;
 use frcrs::{alliance_station, deadzone};
 use nalgebra::Vector2;
 use std::cell::RefCell;
+use std::f64::consts::PI;
 use std::rc::Rc;
 use std::time::Duration;
 use tokio::time::Instant;
@@ -102,7 +103,7 @@ impl Ferris {
             let pose = drivetrain.localization.get_state();
             update_telemetry_robot_pose(&pose).await;
             drivetrain.auto_move_to_angle(Angle::new::<radian>(
-                ((self.mode_start_time.elapsed().as_secs() / 5) as f64) * 3.1415 / 2.0,
+                ((self.mode_start_time.elapsed().as_secs() / 5) as f64) * PI / 2.0,
             ));
             drivetrain.auto_move();
         }
