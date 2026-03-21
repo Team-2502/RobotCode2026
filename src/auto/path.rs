@@ -34,19 +34,22 @@ pub async fn drive(
         .await?;
 
     let path = Path::from_trajectory(&path_content);
-    let waypoints = path?.waypoints().clone();
+    let path_unwrapped = path?;
+    let waypoints = path_unwrapped.waypoints();
 
-    println!("{}", waypoints.len());
+    //println!("{}", waypoints.len());
     if waypoint_index >= waypoints.len() {
         return Err("waypoint index out of bounds".into());
     }
 
-    let _start_time = if waypoint_index == 0 {
+    let start_time = if waypoint_index == 0 {
         0.0
     } else {
         waypoints[waypoint_index - 1]
     };
-    let _end_time = waypoints[waypoint_index];
+    let end_time = waypoints[waypoint_index];
+
+    follow_path_segment(drivetrain, path_unwrapped, start_time, end_time).await;
 
     drivetrain.control_drivetrain(0., 0., 0.);
     Ok(())

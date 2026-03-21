@@ -1,8 +1,10 @@
 #![warn(non_snake_case)]
 
 use RobotCode2026::auto::auto::Auto;
+use RobotCode2026::subsystems::swerve::drivetrain::update_telemetry_robot_pose;
 use RobotCode2026::subsystems::turret::TurretMode;
 use RobotCode2026::{Ferris, teleop};
+use frcrs::input::RobotMode;
 use frcrs::input::RobotState;
 use frcrs::networktables::NetworkTable;
 use frcrs::telemetry::Telemetry;
@@ -15,8 +17,11 @@ use std::time::SystemTime;
 use tokio::task;
 use tokio::task::AbortHandle;
 use tokio::task::spawn_local;
+use tokio::time::error::Elapsed;
 use tokio::time::sleep;
 use tokio::time::{Duration, Instant};
+use uom::si::angle::{degree, radian, revolution};
+use uom::si::f64::Angle;
 
 fn main() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
@@ -110,45 +115,61 @@ fn main() {
                 // if enabled and in teleop run the teleop function
                 if let Ok(mut robot) = ferris.try_borrow_mut() {
                     robot.dt = dt;
+                    robot.update_state();
                     teleop(&mut robot).await;
                 }
             }
 
             if state.enabled() && state.auto() {
-                // Update dt before using it in auto
-                if let Ok(mut ferris_mut) = ferris.try_borrow_mut() {
-                    ferris_mut.dt = dt;
-
-                    // Now access drivetrain
-                    if let Ok(mut drivetrain) = ferris_mut.drivetrain.try_borrow_mut() {
-                        drivetrain.update_pose().await;
+                if let Ok(mut robot) = ferris.try_borrow_mut() {
+                    if robot.state.mode() != RobotMode::Auto {
+                        robot.auto_init();
                     }
+                    robot.update_state();
+                    robot.dt = dt;
+                    robot.auto_periodic().await;
                 }
-
-                // start auto
-                if auto.is_none() {
-                    // create a ferris clone to use in auto
-                    let ferris_clone = Rc::clone(&ferris);
-
-                    // if an auto is chosen from telemetry run that
-                    if let Some(selected_auto) = Telemetry::get_selection("auto chooser").await {
-                        let chosen = Auto::from_dashboard(selected_auto.as_str());
-
-                        let run = Auto::run_auto(ferris_clone, chosen);
-                        auto = Some(local.spawn_local(run).abort_handle());
-                    } else {
-                        // if no auto is chosen run the default auto (nothing)
-                        eprintln!("Failed to get selected auto from telemetry, running default");
-
-                        let run = Auto::run_auto(ferris_clone, Auto::Nothing);
-                        auto = Some(local.spawn_local(run).abort_handle());
-                    }
-                }
-            } else if let Some(auto) = auto.take() {
-                // if auto is already running before it should abort it
-                println!("Aborted");
-                auto.abort();
+                //drivetrain.move_towards(Angle::new::<degree>(0.0), 0.0, Angle::new::<degree>(45.0));
             }
+            //     // Update dt before using it in auto
+            //     if let Ok(mut ferris_mut) = ferris.try_borrow_mut() {
+            //         ferris_mut.dt = dt;
+
+            //         // Now access drivetrain
+            //         if let Ok(mut drivetrain) = ferris_mut.drivetrain.try_borrow_mut() {
+            //             drivetrain.update_pose().await;
+            //             let pose = drivetrain.localization.get_state();
+            //             update_telemetry_robot_pose(&pose).await;
+            //         }
+            //     }
+
+            //     let run = Auto::run_auto(ferris_clone, Auto::Move);
+            //     auto = Some(local.spawn_local(run).abort_handle());
+
+            //     // start auto
+            //     if auto.is_none() {
+            //         // create a ferris clone to use in auto
+            //         let ferris_clone = Rc::clone(&ferris);
+
+            //         // if an auto is chosen from telemetry run that
+            //         if let Some(selected_auto) = Telemetry::get_selection("auto chooser").await {
+            //             let chosen = Auto::from_dashboard(selected_auto.as_str());
+
+            //             let run = Auto::run_auto(ferris_clone, chosen);
+            //             auto = Some(local.spawn_local(run).abort_handle());
+            //         } else {
+            //             // if no auto is chosen run the default auto (nothing)
+            //             eprintln!("Failed to get selected auto from telemetry, running default");
+
+            //             let run = Auto::run_auto(ferris_clone, Auto::Nothing);
+            //             auto = Some(local.spawn_local(run).abort_handle());
+            //         }
+            //     }
+            // } else if let Some(auto) = auto.take() {
+            //     // if auto is already running before it should abort it
+            //     println!("Aborted");
+            //     auto.abort();
+            // }
 
             // post our loop rate to telemetry
             Telemetry::put_number("Loop Rate", 1. / dt.as_secs_f64()).await;

@@ -19,6 +19,7 @@ pub enum Auto {
     Nothing,
     Test,
     DasAuto,
+    Move,
 }
 
 impl Auto {
@@ -27,6 +28,7 @@ impl Auto {
             "Nothing" => Auto::Nothing,
             "Test" => Auto::Test,
             "Das Auto" => Auto::DasAuto,
+            "Move" => Auto::Move,
             _ => Auto::Nothing,
         }
     }
@@ -36,12 +38,12 @@ impl Auto {
             Auto::Nothing => "Nothing",
             Auto::Test => "Test",
             Auto::DasAuto => "Das Auto",
-            //_ => "none",
+            Auto::Move => "Move", //_ => "none",
         }
     }
 
     pub fn iterator() -> Vec<Self> {
-        vec![Auto::Nothing, Auto::DasAuto]
+        vec![Auto::Nothing, Auto::DasAuto, Auto::Move]
     }
 
     pub fn names() -> Vec<String> {
@@ -62,6 +64,7 @@ impl Auto {
             Auto::DasAuto => {
                 das_auto(Rc::clone(&ferris)).await.expect("auto is geeked");
             }
+            Auto::Move => move_test(Rc::clone(&ferris)).await.expect("auto is geeked"),
         }
     }
 }
@@ -133,6 +136,18 @@ pub async fn das_auto(robot: Rc<RefCell<Ferris>>) -> Result<(), Box<dyn std::err
     shooter.turret.stop();
     shooter.stop();
     println!("done");
+
+    Ok(())
+}
+
+pub async fn move_test(robot: Rc<RefCell<Ferris>>) -> Result<(), Box<dyn std::error::Error>> {
+    let robot = robot.borrow_mut();
+    let mut drivetrain = robot.drivetrain.deref().borrow_mut();
+    //let shooter = robot.shooter.deref().borrow_mut();
+    //let intake = robot.intake.deref().borrow_mut();
+    drivetrain.move_towards(Angle::new::<degree>(0.0), 0.0, Angle::new::<degree>(45.0));
+    sleep(Duration::from_millis(5000)).await;
+    drivetrain.move_towards(Angle::new::<degree>(90.0), 0.5, Angle::new::<degree>(0.0));
 
     Ok(())
 }

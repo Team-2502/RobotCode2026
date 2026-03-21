@@ -9,6 +9,7 @@ dependencies = [
  "float-cmp",
  "frcrs",
  "nalgebra 0.34.1",
+ "pid",
  "serde",
  "serde_json",
  "tokio",
@@ -267,7 +268,7 @@ dependencies = [
 [[package]]
 name = "frcrs"
 version = "0.1.6"
-source = "git+https://github.com/Team-2502/frcrs#8e450829557e2d80334fcf293087ce70155c52ef"
+source = "git+https://github.com/Team-2502/frcrs#770fce52d5eca349ff997834e2b5ca71f43a1083"
 dependencies = [
  "async-trait",
  "axum",
@@ -1059,6 +1060,15 @@ name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
+
+[[package]]
+name = "pid"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7c931ef9756cd5e3fa3d395bfe09df4dfa6f0612c6ca8f6b12927d17ca34e36"
+dependencies = [
+ "num-traits",
+]
 
 [[package]]
 name = "pin-project-lite"

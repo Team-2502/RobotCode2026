@@ -14,16 +14,18 @@ use crate::subsystems::swerve::drivetrain::FieldZone::{
 use crate::subsystems::swerve::drivetrain::{Drivetrain, get_zone, update_telemetry_robot_pose};
 use crate::subsystems::turret::TurretMode;
 use crate::subsystems::vision::distance;
-use frcrs::input::Joystick;
+use frcrs::input::{Joystick, RobotState};
 use frcrs::telemetry::Telemetry;
 use frcrs::{alliance_station, deadzone};
 use nalgebra::Vector2;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
-use uom::si::angle::degree;
+use tokio::time::Instant;
+use uom::si::angle::{degree, radian};
 use uom::si::f64::{Angle, Length};
 use uom::si::length::{foot, inch, meter};
+use uom::si::time::millisecond;
 
 pub mod auto;
 pub mod constants;
@@ -50,6 +52,8 @@ pub struct Ferris {
 
     pub shooter_offset: f64,
     pub dt: Duration,
+    pub mode_start_time: Instant,
+    pub state: RobotState,
 }
 
 impl Default for Ferris {
@@ -79,6 +83,28 @@ impl Ferris {
             shooter_offset: 0.0,
 
             dt: Duration::from_millis(0),
+            mode_start_time: Instant::now(),
+            state: RobotState::get(),
+        }
+    }
+
+    pub fn update_state(&mut self) {
+        self.state = RobotState::get();
+    }
+
+    pub fn auto_init(&mut self) {
+        self.mode_start_time = Instant::now();
+    }
+
+    pub async fn auto_periodic(&mut self) {
+        if let Ok(mut drivetrain) = self.drivetrain.try_borrow_mut() {
+            drivetrain.update_pose().await;
+            let pose = drivetrain.localization.get_state();
+            update_telemetry_robot_pose(&pose).await;
+            drivetrain.auto_move_to_angle(Angle::new::<radian>(
+                ((self.mode_start_time.elapsed().as_secs() / 5) as f64) * 3.1415 / 2.0,
+            ));
+            drivetrain.auto_move();
         }
     }
 

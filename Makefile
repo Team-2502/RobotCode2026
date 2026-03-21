@@ -13,6 +13,7 @@ compile: $(OUT)
 
 $(OUT): src/** Cargo.*
 	cargo build --release --target arm-unknown-linux-gnueabi
+	#cargo build --release --target arm-unknown-linux-gnueabi && make deploy-scp
 
 $(dir $(DEPLOY)):
 	mkdir -p $(dir $(DEPLOY))

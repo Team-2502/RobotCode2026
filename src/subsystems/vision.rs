@@ -62,13 +62,13 @@ impl Vision {
         let results = self.limelight.results().await;
         if let Ok(r) = results {
             self.results = r;
-            println!("it got results bro");
-            println!(
-                "vision line 66: ll pose: x: {} y: {}, yaw: {}",
-                self.results.botpose_wpiblue[0],
-                self.results.botpose_wpiblue[1],
-                self.results.botpose_wpiblue[5]
-            );
+            //println!("it got results bro");
+            // println!(
+            //     "vision line 66: ll pose: x: {} y: {}, yaw: {}",
+            //     self.results.botpose_wpiblue[0],
+            //     self.results.botpose_wpiblue[1],
+            //     self.results.botpose_wpiblue[5]
+            // );
             //println!("{:?}", self.results.Fiducial);
         } else {
             println!("failed to fetch results from limelight");
