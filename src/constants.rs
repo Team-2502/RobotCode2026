@@ -24,8 +24,11 @@ pub mod config {
 
     pub const HUB_RED: Vector2<f64> = Vector2::new(11.915394, 4.02);
     pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.0625, 4.02);
-    pub const PASS_TOP_OFFSET_METERS: Vector2<f64> = Vector2::new(0.0, 2.01);
-    pub const PASS_BOTTOM_OFFSET_METERS: Vector2<f64> = Vector2::new(0.0, -2.01);
+
+    pub const RED_PASS_TOP_OFFSET_METERS: Vector2<f64> = Vector2::new(3.0, 2.01);
+    pub const RED_PASS_BOTTOM_OFFSET_METERS: Vector2<f64> = Vector2::new(3.0, -2.01);
+    pub const BLUE_PASS_TOP_OFFSET_METERS: Vector2<f64> = Vector2::new(-3.0, 2.01);
+    pub const BLUE_PASS_BOTTOM_OFFSET_METERS: Vector2<f64> = Vector2::new(-3.0, -2.01);
 
     pub const MAX_ITER: i32 = 12;
 }
@@ -64,6 +67,7 @@ pub mod robotmap {
 
     pub mod turret {
         pub const SPIN_MOTOR_ID: i32 = 16;
+        pub const ENCODER_ID: i32 = 1000;
     }
 
     pub mod intake {
@@ -86,22 +90,31 @@ pub mod robotmap {
 pub mod shooter {
     pub const GEAR_RATIO_HOOD: f64 = 0.0;
     pub const MAX_FLYWHEEL_SPEED: f64 = 100.0;
-    pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 0.88; /* Original */
+    pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 1.0;
+    // pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 0.88; /* Original */
     // pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 0.94; /* Northern Lights */
     // pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 1.125;
 }
 
 pub mod turret {
-    use nalgebra::Vector2;
+    use std::f64::NAN;
     pub const GEAR_RATIO: f64 = 34.5;
     pub const TURRET_MAX: f64 = 180.0;
     pub const TURRET_MIN: f64 = -180.0;
-    pub const TURRET_CLAMP: f64 = 1.0;
-    pub const ORIGIN_TO_TURRET_CENTER_X_INCHES: f64 = 4.0;
-    pub const ORIGIN_TO_TURRET_CENTER_Y_INCHES: f64 = 2.25;
+    pub const TURRET_CLAMP: f64 = 2.5;
+    // pub const ORIGIN_TO_TURRET_CENTER_X_INCHES: f64 = -4.0;
+    // pub const ORIGIN_TO_TURRET_CENTER_Y_INCHES: f64 = 2.25;
+    pub const ORIGIN_TO_TURRET_CENTER_X_INCHES: f64 = -20.0;
+    pub const ORIGIN_TO_TURRET_CENTER_Y_INCHES: f64 = 2.25 * 5.0;
+
+    // pub const HOOD_ZERO_POSE: f64 = -0.170177;
+    pub const HOOD_ZERO_POSE: f64 = -0.2;
+    // 0.2 margin
+    pub const HOOD_MAX_SOFTSTOP: f64 = 1.9992675 - 0.2;
+    pub const HOOD_MIN_SOFTSTOP: f64 = -0.370361 + 0.2;
 
     // meters
-    pub const OFFSET: Vector2<f64> = Vector2::new(0.0, 0.0);
+    pub const TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = NAN;
     pub const TOLERANCE: f64 = 0.001;
 }
 
@@ -160,6 +173,21 @@ pub mod drivetrain {
     pub const BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.575927734375;
     pub const BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.811767578125;
     pub const FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.90576171875;
+}
+
+pub mod localization {
+    // How much to distrust current localization state
+    pub const CURRENT_STATE_DRIVE_TRUST: f64 = 0.003;
+    pub const CURRENT_STATE_YAW_TRUST: f64 = 0.1;
+    pub const CURRENT_STATE_LINEAR_VELOCITY_TRUST: f64 = 500000.0;
+    pub const CURRENT_STATE_ANGULAR_VELOCITY_TRUST: f64 = 500000.0;
+
+    pub const VELOCITY_MIN_CONF: f64 = 0.01;
+    pub const LINEAR_VEL_CONF_SCALAR: f64 = 1.0;
+    pub const ANGULAR_VEL_CONF_SCALAR: f64 = 1.0;
+
+    pub const MAX_LIMELIGHT_POSE_DIFFERENCE_METERS: f64 = 1.0;
+    pub const LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT: u32 = 15;
 }
 
 pub mod auto {
