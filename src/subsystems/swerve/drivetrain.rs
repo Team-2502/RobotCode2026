@@ -1,5 +1,6 @@
 use crate::constants::config::{
     BLUE_HUB_X_INCHES, FIELD_ORIENTED, HALF_FIELD_WIDTH_METERS,
+    MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
     MINIMUM_MODULE_VELOCITY_METERS_PER_SECOND, RED_HUB_X_INCHES,
 };
 use crate::constants::drivetrain::{
@@ -10,6 +11,8 @@ use crate::constants::drivetrain::{
 };
 use crate::constants::localization::{
     ANGULAR_VEL_CONF_SCALAR, LINEAR_VEL_CONF_SCALAR, VELOCITY_MIN_CONF,
+    GYRO_OFFSET_UPDATE_RATIO, LIMELIGHT_YAW_TRUST, PIGEON_YAW_STD_DEV, SWERVE_DRIVE_RATIO,
+    SWERVE_TURN_RATIO,
 };
 use crate::constants::robotmap::drivetrain_map::{
     BL_DRIVE_ID, BL_ENCODER_ID, BL_TURN_ID, BR_DRIVE_ID, BR_ENCODER_ID, BR_TURN_ID,
@@ -20,11 +23,13 @@ use crate::constants::robotmap::shooter::SHOOTER_CANBUS;
 use crate::subsystems::localization::{Localization, RobotPose};
 use crate::subsystems::swerve::kinematics::Kinematics;
 use crate::subsystems::vision::Vision;
+use crate::vec_f64;
 use frcrs::alliance_station;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
 use frcrs::telemetry::Telemetry;
 use nalgebra::{Rotation, Rotation2, Vector2, vector};
 use std::f64::EPSILON;
+use pid::Pid;
 use std::f64::consts::PI;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
@@ -63,6 +68,9 @@ pub struct Drivetrain {
     fr_encoder: CanCoder,
     pub(in crate::subsystems::swerve) fr_drive: Talon,
     pub(in crate::subsystems::swerve) fr_turn: Talon,
+
+    pub auto_pid_turn_to: Pid<f64>,
+    pub auto_target_point: Option<Vector2<Length>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -94,6 +102,9 @@ impl Drivetrain {
             5807,
         ));
 
+        let auto_pid_turn_to: Pid<f64> =
+            Pid::new(999.0, MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND);
+
         Drivetrain {
             gyro: Pigeon::new(GYRO_ID, Some(SHOOTER_CANBUS.to_string())),
             gyro_offset: Angle::new::<degree>(0.0),
@@ -120,6 +131,9 @@ impl Drivetrain {
             fr_encoder,
             fr_drive: Talon::new(FR_DRIVE_ID, DRIVETRAIN_CANBUS),
             fr_turn: Talon::new(FR_TURN_ID, DRIVETRAIN_CANBUS),
+
+            auto_pid_turn_to,
+            auto_target_point: None,
         }
     }
 
@@ -201,38 +215,43 @@ impl Drivetrain {
 
         if front_update_handle.await.is_ok() {
             if self.limelight_front.has_tag() {
-                self.localization.update_pose_from_limelight(
+                let not_outlier = self.localization.update_pose_from_limelight(
                     self.limelight_front.get_botpose().unwrap(),
                     self.limelight_front.get_field_yaw(),
                     self.limelight_front.get_location_error(),
-                    self.limelight_front.get_yaw_error(),
+                    self.limelight_front.get_yaw_error()
+                        + Angle::new::<degree>(LIMELIGHT_YAW_TRUST),
                 );
-                let current_offset = self.limelight_front.get_field_yaw() - gyro_angle;
-                if self.gyro_set {
-                    self.gyro_offset +=
-                        GYRO_OFFSET_UPDATE_RATIO * get_angle_difs(self.gyro_offset, current_offset)
-                } else {
-                    self.gyro_offset = current_offset;
-                    self.gyro_set = true;
+                if not_outlier {
+                    let current_offset = self.limelight_front.get_field_yaw() - gyro_angle;
+                    if self.gyro_set {
+                        self.gyro_offset += GYRO_OFFSET_UPDATE_RATIO
+                            * get_angle_difs(self.gyro_offset, current_offset)
+                    } else {
+                        self.gyro_offset = current_offset;
+                        self.gyro_set = true;
+                    }
                 }
             }
         }
 
         if side_update_handle.await.is_ok() {
             if self.limelight_side.has_tag() {
-                self.localization.update_pose_from_limelight(
+                let not_outlier = self.localization.update_pose_from_limelight(
                     self.limelight_side.get_botpose().unwrap(),
                     self.limelight_side.get_field_yaw(),
                     self.limelight_side.get_location_error(),
-                    self.limelight_side.get_yaw_error(),
+                    self.limelight_side.get_yaw_error() + Angle::new::<degree>(LIMELIGHT_YAW_TRUST),
                 );
-                let current_offset = self.limelight_side.get_field_yaw() - gyro_angle;
-                if self.gyro_set {
-                    self.gyro_offset +=
-                        GYRO_OFFSET_UPDATE_RATIO * get_angle_difs(self.gyro_offset, current_offset)
-                } else {
-                    self.gyro_offset = current_offset;
-                    self.gyro_set = true;
+                if not_outlier {
+                    let current_offset = self.limelight_side.get_field_yaw() - gyro_angle;
+                    if self.gyro_set {
+                        self.gyro_offset += GYRO_OFFSET_UPDATE_RATIO
+                            * get_angle_difs(self.gyro_offset, current_offset)
+                    } else {
+                        self.gyro_offset = current_offset;
+                        self.gyro_set = true;
+                    }
                 }
             }
         }
@@ -440,6 +459,71 @@ impl Drivetrain {
         ];
         self.last_modules = measured;
         (differences, measured_angles)
+    }
+
+    pub fn move_towards(&mut self, angle: Angle, velocity: f64, rotate_rate: Angle) {
+        let velocity_vector = vector![velocity / MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND, 0.0];
+        // dt is 90 degrees to left
+        let field_veloctiy = Rotation2::new(angle.get::<radian>() + PI / 2.0) * velocity_vector;
+        self.control_drivetrain(
+            field_veloctiy.x,
+            field_veloctiy.y,
+            rotate_rate.get::<radian>() / MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND,
+        );
+    }
+
+    pub fn auto_set_angle(&mut self, angle: Angle) {
+        if (angle.get::<radian>() - self.auto_pid_turn_to.setpoint).abs() > 1e-4 {
+            self.auto_pid_turn_to = Pid::new(
+                angle.get::<radian>(),
+                MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND,
+            );
+            // 10.0
+            self.auto_pid_turn_to
+                .p(2.0, MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND);
+            // 40.0
+            // self.auto_pid_turn_to.d(
+            //     40.0,
+            //     MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND * 10.0,
+            // );
+            //println!("setting angle");
+        }
+    }
+
+    pub fn auto_move(&mut self, velocity: f64) {
+        let pose = self.localization.get_state();
+        let setpoint = self.auto_pid_turn_to.setpoint;
+        let error = get_angle_difs(pose.yaw, Angle::new::<radian>(setpoint));
+        let output = self
+            .auto_pid_turn_to
+            .next_control_output(setpoint + error.get::<radian>());
+
+        let distance = if self.auto_target_point.is_some() {
+            let current = Vector2::new(pose.x, pose.y);
+            self.auto_target_point.unwrap() - current
+        } else {
+            Vector2::new(Length::new::<meter>(0.0), Length::new::<meter>(0.0))
+        };
+        println!("distance: {:?}", distance);
+        println!("pose: {:?}", pose);
+        let angle = f64::atan2(distance.y.get::<meter>(), distance.x.get::<meter>());
+        println!("angle: {}", angle);
+        //let mut speed = (vec_f64(distance).magnitude() * 2.0).clamp(-MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND);
+        let mut speed = velocity.clamp(
+            -MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
+            MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
+        );
+        println!("speed: {}", speed);
+        speed = if speed < 0.05 { 0.0 } else { speed };
+        self.move_towards(
+            Angle::new::<radian>(angle),
+            speed,
+            Angle::new::<radian>(output.output),
+        );
+    }
+
+    pub fn auto_set_target(&mut self, target: Vector2<Length>) {
+        self.auto_target_point = Some(target);
     }
 }
 

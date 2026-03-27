@@ -1,3 +1,5 @@
+use crate::auto::path::drive;
+// use crate::auto::path::drive;
 use crate::constants::config::{
     BLUE_PASS_BOTTOM_OFFSET_METERS, BLUE_PASS_TOP_OFFSET_METERS, HUB_BLUE, HUB_RED,
     MANUAL_TURRET_MODE_DISTANCE_MAX_METERS, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
@@ -15,14 +17,17 @@ use crate::subsystems::swerve::drivetrain::FieldZone::{
 use crate::subsystems::swerve::drivetrain::{Drivetrain, get_zone, update_drivetrain_telemetry};
 use crate::subsystems::turret::TurretMode;
 use crate::subsystems::vision::distance;
-use frcrs::input::Joystick;
+use frcrs::alliance_shift;
+use frcrs::input::{Joystick, RobotState};
 use frcrs::telemetry::Telemetry;
 use frcrs::{alliance_station, deadzone};
 use nalgebra::Vector2;
 use std::cell::RefCell;
+use std::f64::consts::PI;
 use std::rc::Rc;
 use std::time::Duration;
-use uom::si::angle::degree;
+use tokio::time::Instant;
+use uom::si::angle::{degree, radian};
 use uom::si::f64::{Angle, Length};
 use uom::si::length::{foot, inch, meter};
 
@@ -51,6 +56,8 @@ pub struct Ferris {
 
     pub shooter_offset: f64,
     pub dt: Duration,
+    pub mode_start_time: Instant,
+    pub state: RobotState,
 }
 
 impl Default for Ferris {
@@ -80,6 +87,34 @@ impl Ferris {
             shooter_offset: 0.0,
 
             dt: Duration::from_millis(0),
+            mode_start_time: Instant::now(),
+            state: RobotState::get(),
+        }
+    }
+
+    pub fn update_state(&mut self) {
+        self.state = RobotState::get();
+    }
+
+    pub async fn auto_init(&mut self) {
+        self.mode_start_time = Instant::now();
+    }
+
+    pub async fn auto_periodic(&mut self) {
+        if let Ok(mut drivetrain) = self.drivetrain.try_borrow_mut() {
+            drivetrain.update_pose().await;
+            let pose = drivetrain.localization.get_state();
+            update_telemetry_robot_pose(&pose).await;
+            // drivetrain.auto_set_angle(Angle::new::<radian>(
+            //     ((self.mode_start_time.elapsed().as_secs() / 1) as f64) * PI / 2.0,
+            // ));
+            // drivetrain.auto_set_target(Vector2::new(Length::new::<meter>(14.5), Length::new::<meter>(3.5)));
+            drive("test_triangle", &mut drivetrain, 1).await;
+            println!("one done");
+            drive("test_triangle", &mut drivetrain, 2).await;
+            println!("two done");
+            drive("test_triangle", &mut drivetrain, 3).await;
+            drive("test_triangle", &mut drivetrain, 4).await;
         }
     }
 
@@ -341,4 +376,29 @@ pub async fn teleop(ferris: &mut Ferris) {
             drivetrain.set_gyro_offset();
         }
     }
+}
+
+pub async fn post_shift(match_time: f64) {
+    if match_time <= 30.0 || match_time >= 130.0 {
+        Telemetry::put_color("shift", frcrs::telemetry::TelemetryColor::Purple).await;
+    } else {
+        let flip = if alliance_shift().red() { 1 } else { 0 };
+        let shift = ((130 - match_time as i32) / 25 + flip) % 2;
+        match shift {
+            0 => {
+                Telemetry::put_color("shift", frcrs::telemetry::TelemetryColor::Red).await;
+            }
+            _ => {
+                Telemetry::put_color("shift", frcrs::telemetry::TelemetryColor::Blue).await;
+            }
+        }
+    }
+}
+
+pub fn square_vec(vec: Vector2<f64>) -> Vector2<f64> {
+    Vector2::new(vec.x * vec.x, vec.y * vec.y)
+}
+
+pub fn vec_f64(vec: Vector2<Length>) -> Vector2<f64> {
+    Vector2::new(vec.x.get::<meter>(), vec.y.get::<meter>())
 }

@@ -14,6 +14,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 float-cmp = "0.10.0"
 rand_distr = "0.6.0"
 rand = "0.10.0"
+pid = "4.0.0"
 
 [lints.rust]
 nonstandard_style = "allow"

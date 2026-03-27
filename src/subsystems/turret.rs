@@ -173,6 +173,8 @@ pub fn get_turret_velocity(
 
 #[cfg(test)]
 mod tests {
+    //use crate::subsystems::turret::apply_soft_stop;
+
     // #[test]
     // pub fn test_angle_to_hub() {
     //     let pose = RobotPoseEstimate::new(

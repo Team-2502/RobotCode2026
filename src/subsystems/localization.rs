@@ -197,7 +197,7 @@ impl Localization {
         new_yaw: Angle,
         pose_error: Vector2<Length>,
         yaw_error: Angle,
-    ) {
+    ) -> bool {
         let current_state = self.get_state();
         let pose_diff_scalar = ((current_state.x - robot_pose.x)
             * (current_state.x - robot_pose.x)
@@ -208,7 +208,7 @@ impl Localization {
             self.limelight_outlier_count += 1;
 
             if self.limelight_outlier_count < LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT {
-                return;
+                return false;
             }
         }
 
@@ -233,6 +233,7 @@ impl Localization {
         ];
 
         self.update_measurement(measurement, state_to_measurement, measurement_confidence, 2);
+        return true;
     }
 
     /// Returns: Pose, Yaw, Pose Error, Yaw Error

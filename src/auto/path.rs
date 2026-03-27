@@ -11,6 +11,7 @@ use crate::constants::config::{
     HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
 };
 use crate::subsystems::swerve::drivetrain::Drivetrain;
+use crate::vec_f64;
 use frcrs::trajectory::Path;
 use nalgebra::Vector2;
 use tokio::io::AsyncReadExt;
@@ -36,20 +37,22 @@ pub async fn drive(
         .await?;
 
     let path = Path::from_trajectory(&path_content);
-    let path_unwraped = path?;
-    let waypoints = path_unwraped.waypoints();
+    let path_unwrapped = path?;
+    let waypoints = path_unwrapped.waypoints();
 
-    println!("{}", waypoints.len());
+    //println!("{}", waypoints.len());
     if waypoint_index >= waypoints.len() {
         return Err("waypoint index out of bounds".into());
     }
 
-    let _start_time = if waypoint_index == 0 {
+    let start_time = if waypoint_index == 0 {
         0.0
     } else {
         waypoints[waypoint_index - 1]
     };
-    let _end_time = waypoints[waypoint_index];
+    let end_time = waypoints[waypoint_index];
+
+    follow_path_segment(drivetrain, path_unwrapped, start_time, end_time).await;
 
     drivetrain.control_drivetrain(
         0.,
@@ -71,7 +74,7 @@ pub async fn follow_path_segment(
 
     loop {
         let state = RobotState::get();
-        let mut last_error = Vector2::zeros();
+        //let mut last_error = Vector2::zeros();
         let mut last_loop = Instant::now();
         let mut i = Vector2::zeros();
 
@@ -98,15 +101,25 @@ pub async fn follow_path_segment(
 
         let setpoint = if alliance_station().red() {
             path.get(Time::new::<second>(elapsed)).mirror(
-                Length::new::<meter>(HALF_FIELD_WIDTH_METERS),
                 Length::new::<meter>(HALF_FIELD_LENGTH_METERS),
+                Length::new::<meter>(HALF_FIELD_WIDTH_METERS),
             )
         } else {
             path.get(Time::new::<second>(elapsed))
         };
 
         let mut angle = setpoint.heading;
-        let position = Vector2::new(setpoint.x.get::<meter>(), setpoint.y.get::<meter>());
+        let position = Vector2::new(setpoint.x, setpoint.y);
+        println!("target: {:?} -- {:?}", position, angle);
+
+        drivetrain.auto_set_angle(angle);
+        drivetrain.auto_set_target(position);
+        let velocity = Vector2::new(
+            setpoint.velocity_x.get::<meter_per_second>(),
+            setpoint.velocity_y.get::<meter_per_second>(),
+        )
+        .norm();
+        drivetrain.auto_move(velocity);
 
         angle = Angle::new::<degree>(calculate_relative_target(
             pose.yaw.get::<degree>(),
@@ -114,7 +127,7 @@ pub async fn follow_path_segment(
         ));
 
         let mut error_position =
-            position - Vector2::new(pose.x.get::<meter>(), pose.y.get::<meter>());
+            vec_f64(position) - Vector2::new(pose.x.get::<meter>(), pose.y.get::<meter>());
         let mut error_angle = angle;
 
         if error_position.abs().max() < SWERVE_DRIVE_IE {
@@ -128,33 +141,28 @@ pub async fn follow_path_segment(
             break;
         }
 
-        error_angle *= SWERVE_TURN_KP;
-        error_position *= -SWERVE_DRIVE_KP;
+        // error_angle *= SWERVE_TURN_KP;
+        // error_position *= -SWERVE_DRIVE_KP;
 
-        let mut speed = error_position;
+        // let mut speed = error_position;
 
-        let velocity = Vector2::new(setpoint.velocity_x, setpoint.velocity_y);
-        let velocity = velocity.map(|x| x.get::<meter_per_second>());
+        // let velocity = Vector2::new(setpoint.velocity_x, setpoint.velocity_y);
+        // let velocity = velocity.map(|x| x.get::<meter_per_second>());
 
-        let velocity_next = Vector2::new(setpoint.velocity_x, setpoint.velocity_y)
-            .map(|x| x.get::<meter_per_second>());
+        // let velocity_next = Vector2::new(setpoint.velocity_x, setpoint.velocity_y)
+        //     .map(|x| x.get::<meter_per_second>());
 
-        let acceleration = (velocity_next - velocity) * 1000. / 20.;
+        // let acceleration = (velocity_next - velocity) * 1000. / 20.;
 
-        speed += velocity * -SWERVE_DRIVE_KF;
-        speed += acceleration * -SWERVE_DRIVE_KFA;
-        speed += i * -SWERVE_DRIVE_KI * dt.as_secs_f64();
+        // speed += velocity * -SWERVE_DRIVE_KF;
+        // speed += acceleration * -SWERVE_DRIVE_KFA;
+        // speed += i * -SWERVE_DRIVE_KI * dt.as_secs_f64();
 
-        let speed_s = speed;
-        speed += (speed - last_error) * SWERVE_DRIVE_KD * dt.as_secs_f64();
-        last_error = speed_s;
+        // let speed_s = speed;
+        // speed += (speed - last_error) * SWERVE_DRIVE_KD * dt.as_secs_f64();
+        // last_error = speed_s;
 
-        drivetrain.control_drivetrain(
-            speed.x,
-            speed.y,
-            error_angle.get::<degree>(),
-            Length::new::<meter>(0.0),
-        );
+        // drivetrain.control_drivetrain(speed.x, speed.y, error_angle.get::<degree>());
 
         sleep(Duration::from_millis(20)).await;
     }
