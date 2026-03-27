@@ -60,7 +60,7 @@ fn main() {
         let mut last_loop = Instant::now();
 
         // initialize the auto handle
-        let _auto: Option<AbortHandle> = None;
+        let mut auto: Option<AbortHandle> = None;
 
         // Watchdog setup
         let last_loop_time = Arc::new(AtomicU64::new(0));
@@ -131,8 +131,8 @@ fn main() {
                     robot.dt = dt;
                     robot.auto_periodic().await;
                 }
-                //drivetrain.move_towards(Angle::new::<degree>(0.0), 0.0, Angle::new::<degree>(45.0));
             }
+            //     //drivetrain.move_towards(Angle::new::<degree>(0.0), 0.0, Angle::new::<degree>(45.0));
             //     // Update dt before using it in auto
             //     if let Ok(mut ferris_mut) = ferris.try_borrow_mut() {
             //         ferris_mut.dt = dt;
@@ -141,12 +141,12 @@ fn main() {
             //         if let Ok(mut drivetrain) = ferris_mut.drivetrain.try_borrow_mut() {
             //             drivetrain.update_pose().await;
             //             let pose = drivetrain.localization.get_state();
-            //             update_telemetry_robot_pose(&pose).await;
+            //             //update_telemetry_robot_pose(&pose).await;
             //         }
             //     }
 
-            //     let run = Auto::run_auto(ferris_clone, Auto::Move);
-            //     auto = Some(local.spawn_local(run).abort_handle());
+            //     //let run = Auto::run_auto(ferris, Auto::Move);
+            //     //auto = Some(local.spawn_local(run).abort_handle());
 
             //     // start auto
             //     if auto.is_none() {

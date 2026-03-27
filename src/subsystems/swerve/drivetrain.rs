@@ -68,9 +68,6 @@ pub struct Drivetrain {
     fr_encoder: CanCoder,
     pub(in crate::subsystems::swerve) fr_drive: Talon,
     pub(in crate::subsystems::swerve) fr_turn: Talon,
-
-    pub auto_pid_turn_to: Pid<f64>,
-    pub auto_target_point: Option<Vector2<Length>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -131,9 +128,6 @@ impl Drivetrain {
             fr_encoder,
             fr_drive: Talon::new(FR_DRIVE_ID, DRIVETRAIN_CANBUS),
             fr_turn: Talon::new(FR_TURN_ID, DRIVETRAIN_CANBUS),
-
-            auto_pid_turn_to,
-            auto_target_point: None,
         }
     }
 
@@ -459,71 +453,6 @@ impl Drivetrain {
         ];
         self.last_modules = measured;
         (differences, measured_angles)
-    }
-
-    pub fn move_towards(&mut self, angle: Angle, velocity: f64, rotate_rate: Angle) {
-        let velocity_vector = vector![velocity / MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND, 0.0];
-        // dt is 90 degrees to left
-        let field_veloctiy = Rotation2::new(angle.get::<radian>() + PI / 2.0) * velocity_vector;
-        self.control_drivetrain(
-            field_veloctiy.x,
-            field_veloctiy.y,
-            rotate_rate.get::<radian>() / MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND,
-        );
-    }
-
-    pub fn auto_set_angle(&mut self, angle: Angle) {
-        if (angle.get::<radian>() - self.auto_pid_turn_to.setpoint).abs() > 1e-4 {
-            self.auto_pid_turn_to = Pid::new(
-                angle.get::<radian>(),
-                MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND,
-            );
-            // 10.0
-            self.auto_pid_turn_to
-                .p(2.0, MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND);
-            // 40.0
-            // self.auto_pid_turn_to.d(
-            //     40.0,
-            //     MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND * 10.0,
-            // );
-            //println!("setting angle");
-        }
-    }
-
-    pub fn auto_move(&mut self, velocity: f64) {
-        let pose = self.localization.get_state();
-        let setpoint = self.auto_pid_turn_to.setpoint;
-        let error = get_angle_difs(pose.yaw, Angle::new::<radian>(setpoint));
-        let output = self
-            .auto_pid_turn_to
-            .next_control_output(setpoint + error.get::<radian>());
-
-        let distance = if self.auto_target_point.is_some() {
-            let current = Vector2::new(pose.x, pose.y);
-            self.auto_target_point.unwrap() - current
-        } else {
-            Vector2::new(Length::new::<meter>(0.0), Length::new::<meter>(0.0))
-        };
-        println!("distance: {:?}", distance);
-        println!("pose: {:?}", pose);
-        let angle = f64::atan2(distance.y.get::<meter>(), distance.x.get::<meter>());
-        println!("angle: {}", angle);
-        //let mut speed = (vec_f64(distance).magnitude() * 2.0).clamp(-MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND);
-        let mut speed = velocity.clamp(
-            -MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
-            MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
-        );
-        println!("speed: {}", speed);
-        speed = if speed < 0.05 { 0.0 } else { speed };
-        self.move_towards(
-            Angle::new::<radian>(angle),
-            speed,
-            Angle::new::<radian>(output.output),
-        );
-    }
-
-    pub fn auto_set_target(&mut self, target: Vector2<Length>) {
-        self.auto_target_point = Some(target);
     }
 }
 
