@@ -6,6 +6,11 @@ use crate::constants::config::{
 use crate::constants::drivetrain::{
     BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
     FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
+    GYRO_OFFSET_UPDATE_RATIO, PIGEON_YAW_STD_DEV, SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO,
+    SWERVE_WHEEL_CIRCUMFERENCE_INCHES,
+};
+use crate::constants::localization::{
+    ANGULAR_VEL_CONF_SCALAR, LINEAR_VEL_CONF_SCALAR, VELOCITY_MIN_CONF,
     GYRO_OFFSET_UPDATE_RATIO, LIMELIGHT_YAW_TRUST, PIGEON_YAW_STD_DEV, SWERVE_DRIVE_RATIO,
     SWERVE_TURN_RATIO,
 };
@@ -22,15 +27,15 @@ use crate::vec_f64;
 use frcrs::alliance_station;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
 use frcrs::telemetry::Telemetry;
-use nalgebra::{Rotation2, Vector2, vector};
+use nalgebra::{Rotation, Rotation2, Vector2, vector};
+use std::f64::EPSILON;
 use pid::Pid;
 use std::f64::consts::PI;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
-use tokio::time::timeout;
+use tokio::time::{Instant, timeout};
 use uom::si::angle::{degree, radian, revolution};
-use uom::si::f64::Angle;
-use uom::si::f64::Length;
+use uom::si::f64::{Angle, Length};
 use uom::si::length::{inch, meter};
 
 /// Drivetrain struct.
@@ -42,7 +47,7 @@ pub struct Drivetrain {
     gyro_set: bool,
     pub limelight_side: Vision,
     pub limelight_front: Vision,
-    // timer: Instant,
+    timer: Instant,
     pub(in crate::subsystems::swerve) kinematics: Kinematics,
     pub localization: Localization,
     last_modules: Vec<(Angle, Angle)>,
@@ -106,7 +111,7 @@ impl Drivetrain {
             gyro_set: false,
             limelight_front,
             limelight_side,
-            // timer: Instant::now(),
+            timer: Instant::now(),
             kinematics: Kinematics::new(),
             localization: Localization::new(),
             last_modules: Vec::new(),
@@ -149,31 +154,49 @@ impl Drivetrain {
 
     fn update_odo(&mut self) {
         let (difs, measured_angles) = self.get_odo_inputs();
-        let (pose_vec, yaw_change, translation_error, yaw_error) =
+        let (mut pose_change_vec, yaw_change, translation_error, yaw_error) =
             self.kinematics.odometry(difs, measured_angles);
 
-        // let current_time = Instant::now();
-        // let elapsed = current_time.duration_since(self.timer).as_secs() as f64;
-        // self.timer = current_time;
-
-        // // m/s
-        // let velocity = pose_vec / elapsed;
-        // // rads/s
-        // let angular_velocity = yaw_change / elapsed;
-
         self.localization.translation_from_odometry(
-            pose_vec,
+            pose_change_vec,
             yaw_change,
             translation_error,
             yaw_error,
-            // velocity,
-            // angular_velocity,
         );
+    }
+
+    fn update_velocities(&mut self, last_pose: RobotPose) {
+        let (lin_dif, angle_dif) = self.localization.get_state() - last_pose;
+
+        let current_time = Instant::now();
+        let elapsed = current_time.duration_since(self.timer).as_secs_f64() + EPSILON;
+        self.timer = current_time;
+
+        let lin_vel = Vector2::new(
+            Length::new::<meter>(lin_dif.x.get::<meter>() / elapsed),
+            Length::new::<meter>(lin_dif.y.get::<meter>() / elapsed),
+        );
+
+        let ang_vel = angle_dif / elapsed;
+
+        let lin_conf = Vector2::new(
+            Length::new::<meter>(
+                lin_vel.x.get::<meter>() * LINEAR_VEL_CONF_SCALAR + VELOCITY_MIN_CONF,
+            ),
+            Length::new::<meter>(
+                lin_vel.y.get::<meter>() * LINEAR_VEL_CONF_SCALAR + VELOCITY_MIN_CONF,
+            ),
+        );
+        let ang_conf = ang_vel * ANGULAR_VEL_CONF_SCALAR + Angle::new::<degree>(VELOCITY_MIN_CONF);
+
+        self.localization
+            .update_velocities(lin_vel, ang_vel, lin_conf, ang_conf);
     }
 
     // TODO: gyro things
     /// updates the limelight values and passes in drivetrain data for fom
     pub async fn update_pose(&mut self) {
+        let last_pose = self.localization.get_state();
         let gyro_angle = Angle::new::<radian>(self.gyro.get_rotation().z);
         let gyro_yaw_error = Angle::new::<degree>(PIGEON_YAW_STD_DEV);
 
@@ -185,6 +208,7 @@ impl Drivetrain {
         }
 
         self.update_odo();
+
         let front_update_handle =
             timeout(Duration::from_millis(100), self.limelight_front.update());
         let side_update_handle = timeout(Duration::from_millis(100), self.limelight_side.update());
@@ -231,6 +255,7 @@ impl Drivetrain {
                 }
             }
         }
+        self.update_velocities(last_pose);
     }
 
     pub fn set_gyro_offset(&mut self) {
@@ -253,14 +278,6 @@ impl Drivetrain {
         } else {
             Rotation2::new(-pose.yaw.get::<radian>() + PI) * target_transformation
         }
-        // let yaw = self.get_offset_gyro_yaw();
-        // println!("field orient input yaw: {:?}", yaw);
-        //
-        // if alliance_station().red() {
-        //     Rotation2::new(-yaw.get::<radian>() + PI) * target_transformation
-        // } else {
-        //     Rotation2::new(-yaw.get::<radian>()) * target_transformation
-        // }
     }
 
     /// ## Sets drivetrain motor speeds.
@@ -343,7 +360,7 @@ impl Drivetrain {
 
     /// Control the drivetrain.
     /// x, y, and rotation are driverstation inputs.
-    pub fn control_drivetrain(&mut self, x: f64, y: f64, rotation: f64) {
+    pub fn control_drivetrain(&mut self, x: f64, y: f64, rotation: f64, max_dt_speed: Length) {
         let target_transformation = match FIELD_ORIENTED {
             true => self.field_orientate(vector![x, y]),
             false => vector![x, y],
@@ -351,7 +368,9 @@ impl Drivetrain {
 
         //println!("target_transformation: {:?}", target_transformation);
 
-        let targets = self.kinematics.get_targets(target_transformation, rotation);
+        let targets = self
+            .kinematics
+            .get_targets(target_transformation, rotation, max_dt_speed);
 
         self.set_speeds(targets);
     }
@@ -555,15 +574,23 @@ fn optimize_difs(dif: Angle) -> (Angle, f64) {
     }
 }
 
-fn abs_offset(abs_zero_position: Angle, abs_reading: Angle, target: Angle) -> Angle {
+pub fn abs_offset(abs_zero_position: Angle, abs_reading: Angle, target: Angle) -> Angle {
     // current_angle + get_angle_difs(get_angle_difs(abs_zero_position, abs_reading), target)
     wrap_angle(target - (abs_reading - abs_zero_position))
 }
 
-pub async fn update_telemetry_robot_pose(pose: &RobotPose) {
-    Telemetry::put_number("robot yaw", pose.yaw.get::<degree>()).await;
-    Telemetry::put_number("robot x", pose.x.get::<meter>()).await;
-    Telemetry::put_number("robot y", pose.y.get::<meter>()).await;
+pub async fn update_drivetrain_telemetry(
+    pose: &RobotPose,
+    linear_velocity: &Vector2<Length>,
+    angular_velocity: &Angle,
+) {
+    Telemetry::put_number(
+        "robot yaw",
+        (pose.yaw.get::<degree>() * 100.0).trunc() / 100.0,
+    )
+    .await;
+    Telemetry::put_number("robot x", (pose.x.get::<meter>() * 100.0).trunc() / 100.0).await;
+    Telemetry::put_number("robot y", (pose.y.get::<meter>() * 100.0).trunc() / 100.0).await;
     Telemetry::set_robot_pose(
         (
             pose.x.get::<meter>() / 17.55,
@@ -571,6 +598,22 @@ pub async fn update_telemetry_robot_pose(pose: &RobotPose) {
             pose.yaw.get::<degree>(),
         ),
         alliance_station().red(),
+    )
+    .await;
+
+    Telemetry::put_number(
+        "robot velocity x (m/s)",
+        (linear_velocity.x.get::<meter>() * 100.0).trunc() / 100.0,
+    )
+    .await;
+    Telemetry::put_number(
+        "robot velocity y (m/s)",
+        (linear_velocity.y.get::<meter>() * 100.0).trunc() / 100.0,
+    )
+    .await;
+    Telemetry::put_number(
+        "robot velocity yaw (rots/s)",
+        angular_velocity.get::<revolution>(),
     )
     .await;
 }

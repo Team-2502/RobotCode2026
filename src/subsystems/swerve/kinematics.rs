@@ -1,11 +1,11 @@
 use crate::constants::config::{
     MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND, MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND,
-    MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND, WHEELBASE_LENGTH_METERS, WHEELBASE_WIDTH_METERS,
+    WHEELBASE_LENGTH_METERS, WHEELBASE_WIDTH_METERS,
 };
 use crate::constants::drivetrain::{SWERVE_WHEEL_CIRCUMFERENCE_INCHES, WHEEL_ENCODER_STD_DEV};
 use nalgebra::{SMatrix, Vector2, matrix};
 use std::f64::consts::PI;
-use uom::si::angle::revolution;
+use uom::si::angle::{degree, revolution};
 use uom::si::length::{inch, meter};
 use uom::si::{angle::radian, f64::Angle, f64::Length};
 
@@ -72,13 +72,23 @@ impl Kinematics {
         }
     }
 
-    pub fn get_targets(&self, translation: Vector2<f64>, rot: f64) -> Vec<(f64, Angle)> {
+    pub fn get_targets(
+        &self,
+        translation: Vector2<f64>,
+        rot: f64,
+        max_dt_speed: Length,
+    ) -> Vec<(f64, Angle)> {
         // input unit: m/s
         let input_matrix: SMatrix<f64, 3, 1> = matrix![
-            translation.x * MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND;
-            translation.y * MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND;
+            translation.x * max_dt_speed.get::<meter>();
+            translation.y * max_dt_speed.get::<meter>();
             rot * MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND;
         ];
+
+        println!(
+            "kinematics::get_targets: max dt: {}",
+            max_dt_speed.get::<meter>()
+        );
 
         // in m/s
         let setpoint_matrix = self.ik_matrix.clone() * input_matrix;

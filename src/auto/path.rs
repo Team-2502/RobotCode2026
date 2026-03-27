@@ -7,7 +7,9 @@ use crate::constants::auto::{
     SWERVE_DRIVE_IE, SWERVE_DRIVE_KD, SWERVE_DRIVE_KF, SWERVE_DRIVE_KFA, SWERVE_DRIVE_KI,
     SWERVE_DRIVE_KP, SWERVE_DRIVE_MAX_ERR, SWERVE_TURN_KP,
 };
-use crate::constants::config::{HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS};
+use crate::constants::config::{
+    HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
+};
 use crate::subsystems::swerve::drivetrain::Drivetrain;
 use crate::vec_f64;
 use frcrs::trajectory::Path;
@@ -52,7 +54,12 @@ pub async fn drive(
 
     follow_path_segment(drivetrain, path_unwrapped, start_time, end_time).await;
 
-    drivetrain.control_drivetrain(0., 0., 0.);
+    drivetrain.control_drivetrain(
+        0.,
+        0.,
+        0.,
+        Length::new::<meter>(MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND),
+    );
     Ok(())
 }
 
