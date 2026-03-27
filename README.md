@@ -1,1 +1,20 @@
 # RobotCode2026
+- [ ] fix velocity (not getting high enough, presumably confidence constants are broken)
+- [ ] check if drivetrain speed limiter is working for shoot on the fly
+- [ ] think about speed limiting while passing
+- [ ] regs. for passing, yaw
+- [ ] ensure turret is correctly rotated relative to center of robot
+- [ ] debouncer
+- [ ] generational merge conflict
+- [ ] turret abs. encoder (accurate zeroing)
+- [ ] might need to tune turret PID, check if soft stop is working as intended
+  - might want to just limit rotation rate
+  - might want to think about stopping handoff while snapping back from softstop, low priority
+- [ ] think about soft stop behavior while shooting
+- [ ] recalibrate limelights?
+- [ ] test to make sure max speeds are actually max speeds
+- [ ] fix deadzone being high on inputs 
+- [ ] how to pass in starting pose for auton
+- [ ] think about efficient calibration workflow at comp
+- [ ] tune hood PID? never got changed after plates got recut, but might mess up shooting? be careful
+- [ ] notes: in lib.rs, currently calling shooter tables instead of passing tables for bottom pass target. easy fix, just change shoot_to -> pass_to
