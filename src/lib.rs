@@ -1,4 +1,3 @@
-use crate::auto::path::drive;
 // use crate::auto::path::drive;
 use crate::constants::config::{
     HUB_BLUE, HUB_RED, MANUAL_TURRET_MODE_DISTANCE_MAX_METERS, PASS_BOTTOM_OFFSET_METERS,
@@ -28,6 +27,9 @@ use tokio::time::Instant;
 use uom::si::angle::{degree, radian};
 use uom::si::f64::{Angle, Length};
 use uom::si::length::{foot, inch, meter};
+use tokio::join;
+use crate::auto::path::Auto;
+use crate::auto::path::mirror_vec;
 
 pub mod auto;
 pub mod constants;
@@ -54,8 +56,9 @@ pub struct Ferris {
 
     pub shooter_offset: f64,
     pub dt: Duration,
-    pub mode_start_time: Instant,
     pub state: RobotState,
+    
+    pub auto: Auto,
 }
 
 impl Default for Ferris {
@@ -85,8 +88,9 @@ impl Ferris {
             shooter_offset: 0.0,
 
             dt: Duration::from_millis(0),
-            mode_start_time: Instant::now(),
             state: RobotState::get(),
+            
+            auto: Auto::new(),
         }
     }
 
@@ -95,7 +99,7 @@ impl Ferris {
     }
 
     pub async fn auto_init(&mut self) {
-        self.mode_start_time = Instant::now();
+        self.auto.start_time = Instant::now();
     }
 
     pub async fn auto_periodic(&mut self) {
@@ -103,16 +107,12 @@ impl Ferris {
             drivetrain.update_pose().await;
             let pose = drivetrain.localization.get_state();
             update_telemetry_robot_pose(&pose).await;
-            // drivetrain.auto_set_angle(Angle::new::<radian>(
-            //     ((self.mode_start_time.elapsed().as_secs() / 1) as f64) * PI / 2.0,
-            // ));
-            // drivetrain.auto_set_target(Vector2::new(Length::new::<meter>(14.5), Length::new::<meter>(3.5)));
-            drive("test_triangle", &mut drivetrain, 1).await;
-            println!("one done");
-            drive("test_triangle", &mut drivetrain, 2).await;
-            println!("two done");
-            drive("test_triangle", &mut drivetrain, 3).await;
-            drive("test_triangle", &mut drivetrain, 4).await;
+                
+            //println!("auto");
+            self.auto.move_to_sample("test_triangle", &mut drivetrain, self.auto.current_sample).await;
+            //self.auto.set_target(mirror_vec(Vector2::new(Length::new::<meter>(4.74182), Length::new::<meter>(5.88162))));
+            //"x":4.74182, "y":5.88162
+            //self.auto.move_to(&mut drivetrain, 0.0, "test_triangle", 0).await;
         }
     }
 
