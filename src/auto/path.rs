@@ -91,7 +91,7 @@ impl Auto {
     
         self.follow_path_segment(drivetrain, path_unwrapped, start_time, end_time).await;
     
-        drivetrain.control_drivetrain(0., 0., 0.);
+        drivetrain.control_drivetrain(0., 0., 0., Length::new::<meter>(0.0));
         Ok(())
     }
     
@@ -202,6 +202,7 @@ impl Auto {
             field_veloctiy.x,
             field_veloctiy.y,
             rotate_rate.get::<radian>() / MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND,
+            Length::new::<meter>(2.0)
         );
     }
 

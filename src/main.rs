@@ -15,7 +15,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
 use tokio::task;
-use tokio::task::AbortHandle;
 use tokio::task::spawn_local;
 use tokio::time::sleep;
 use tokio::time::{Duration, Instant};
@@ -58,9 +57,6 @@ fn main() {
 
         // set last loop time to now
         let mut last_loop = Instant::now();
-
-        // initialize the auto handle
-        let mut auto: Option<AbortHandle> = None;
 
         // Watchdog setup
         let last_loop_time = Arc::new(AtomicU64::new(0));

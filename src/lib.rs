@@ -1,4 +1,6 @@
 // use crate::auto::path::drive;
+use crate::auto::path::Auto;
+use crate::auto::path::mirror_vec;
 use crate::constants::config::{
     BLUE_PASS_BOTTOM_OFFSET_METERS, BLUE_PASS_TOP_OFFSET_METERS, HUB_BLUE, HUB_RED,
     MANUAL_TURRET_MODE_DISTANCE_MAX_METERS, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
@@ -25,13 +27,11 @@ use std::cell::RefCell;
 use std::f64::consts::PI;
 use std::rc::Rc;
 use std::time::Duration;
+use tokio::join;
 use tokio::time::Instant;
 use uom::si::angle::{degree, radian};
 use uom::si::f64::{Angle, Length};
 use uom::si::length::{foot, inch, meter};
-use tokio::join;
-use crate::auto::path::Auto;
-use crate::auto::path::mirror_vec;
 
 pub mod auto;
 pub mod constants;
@@ -59,7 +59,7 @@ pub struct Ferris {
     pub shooter_offset: f64,
     pub dt: Duration,
     pub state: RobotState,
-    
+
     pub auto: Auto,
 }
 
@@ -91,7 +91,7 @@ impl Ferris {
 
             dt: Duration::from_millis(0),
             state: RobotState::get(),
-            
+
             auto: Auto::new(),
         }
     }
@@ -100,7 +100,7 @@ impl Ferris {
         self.state = RobotState::get();
     }
 
-    pub async fn auto_init(&mut self) {
+    pub fn auto_init(&mut self) {
         self.auto.start_time = Instant::now();
     }
 
@@ -108,10 +108,13 @@ impl Ferris {
         if let Ok(mut drivetrain) = self.drivetrain.try_borrow_mut() {
             drivetrain.update_pose().await;
             let pose = drivetrain.localization.get_state();
-            update_telemetry_robot_pose(&pose).await;
-                
+            let (linear_velocity, angular_velocity) = drivetrain.localization.get_velocities();
+            update_drivetrain_telemetry(&pose, &linear_velocity, &angular_velocity).await;
+
             //println!("auto");
-            self.auto.move_to_sample("test_triangle", &mut drivetrain, self.auto.current_sample).await;
+            self.auto
+                .move_to_sample("test_triangle", &mut drivetrain, self.auto.current_sample)
+                .await;
             //self.auto.set_target(mirror_vec(Vector2::new(Length::new::<meter>(4.74182), Length::new::<meter>(5.88162))));
             //"x":4.74182, "y":5.88162
             //self.auto.move_to(&mut drivetrain, 0.0, "test_triangle", 0).await;

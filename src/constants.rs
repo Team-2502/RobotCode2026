@@ -188,6 +188,8 @@ pub mod localization {
 
     pub const MAX_LIMELIGHT_POSE_DIFFERENCE_METERS: f64 = 1.0;
     pub const LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT: u32 = 15;
+    
+    pub const LIMELIGHT_YAW_TRUST: f64 = 2.0;
 }
 
 pub mod auto {
