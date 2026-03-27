@@ -1,13 +1,26 @@
-use std::convert::identity;
-
-use nalgebra::{ComplexField, SMatrix, SVector, Vector2, matrix};
+use nalgebra::{SMatrix, SVector, Vector2, matrix};
 use uom::si::angle::radian;
 use uom::si::f64::{Angle, Length};
 use uom::si::length::meter;
 
+use crate::constants::drivetrain::{
+    CURRENT_STATE_TRUST_SCALAR_DRIVE, CURRENT_STATE_TRUST_SCALAR_YAW,
+};
+use crate::constants::vision::{
+    LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT, MAX_LIMELIGHT_POSE_DIFFERENCE_METERS,
+};
+
 pub struct Localization {
     state: SMatrix<f64, 3, 1>,
     state_confidence: SMatrix<f64, 3, 3>,
+    limelight_outlier_count: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct RobotPose {
+    pub x: Length,
+    pub y: Length,
+    pub yaw: Angle,
 }
 
 impl Localization {
@@ -19,6 +32,7 @@ impl Localization {
         Localization {
             state,
             state_confidence,
+            limelight_outlier_count: 0,
         }
     }
 
@@ -47,6 +61,7 @@ impl Localization {
             .transpose();
 
         self.set_state(self.state + gain * innovation);
+
         let eye = SMatrix::<f64, 3, 3>::identity();
         self.state_confidence = transform(eye - gain * state_to_measurement, self.state_confidence)
             + transform(gain, measurement_confidence);
@@ -59,8 +74,10 @@ impl Localization {
         yaw_change: Angle,
         robot_translation_error: Vector2<f64>,
         yaw_error: f64,
+        // velocity: Vector2<f64>,
+        // angular_velocity: Angle,
     ) {
-        let mut pose_shift: SMatrix<f64, 3, 1> = matrix![
+        let pose_shift: SMatrix<f64, 3, 1> = matrix![
             robot_translation.x;
             robot_translation.y;
             yaw_change.get::<radian>();
@@ -85,14 +102,14 @@ impl Localization {
         let error_from_prediction = yaw_rot_matrix;
         self.set_state(self.state + yaw_rot_matrix * pose_shift);
 
-        let prediciton_confidence = matrix![
-            robot_translation_error.x * robot_translation_error.x, 0.0, 0.0;
-            0.0, robot_translation_error.y * robot_translation_error.y, 0.0;
-            0.0, 0.0, yaw_error * yaw_error;
+        let prediction_confidence = matrix![
+            robot_translation_error.x * robot_translation_error.x + CURRENT_STATE_TRUST_SCALAR_DRIVE * CURRENT_STATE_TRUST_SCALAR_DRIVE, 0.0, 0.0;
+            0.0, robot_translation_error.y * robot_translation_error.y + CURRENT_STATE_TRUST_SCALAR_DRIVE * CURRENT_STATE_TRUST_SCALAR_DRIVE, 0.0;
+            0.0, 0.0, yaw_error * yaw_error + CURRENT_STATE_TRUST_SCALAR_YAW * CURRENT_STATE_TRUST_SCALAR_YAW;
         ];
 
         self.state_confidence = transform(error_from_state, self.state_confidence)
-            + transform(error_from_prediction, prediciton_confidence);
+            + transform(error_from_prediction, prediction_confidence);
 
         self.state_confidence = 0.5 * (self.state_confidence + self.state_confidence.transpose());
     }
@@ -104,41 +121,67 @@ impl Localization {
         self.update_measurement(measurement, state_to_measurement, measurement_confidence, 0);
     }
 
-    pub fn update_pose(
+    pub fn update_pose_from_limelight(
         &mut self,
         robot_pose: Vector2<Length>,
         new_yaw: Angle,
         pose_error: Vector2<Length>,
         yaw_error: Angle,
-    ) {
+    ) -> bool {
+        let current_state = self.get_state();
+        let pose_diff_scalar = ((current_state.x - robot_pose.x)
+            * (current_state.x - robot_pose.x)
+            + (current_state.y - robot_pose.y) * (current_state.y - robot_pose.y))
+            .sqrt();
+
+        if pose_diff_scalar > Length::new::<meter>(MAX_LIMELIGHT_POSE_DIFFERENCE_METERS) {
+            self.limelight_outlier_count += 1;
+
+            if self.limelight_outlier_count < LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT {
+                return false;
+            }
+        }
+
+        self.limelight_outlier_count = 0;
+
         let measurement: SMatrix<f64, 3, 1> = matrix![
             robot_pose.x.get::<meter>();
             robot_pose.y.get::<meter>();
-            yaw_error.get::<radian>();
+            new_yaw.get::<radian>();
         ];
 
         let state_to_measurement = SMatrix::<f64, 3, 3>::identity();
+
         let measurement_confidence = matrix![
             pose_error.x.get::<meter>() * pose_error.x.get::<meter>(), 0.0, 0.0;
             0.0, pose_error.y.get::<meter>() * pose_error.y.get::<meter>(), 0.0;
             0.0, 0.0, yaw_error.get::<radian>() * yaw_error.get::<radian>();
         ];
-        self.update_measurement(measurement, state_to_measurement, measurement_confidence, 0);
+
+        self.update_measurement(measurement, state_to_measurement, measurement_confidence, 2);
+        return true;
     }
 
     /// Returns: Pose, Yaw, Pose Error, Yaw Error
-    pub fn get_state(&self) -> (Vector2<Length>, Angle, Vector2<Length>, Angle) {
+    pub fn get_state(&self) -> RobotPose {
+        RobotPose {
+            x: Length::new::<meter>(self.state[(0, 0)]),
+            y: Length::new::<meter>(self.state[(1, 0)]),
+            yaw: Angle::new::<radian>(self.state[(2, 0)]),
+        }
+    }
+
+    pub fn get_velocity_errors(&self, elapsed_time_secs: f64) -> (Vector2<f64>, Angle) {
+        let x_error = self.state_confidence[(0, 0)];
+        let y_error = self.state_confidence[(1, 1)];
+        let yaw_error = self.state_confidence[(2, 2)];
+
+        let x_velocity_error = x_error / elapsed_time_secs;
+        let y_velocity_error = y_error / elapsed_time_secs;
+        let angular_velocity_error = yaw_error / elapsed_time_secs;
         (
-            Vector2::new(
-                Length::new::<meter>(self.state[(0, 0)]),
-                Length::new::<meter>(self.state[(1, 0)]),
-            ),
-            Angle::new::<radian>(self.state[(2, 0)]),
-            Vector2::new(
-                Length::new::<meter>(self.state_confidence[(0, 0)]),
-                Length::new::<meter>(self.state_confidence[(1, 1)]),
-            ),
-            Angle::new::<radian>(self.state_confidence[(2, 2)]),
+            Vector2::new(x_velocity_error, y_velocity_error),
+            Angle::new::<radian>(angular_velocity_error),
         )
     }
 }
@@ -152,4 +195,119 @@ fn transform<const R: usize, const C: usize>(
     mat: SMatrix<f64, C, C>,
 ) -> SMatrix<f64, R, R> {
     transformation * mat * transformation.transpose()
+}
+
+#[cfg(test)]
+mod localization_tests {
+    use super::*;
+    use float_cmp::assert_approx_eq;
+    use uom::si::angle::degree;
+
+    #[test]
+    fn odometry_update_test() {
+        // translations
+        let inputs = vec![
+            (1.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (-1.0, -1.0, 0.0),
+            (0.0, 0.0, 90.0),
+            (0.0, 0.0, 90.0),
+            (0.0, 0.0, 90.0),
+            (0.0, 0.0, 90.0),
+            (0.0, 0.0, 90.0),
+            (-1.0, 0.0, 0.0),
+        ];
+
+        let expected = vec![
+            (1.0, 0.0, 0.0),
+            (1.0, 1.0, 0.0),
+            (0.0, 0.0, 0.0),
+            (0.0, 0.0, 90.0),
+            (0.0, 0.0, 180.0),
+            (0.0, 0.0, -90.0),
+            (0.0, 0.0, 0.0),
+            (0.0, 0.0, 90.0),
+            (0.0, -1.0, 90.0),
+        ];
+
+        let mut local = Localization::new();
+
+        let mut results: Vec<RobotPose> = vec![];
+        for input in inputs {
+            local.translation_from_odometry(
+                Vector2::new(input.0, input.1),
+                Angle::new::<degree>(input.2),
+                Vector2::new(0.0, 0.0),
+                0.0,
+            );
+            results.push(local.get_state());
+        }
+
+        let mut i = 1.0;
+        for result in results.clone() {
+            println!(
+                "result {}: x: {}, y: {}, yaw: {}",
+                i,
+                result.x.get::<meter>(),
+                result.y.get::<meter>(),
+                result.yaw.get::<degree>()
+            );
+            i += 1.0;
+        }
+
+        for tuple in expected.iter().zip(results.iter()) {
+            assert_approx_eq!(f64, tuple.0.0, tuple.1.x.get::<meter>(), epsilon = 0.001);
+            assert_approx_eq!(f64, tuple.0.1, tuple.1.y.get::<meter>(), epsilon = 0.001);
+            assert_approx_eq!(f64, tuple.0.2, tuple.1.yaw.get::<degree>(), epsilon = 0.001);
+        }
+    }
+
+    #[test]
+    fn limelight_update_test() {
+        let mut local = Localization::new();
+        local.translation_from_odometry(
+            Vector2::new(0.0, 0.0),
+            Angle::new::<degree>(0.0),
+            Vector2::new(0.0000001, 0.0000001),
+            0.005,
+        );
+        local.update_pose_from_limelight(
+            Vector2::new(Length::new::<meter>(15.0), Length::new::<meter>(5.0)),
+            Angle::new::<degree>(0.0),
+            Vector2::new(Length::new::<meter>(0.001), Length::new::<meter>(0.001)),
+            Angle::new::<degree>(0.05),
+        );
+        println!("{}: {:?}", 0.0, local.get_state());
+        for i in 0..=15 {
+            local.translation_from_odometry(
+                Vector2::new(0.0, 0.0),
+                Angle::new::<degree>(0.0),
+                Vector2::new(0.0000001, 0.0000001),
+                0.005,
+            );
+            local.update_pose_from_limelight(
+                Vector2::new(Length::new::<meter>(14.0), Length::new::<meter>(4.0)),
+                Angle::new::<degree>(0.0),
+                Vector2::new(Length::new::<meter>(0.001), Length::new::<meter>(0.001)),
+                Angle::new::<degree>(0.05),
+            );
+            println!("{}: {:?}", i + 1, local.get_state());
+        }
+        for i in 0..=15 {
+            local.translation_from_odometry(
+                Vector2::new(0.0, 0.0),
+                Angle::new::<degree>(0.0),
+                Vector2::new(0.01, 0.01),
+                0.005,
+            );
+            local.update_pose_from_limelight(
+                Vector2::new(Length::new::<meter>(15.0), Length::new::<meter>(5.0)),
+                Angle::new::<degree>(0.0),
+                Vector2::new(Length::new::<meter>(0.001), Length::new::<meter>(0.001)),
+                Angle::new::<degree>(0.05),
+            );
+            println!("{}: {:?}", i + 16, local.get_state());
+        }
+        panic!()
+    }
 }

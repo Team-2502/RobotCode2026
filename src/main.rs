@@ -1,9 +1,11 @@
 #![warn(non_snake_case)]
 
-// use RobotCode2026::auto::auto::Auto;
+use RobotCode2026::auto::auto::Auto;
 use RobotCode2026::subsystems::turret::TurretMode;
-use RobotCode2026::{Controllers, Ferris, teleop};
+use RobotCode2026::{Ferris, post_shift, teleop};
+use frcrs::input::RobotMode;
 use frcrs::input::RobotState;
+use frcrs::match_time;
 use frcrs::networktables::NetworkTable;
 use frcrs::telemetry::Telemetry;
 use frcrs::{init_hal, observe_user_program_starting, refresh_data};
@@ -13,7 +15,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
 use tokio::task;
-use tokio::task::{AbortHandle, spawn_local};
+use tokio::task::AbortHandle;
+use tokio::task::spawn_local;
 use tokio::time::sleep;
 use tokio::time::{Duration, Instant};
 
@@ -22,7 +25,7 @@ fn main() {
     let local = task::LocalSet::new();
 
     // we create our ferris here
-    let mut ferris = Rc::new(RefCell::new(Ferris::new()));
+    let ferris = Rc::new(RefCell::new(Ferris::new()));
 
     runtime.block_on(local.run_until(async {
         // we check to make sure hal is initialized if not we panic
@@ -38,20 +41,26 @@ fn main() {
 
         // this initializes network tables on the default port
         NetworkTable::init();
-        // println!("hello");
 
         // puts the auto chooser up on the telemetry server
-        // Telemetry::put_selector("auto chooser", Auto::names()).await;
+        Telemetry::put_selector("auto chooser", Auto::names()).await;
         Telemetry::put_selector("justice for cam :)", TurretMode::names()).await;
+        Telemetry::put_selector(
+            "airstrike mode",
+            vec!["bomb the field".to_string(), "nah we chill".to_string()],
+        )
+        .await;
+
+        Telemetry::put_color("shift", frcrs::telemetry::TelemetryColor::Purple).await;
 
         // this line is used if we are using a usb camera and want to see its feed on shuffleboard
-        // SmartDashboard::start_camera_server();
+        //SmartDashboard::start_camera_server();
 
         // set last loop time to now
         let mut last_loop = Instant::now();
 
         // initialize the auto handle
-        let mut auto: Option<AbortHandle> = None;
+        let _auto: Option<AbortHandle> = None;
 
         // Watchdog setup
         let last_loop_time = Arc::new(AtomicU64::new(0));
@@ -70,16 +79,16 @@ fn main() {
 
                 // if more than 150 ms has passed the loop has overun and watchdog triggers
                 if last != 0 && now - last > 150 {
-                    println!("Loop Overrun: {}ms", now - last);
+                    //println!("Loop Overrun: {}ms", now - last);
                     if let Ok(ferris) = watchdog_ferris.try_borrow_mut() {
                         // try to stop robot with ferris.stop()
                         ferris.stop();
                     } else {
                         // if we fail to get ferris we exit code 0 (commented out during season)
-                        println!("FAILED TO GET FERRIS TO STOP");
+                        //println!("FAILED TO GET FERRIS TO STOP");
                         // exit(1);
                     }
-                    println!("Watchdog triggered: Motors stopped");
+                    //println!("Watchdog triggered: Motors stopped");
                 }
             }
         });
@@ -101,25 +110,43 @@ fn main() {
                 }
             }
 
+            Telemetry::put_number("match time", (match_time() * 100.0).trunc() / 100.0).await;
+
             if state.enabled() && state.teleop() {
                 // if enabled and in teleop run the teleop function
                 if let Ok(mut robot) = ferris.try_borrow_mut() {
                     robot.dt = dt;
+                    robot.update_state();
+                    post_shift(match_time()).await;
                     teleop(&mut robot).await;
                 }
             }
 
-            // if state.enabled() && state.auto() {
+            if state.enabled() && state.auto() {
+                if let Ok(mut robot) = ferris.try_borrow_mut() {
+                    if robot.state.mode() != RobotMode::Auto {
+                        robot.auto_init();
+                    }
+                    robot.update_state();
+                    robot.dt = dt;
+                    robot.auto_periodic().await;
+                }
+                //drivetrain.move_towards(Angle::new::<degree>(0.0), 0.0, Angle::new::<degree>(45.0));
+            }
             //     // Update dt before using it in auto
             //     if let Ok(mut ferris_mut) = ferris.try_borrow_mut() {
             //         ferris_mut.dt = dt;
 
             //         // Now access drivetrain
             //         if let Ok(mut drivetrain) = ferris_mut.drivetrain.try_borrow_mut() {
-            //             drivetrain.update_limelight().await;
-            //             drivetrain.update_localization().await;
+            //             drivetrain.update_pose().await;
+            //             let pose = drivetrain.localization.get_state();
+            //             update_telemetry_robot_pose(&pose).await;
             //         }
             //     }
+
+            //     let run = Auto::run_auto(ferris_clone, Auto::Move);
+            //     auto = Some(local.spawn_local(run).abort_handle());
 
             //     // start auto
             //     if auto.is_none() {

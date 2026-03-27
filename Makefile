@@ -13,6 +13,7 @@ compile: $(OUT)
 
 $(OUT): src/** Cargo.*
 	cargo build --release --target arm-unknown-linux-gnueabi
+	#cargo build --release --target arm-unknown-linux-gnueabi && make deploy-scp
 
 $(dir $(DEPLOY)):
 	mkdir -p $(dir $(DEPLOY))
@@ -23,11 +24,20 @@ $(DEPLOY): $(dir $(DEPLOY)) $(OUT)
 # just deploys robotcode
 .PHONY: deploy-scp
 deploy-scp: $(OUT)
+	
 	ssh lvuser@10.$(TEAM).2 /usr/local/frc/bin/frcKillRobot.sh
 	ssh lvuser@10.$(TEAM).2 rm $(LIB)
 	scp $(OUT) lvuser@10.$(TEAM).2:
 	ssh lvuser@10.$(TEAM).2 /usr/local/frc/bin/frcRunRobot.sh
 	ssh lvuser@10.$(TEAM).2 chmod 755 $(LIB)
+
+.PHONY: deploy-nb
+deploy-nb:
+	ssh lvuser@10.$(TEAM).2 /usr/local/frc/bin/frcKillRobot.sh
+	ssh lvuser@10.$(TEAM).2 rm $(LIB)
+	scp $(OUT) lvuser@10.$(TEAM).2:
+	ssh lvuser@10.$(TEAM).2 chmod +x $(LIB)
+	ssh lvuser@10.$(TEAM).2 /usr/local/frc/bin/frcRunRobot.sh
 
 .PHONY: deploy-paths
 deploy-paths:

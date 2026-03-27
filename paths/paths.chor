@@ -57,16 +57,16 @@
   },
   "bumper":{
    "front":{
-    "exp":"16.75 in",
-    "val":0.42545
+    "exp":"17.5 in",
+    "val":0.4445
    },
    "side":{
-    "exp":"16.75 in",
-    "val":0.42545
+    "exp":"17.5 in",
+    "val":0.4445
    },
    "back":{
-    "exp":"16.75 in",
-    "val":0.42545
+    "exp":"17.5 in",
+    "val":0.4445
    }
   },
   "differentialTrackWidth":{
@@ -76,7 +76,7 @@
  },
  "generationFeatures":[],
  "codegen":{
-  "root":null,
+  "root":"../../../Downloads",
   "genVars":true,
   "genTrajData":true,
   "useChoreoLib":true
