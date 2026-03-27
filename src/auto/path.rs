@@ -7,7 +7,9 @@ use crate::constants::auto::{
     SWERVE_DRIVE_IE, SWERVE_DRIVE_KD, SWERVE_DRIVE_KF, SWERVE_DRIVE_KFA, SWERVE_DRIVE_KI,
     SWERVE_DRIVE_KP, SWERVE_DRIVE_MAX_ERR, SWERVE_TURN_KP,
 };
-use crate::constants::config::{HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS};
+use crate::constants::config::{
+    HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
+};
 use crate::subsystems::swerve::drivetrain::Drivetrain;
 use frcrs::trajectory::Path;
 use nalgebra::Vector2;
@@ -34,7 +36,8 @@ pub async fn drive(
         .await?;
 
     let path = Path::from_trajectory(&path_content);
-    let waypoints = path?.waypoints().clone();
+    let path_unwraped = path?;
+    let waypoints = path_unwraped.waypoints();
 
     println!("{}", waypoints.len());
     if waypoint_index >= waypoints.len() {
@@ -48,7 +51,12 @@ pub async fn drive(
     };
     let _end_time = waypoints[waypoint_index];
 
-    drivetrain.control_drivetrain(0., 0., 0.);
+    drivetrain.control_drivetrain(
+        0.,
+        0.,
+        0.,
+        Length::new::<meter>(MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND),
+    );
     Ok(())
 }
 
@@ -141,7 +149,12 @@ pub async fn follow_path_segment(
         speed += (speed - last_error) * SWERVE_DRIVE_KD * dt.as_secs_f64();
         last_error = speed_s;
 
-        drivetrain.control_drivetrain(speed.x, speed.y, error_angle.get::<degree>());
+        drivetrain.control_drivetrain(
+            speed.x,
+            speed.y,
+            error_angle.get::<degree>(),
+            Length::new::<meter>(0.0),
+        );
 
         sleep(Duration::from_millis(20)).await;
     }

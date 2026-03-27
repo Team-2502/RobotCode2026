@@ -62,14 +62,6 @@ impl Vision {
         let results = self.limelight.results().await;
         if let Ok(r) = results {
             self.results = r;
-            println!("it got results bro");
-            println!(
-                "vision line 66: ll pose: x: {} y: {}, yaw: {}",
-                self.results.botpose_wpiblue[0],
-                self.results.botpose_wpiblue[1],
-                self.results.botpose_wpiblue[5]
-            );
-            //println!("{:?}", self.results.Fiducial);
         } else {
             println!("failed to fetch results from limelight");
             let response = self.limelight.response().await;
@@ -217,7 +209,10 @@ impl Vision {
     }
 
     pub fn has_tag(&self) -> bool {
-        if self.results.botpose_tagcount > 0 && !self.results.Fiducial.is_empty() {
+        if self.results.botpose_tagcount > 0
+            && !self.results.Fiducial.is_empty()
+            && self.results.botpose_wpiblue[2].abs() < 0.3
+        {
             true
         } else {
             false

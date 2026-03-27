@@ -1,17 +1,18 @@
-// use crate::auto::path::drive;
 use crate::constants::config::{
-    HUB_BLUE, HUB_RED, MANUAL_TURRET_MODE_DISTANCE_MAX_METERS, PASS_BOTTOM_OFFSET_METERS,
-    PASS_TOP_OFFSET_METERS,
+    BLUE_PASS_BOTTOM_OFFSET_METERS, BLUE_PASS_TOP_OFFSET_METERS, HUB_BLUE, HUB_RED,
+    MANUAL_TURRET_MODE_DISTANCE_MAX_METERS, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
+    RED_PASS_BOTTOM_OFFSET_METERS, RED_PASS_TOP_OFFSET_METERS,
 };
 use crate::constants::robotmap::intake::{HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
 use crate::subsystems::intake::Intake;
 use crate::subsystems::shooter::{
-    Shooter, ShootingTarget, get_scoring_hood_angle_target, get_scoring_shooter_speed_target,
+    Shooter, ShootingTarget, get_drivetrain_max_speed, get_scoring_hood_angle_target,
+    get_scoring_shooter_speed_target,
 };
 use crate::subsystems::swerve::drivetrain::FieldZone::{
     BlueBottom, BlueTop, MiddleBottom, MiddleTop, RedBottom, RedTop,
 };
-use crate::subsystems::swerve::drivetrain::{Drivetrain, get_zone, update_telemetry_robot_pose};
+use crate::subsystems::swerve::drivetrain::{Drivetrain, get_zone, update_drivetrain_telemetry};
 use crate::subsystems::turret::TurretMode;
 use crate::subsystems::vision::distance;
 use frcrs::input::Joystick;
@@ -96,44 +97,21 @@ impl Ferris {
 }
 
 pub async fn teleop(ferris: &mut Ferris) {
-    // run drivetrain functions each frame
     if let Ok(mut drivetrain) = ferris.drivetrain.try_borrow_mut() {
         drivetrain.update_pose().await;
         let pose = drivetrain.localization.get_state();
-        update_telemetry_robot_pose(&pose).await;
+        let (linear_velocity, angular_velocity) = drivetrain.localization.get_velocities();
+        update_drivetrain_telemetry(&pose, &linear_velocity, &angular_velocity).await;
 
-        let deadzone_output_range = 0.0..1.0;
-        let deadzone_input_range = 0.1..1.0;
-        drivetrain.control_drivetrain(
-            deadzone(
-                -ferris.controllers.left_drive.get_x(),
-                &deadzone_input_range,
-                &deadzone_output_range,
-            ),
-            deadzone(
-                ferris.controllers.left_drive.get_y(),
-                &deadzone_input_range,
-                &deadzone_output_range,
-            ),
-            deadzone(
-                ferris.controllers.right_drive.get_z(),
-                &deadzone_input_range,
-                &deadzone_output_range,
-            ),
-        );
-        if ferris.controllers.right_drive.get(1) {
-            drivetrain.reset_heading();
-        }
-
-        if ferris.controllers.right_drive.get(4) {
-            drivetrain.set_gyro_offset();
-        }
+        // shooter state can scale drivetrain speeds. therefore, run shooter functions before rest of dt things.
+        let mut max_dt_speed = Length::new::<meter>(MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND);
+        // let turret_velocity = get_turret_velocity(linear_velocity, angular_velocity, &pose);
+        let turret_velocity = linear_velocity;
 
         // Run Shooter Functions
         if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
             shooter.turret.update_turret(pose.yaw);
 
-            // todo: assign ids
             if ferris.controllers.operator.get(6) {
                 shooter.distance_offset += Length::new::<inch>(0.5);
             }
@@ -183,13 +161,13 @@ pub async fn teleop(ferris: &mut Ferris) {
                     );
                     let pass_top = hub
                         + Vector2::new(
-                            Length::new::<meter>(PASS_TOP_OFFSET_METERS.x),
-                            Length::new::<meter>(PASS_TOP_OFFSET_METERS.y),
+                            Length::new::<meter>(RED_PASS_TOP_OFFSET_METERS.x),
+                            Length::new::<meter>(RED_PASS_TOP_OFFSET_METERS.y),
                         );
                     let pass_bottom = hub
                         + Vector2::new(
-                            Length::new::<meter>(PASS_BOTTOM_OFFSET_METERS.x),
-                            Length::new::<meter>(PASS_BOTTOM_OFFSET_METERS.y),
+                            Length::new::<meter>(RED_PASS_BOTTOM_OFFSET_METERS.x),
+                            Length::new::<meter>(RED_PASS_BOTTOM_OFFSET_METERS.y),
                         );
                     (hub, pass_top, pass_bottom)
                 }
@@ -200,13 +178,13 @@ pub async fn teleop(ferris: &mut Ferris) {
                     );
                     let pass_top = hub
                         + Vector2::new(
-                            Length::new::<meter>(PASS_TOP_OFFSET_METERS.x),
-                            Length::new::<meter>(PASS_TOP_OFFSET_METERS.y),
+                            Length::new::<meter>(BLUE_PASS_TOP_OFFSET_METERS.x),
+                            Length::new::<meter>(BLUE_PASS_TOP_OFFSET_METERS.y),
                         );
                     let pass_bottom = hub
                         + Vector2::new(
-                            Length::new::<meter>(PASS_BOTTOM_OFFSET_METERS.x),
-                            Length::new::<meter>(PASS_BOTTOM_OFFSET_METERS.y),
+                            Length::new::<meter>(BLUE_PASS_BOTTOM_OFFSET_METERS.x),
+                            Length::new::<meter>(BLUE_PASS_BOTTOM_OFFSET_METERS.y),
                         );
                     (hub, pass_top, pass_bottom)
                 }
@@ -266,16 +244,27 @@ pub async fn teleop(ferris: &mut Ferris) {
                     }
 
                     match ferris.shooter_target {
-                        ShootingTarget::PassTop => shooter.pass_to(&pose, pass_top).await,
+                        ShootingTarget::PassTop => {
+                            shooter.pass_to(&pose, pass_top).await;
+                            max_dt_speed =
+                                get_drivetrain_max_speed(&pose, turret_velocity, pass_top);
+                        }
                         ShootingTarget::Hub => {
                             shooter.shoot_to(&pose, hub).await;
+                            max_dt_speed = get_drivetrain_max_speed(&pose, turret_velocity, hub);
+                            println!("lib::teleop: turret v:{:.2?}", turret_velocity);
+
                             Telemetry::put_number(
                                 "Hub Distance",
                                 distance(Vector2::new(pose.x, pose.y), hub),
                             )
                             .await;
                         }
-                        ShootingTarget::PassBottom => shooter.pass_to(&pose, pass_bottom).await,
+                        ShootingTarget::PassBottom => {
+                            shooter.shoot_to(&pose, pass_bottom).await;
+                            max_dt_speed =
+                                get_drivetrain_max_speed(&pose, turret_velocity, pass_bottom);
+                        }
                         ShootingTarget::PassTelemetry => {
                             println!("ShootingTarget = PassTelemetry? Switching to Idle Mode");
                             ferris.turret_mode = TurretMode::Idle;
@@ -308,11 +297,7 @@ pub async fn teleop(ferris: &mut Ferris) {
             Telemetry::put_string("shooter_target", String::from(ferris.shooter_target.name()))
                 .await;
             Telemetry::put_number("DISTANCE OFFSET", shooter.distance_offset.get::<foot>()).await;
-            Telemetry::put_number(
-                "YAW OFFSET",
-                dbg!(shooter.turret.yaw_offset.get::<degree>()),
-            )
-            .await;
+            Telemetry::put_number("YAW OFFSET", shooter.turret.yaw_offset.get::<degree>()).await;
 
             // Run Intake Functions
             if let Ok(intake) = ferris.intake.try_borrow_mut() {
@@ -326,6 +311,34 @@ pub async fn teleop(ferris: &mut Ferris) {
                     intake.stop();
                 }
             }
+        }
+
+        let deadzone_output_range = 0.0..1.0;
+        let deadzone_input_range = 0.1..1.0;
+        drivetrain.control_drivetrain(
+            deadzone(
+                -ferris.controllers.left_drive.get_x(),
+                &deadzone_input_range,
+                &deadzone_output_range,
+            ),
+            deadzone(
+                ferris.controllers.left_drive.get_y(),
+                &deadzone_input_range,
+                &deadzone_output_range,
+            ),
+            deadzone(
+                ferris.controllers.right_drive.get_z(),
+                &deadzone_input_range,
+                &deadzone_output_range,
+            ),
+            max_dt_speed,
+        );
+        if ferris.controllers.right_drive.get(1) {
+            drivetrain.reset_heading();
+        }
+
+        if ferris.controllers.right_drive.get(4) {
+            drivetrain.set_gyro_offset();
         }
     }
 }
