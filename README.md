@@ -4,14 +4,14 @@
   - average ds command and current velocity for elsewhere
   - turret velocity 
 - [ ] check if drivetrain speed limiter is working for shoot on the fly
+  - jittery
 - [ ] think about speed limiting while passing
 - [ ] test to make sure max speeds are actually max speeds
 -----
 ### turret
 - [ ] regs. for passing, yaw
 - [ ] ensure turret is correctly rotated relative to center of robot
-  - currently, 5x farther away from center than actually, for easy testing
-- [ ] turret abs. encoder (accurate zeroing)
+- [x] turret abs. encoder (accurate zeroing)
 - [ ] tune hood PID? never got changed after plates got recut, but might mess up shooting? be careful
 - [ ] might need to tune turret PID, check if soft stop is working as intended
   - might want to just limit rotation rate
