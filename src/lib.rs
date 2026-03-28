@@ -7,6 +7,7 @@ use crate::constants::config::{
     RED_PASS_BOTTOM_OFFSET_METERS, RED_PASS_TOP_OFFSET_METERS,
 };
 use crate::constants::robotmap::intake::{HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
+use crate::subsystems::intake::Debouncer;
 use crate::subsystems::intake::Intake;
 use crate::subsystems::shooter::{
     Shooter, ShootingTarget, get_drivetrain_max_speed, get_scoring_hood_angle_target,
@@ -59,6 +60,8 @@ pub struct Ferris {
     pub shooter_offset: f64,
     pub dt: Duration,
     pub state: RobotState,
+    
+    pub debouncer: Debouncer,
 
     pub auto: Auto,
 }
@@ -91,6 +94,8 @@ impl Ferris {
 
             dt: Duration::from_millis(0),
             state: RobotState::get(),
+            
+            debouncer: Debouncer::new(Duration::from_secs_f64(1.0)),
 
             auto: Auto::new(),
         }
@@ -166,7 +171,7 @@ pub async fn teleop(ferris: &mut Ferris) {
                 shooter.turret.yaw_offset -= Angle::new::<degree>(0.5);
             }
 
-            if ferris.controllers.operator.get(11) {
+            if ferris.debouncer.calculate(ferris.controllers.operator.get(11)) {
                 if shooter.manual_toggle {
                     shooter.manual_toggle = false;
                     shooter.idle_toggle = false;
