@@ -17,6 +17,7 @@
   - might want to just limit rotation rate
   - might want to think about stopping handoff while snapping back from softstop, low priority
 - [ ] think about soft stop behavior while shooting
+- [ ] man mode
 --- 
 ### misc.
 - [ ] recalibrate limelights?
