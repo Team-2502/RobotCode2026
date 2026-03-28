@@ -20,7 +20,7 @@
 --- 
 ### misc.
 - [ ] recalibrate limelights?
-- [ ] fix deadzone being high on inputs 
+- [x] fix deadzone being high on inputs 
 - [ ] how to pass in starting pose for auton
 - [ ] think about efficient calibration workflow at comp
 - [ ] notes: in lib.rs, currently calling shooter tables instead of passing tables for bottom pass target. easy fix, just change shoot_to -> pass_to
