@@ -25,5 +25,5 @@
 - [ ] think about efficient calibration workflow at comp
 - [ ] notes: in lib.rs, currently calling shooter tables instead of passing tables for bottom pass target. easy fix, just change shoot_to -> pass_to
 - [ ] debouncer
-- [ ] generational merge conflict
+- [x] generational merge conflict
 - [ ] logging system
