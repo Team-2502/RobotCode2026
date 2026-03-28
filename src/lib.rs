@@ -352,7 +352,7 @@ pub async fn teleop(ferris: &mut Ferris) {
         }
 
         let deadzone_output_range = 0.0..1.0;
-        let deadzone_input_range = 0.1..1.0;
+        let deadzone_input_range = 0.05..1.0;
         drivetrain.control_drivetrain(
             deadzone(
                 -ferris.controllers.left_drive.get_x(),

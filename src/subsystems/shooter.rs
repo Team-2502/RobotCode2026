@@ -270,6 +270,91 @@ pub fn get_passing_hood_angle_target(distance: Length, current_speed: f64) -> f6
     }
 }
 
+fn predict_yaw(dist: f64, vx: f64, vy: f64, speed: f64, hood: f64) -> f64 {
+    let launch_velocity = speed * (0.14577997574526508 - 0.00015049121874030828 * hood);
+    let launch_angle = (69.91396399643477 - 12.56207643932571 * hood).to_radians();
+    let tof = 0.1019367991845056 * (launch_velocity * launch_angle.sin()) + 0.8648181411925046;
+    if tof.abs() < 1e-9 {
+        return 0.0;
+    }
+    vx.atan2(1.34043298837828 * (dist / tof) - vy + 0.24598678147992)
+}
+
+fn predict_hood(dist: f64, vx: f64, vy: f64, speed: f64) -> f64 {
+    let flywheel = speed * 0.14;
+    let vx2 = vx * vx;
+    let vy2 = vy * vy;
+    let dist2 = dist * dist;
+    let flywheel2 = flywheel * flywheel;
+    let term = 14.577997574526508 * flywheel + vy;
+    if term.abs() < 1e-9 {
+        return 0.0;
+    }
+    let inv_term = 1.0 / term;
+
+    let num = -0.36839033462703 + 0.02061306141286 * vy + 0.00838512238623 * vx2
+        - 0.14755937948384 * dist
+        + 0.10020701135136 * flywheel
+        + 0.0515687877688 * vy * dist
+        + 0.00284413077565 * vy * flywheel
+        - 0.00058493307566 * vy * dist * flywheel
+        - 0.00252780913557 * vy * dist2
+        + 0.00651966765799 * vy2 * dist
+        - 0.00898418209993 * vy2 * flywheel
+        - 0.00022600092684 * vy2 * dist * flywheel
+        + 0.0004097653597 * vy2 * flywheel2
+        - 7.4616806e-07 * vy2 * dist2
+        + 0.0294495829453 * vx2 * dist
+        - 0.01529770258126 * vx2 * flywheel
+        - 0.00125497957061 * vx2 * dist * flywheel
+        - 0.0078604492234 * vx2 * dist2
+        + 0.00086469303317 * vx2 * flywheel2
+        - 5.93345503e-05 * vx2 * dist * flywheel2
+        + 0.00097282272656 * vx2 * dist2 * flywheel
+        - 2.906229428e-05 * vx2 * dist2 * flywheel2
+        + 0.6418027181806 * dist * inv_term;
+
+    let den =
+        0.6127404877969 - 0.0413350616315 * vy + 0.01488951018526 * vx2 + 0.06990762290123 * dist
+            - 0.13889287249169 * flywheel
+            - 0.00590932395805 * vy * dist
+            + 0.00535759152548 * vy * flywheel
+            + 0.00035896826208 * vy * dist * flywheel
+            - 0.00052528256156 * vy * dist2
+            + 0.00069984300315 * vy2 * dist
+            - 0.0004567784541 * vy2 * flywheel
+            + 1.377256345e-05 * vy2 * dist * flywheel
+            + 7.38593401e-06 * vy2 * flywheel2
+            - 1.341855546e-05 * vy2 * dist2
+            + 0.01016311678925 * vx2 * dist
+            - 0.00584988955478 * vx2 * flywheel
+            - 9.662471901e-05 * vx2 * dist * flywheel
+            - 0.00360819016392 * vx2 * dist2
+            + 0.00034990676645 * vx2 * flywheel2
+            - 5.200759247e-05 * vx2 * dist * flywheel2
+            + 0.00042243645456 * vx2 * dist2 * flywheel
+            - 1.136145234e-05 * vx2 * dist2 * flywheel2
+            - 0.11970122446327 * dist * inv_term;
+    if den.abs() < 1e-9 {
+        return 0.0;
+    }
+    num / den
+}
+
+fn predict_speed(dist: f64, vx: f64, vy: f64) -> f64 {
+    let vx2 = vx * vx;
+    let vy2 = vy * vy;
+    let vxvy2 = vx2 + vy2;
+    let dist2 = dist * dist;
+    let speed = 37.48768924052001 + 1.85950428954673 * dist + 0.99263955984153 * dist2
+        - 0.29979616450495 * vy
+        - 0.06945847505217 * vy * dist
+        - 0.22288224790744 * vy * dist2
+        + 0.22589500122137 * vxvy2
+        + 0.11034899634029 * vxvy2 * dist;
+    speed.clamp(30.0, 90.0)
+}
+
 #[cfg(test)]
 mod shooter_tests {
     use float_cmp::assert_approx_eq;

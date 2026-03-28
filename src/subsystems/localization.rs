@@ -163,8 +163,6 @@ impl Localization {
             angular_velocity.get::<radian>();
         ];
 
-        println!("measurement: {:.2}", measurement);
-
         let state_to_measurement = matrix![
             0.0, 0.0, 0.0, 1.0, 0.0, 0.0;
             0.0, 0.0, 0.0, 0.0, 1.0, 0.0;
@@ -176,8 +174,6 @@ impl Localization {
             0.0, linear_velocity_err.y.get::<meter>() * linear_velocity_err.y.get::<meter>(), 0.0;
             0.0, 0.0, angular_velocity_err.get::<radian>() * angular_velocity_err.get::<radian>();
         ];
-
-        println!("measurement conf: {:.2}", measurement_confidence);
 
         self.state_confidence[(3, 3)] += CURRENT_STATE_LINEAR_VELOCITY_TRUST;
         self.state_confidence[(4, 4)] += CURRENT_STATE_LINEAR_VELOCITY_TRUST;

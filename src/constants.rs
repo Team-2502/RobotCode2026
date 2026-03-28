@@ -19,11 +19,15 @@ pub mod config {
 
     pub const HALF_FIELD_WIDTH_METERS: f64 = 8.042656 / 2.;
     pub const HALF_FIELD_LENGTH_METERS: f64 = 16.513048 / 2.;
+
     pub const BLUE_HUB_X_INCHES: f64 = 182.11;
     pub const RED_HUB_X_INCHES: f64 = 469.11;
 
-    pub const HUB_RED: Vector2<f64> = Vector2::new(11.915394, 4.02);
-    pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.0625, 4.02);
+    // og y: 4.029456
+    pub const HUB_RED: Vector2<f64> = Vector2::new(11.915394, 4.034536 + 0.28);
+    pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.625594, 4.034536 - 0.28);
+    // pub const HUB_RED: Vector2<f64> = Vector2::new(11.915394, 4.034536);
+    // pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.625594, 4.034536);
 
     pub const RED_PASS_TOP_OFFSET_METERS: Vector2<f64> = Vector2::new(3.0, 2.01);
     pub const RED_PASS_BOTTOM_OFFSET_METERS: Vector2<f64> = Vector2::new(3.0, -2.01);
@@ -97,15 +101,20 @@ pub mod shooter {
 }
 
 pub mod turret {
-    use std::f64::NAN;
-    pub const GEAR_RATIO: f64 = 34.5;
+    pub const RELATIVE_TO_TURRET_RATIO: f64 = 34.5;
+    pub const ABS_TO_TURRET_RATIO: f64 = 5.75;
+    pub const ABS_TO_REL_RATIO: f64 = 6.0;
+
     pub const TURRET_MAX: f64 = 180.0;
     pub const TURRET_MIN: f64 = -180.0;
     pub const TURRET_CLAMP: f64 = 2.5;
-    // pub const ORIGIN_TO_TURRET_CENTER_X_INCHES: f64 = -4.0;
-    // pub const ORIGIN_TO_TURRET_CENTER_Y_INCHES: f64 = 2.25;
-    pub const ORIGIN_TO_TURRET_CENTER_X_INCHES: f64 = -20.0;
-    pub const ORIGIN_TO_TURRET_CENTER_Y_INCHES: f64 = 2.25 * 5.0;
+    //exponential moving average
+    pub const TURRET_EMA_ALPHA: f64 = 0.9639;
+    pub const TURRET_EMA_TOLERANCE: f64 = 3.0;
+    pub const TURRET_DEADZONE: f64 = 0.3;
+
+    pub const ORIGIN_TO_TURRET_CENTER_X_INCHES: f64 = -4.0;
+    pub const ORIGIN_TO_TURRET_CENTER_Y_INCHES: f64 = -2.25;
 
     // pub const HOOD_ZERO_POSE: f64 = -0.170177;
     pub const HOOD_ZERO_POSE: f64 = -0.2;
@@ -114,7 +123,7 @@ pub mod turret {
     pub const HOOD_MIN_SOFTSTOP: f64 = -0.370361 + 0.2;
 
     // meters
-    pub const TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = NAN;
+    pub const TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = -0.21395; /* og */
     pub const TOLERANCE: f64 = 0.001;
 }
 
@@ -179,8 +188,8 @@ pub mod localization {
     // How much to distrust current localization state
     pub const CURRENT_STATE_DRIVE_TRUST: f64 = 0.003;
     pub const CURRENT_STATE_YAW_TRUST: f64 = 0.1;
-    pub const CURRENT_STATE_LINEAR_VELOCITY_TRUST: f64 = 500000.0;
-    pub const CURRENT_STATE_ANGULAR_VELOCITY_TRUST: f64 = 500000.0;
+    pub const CURRENT_STATE_LINEAR_VELOCITY_TRUST: f64 = 100.0;
+    pub const CURRENT_STATE_ANGULAR_VELOCITY_TRUST: f64 = 100.0;
 
     pub const VELOCITY_MIN_CONF: f64 = 0.01;
     pub const LINEAR_VEL_CONF_SCALAR: f64 = 1.0;
@@ -188,7 +197,7 @@ pub mod localization {
 
     pub const MAX_LIMELIGHT_POSE_DIFFERENCE_METERS: f64 = 1.0;
     pub const LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT: u32 = 15;
-    
+
     pub const LIMELIGHT_YAW_TRUST: f64 = 2.0;
 }
 

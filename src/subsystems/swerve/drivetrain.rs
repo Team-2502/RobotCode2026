@@ -10,7 +10,7 @@ use crate::constants::drivetrain::{
     SWERVE_WHEEL_CIRCUMFERENCE_INCHES,
 };
 use crate::constants::localization::{
-    ANGULAR_VEL_CONF_SCALAR, LINEAR_VEL_CONF_SCALAR, VELOCITY_MIN_CONF,LIMELIGHT_YAW_TRUST
+    ANGULAR_VEL_CONF_SCALAR, LIMELIGHT_YAW_TRUST, LINEAR_VEL_CONF_SCALAR, VELOCITY_MIN_CONF,
 };
 use crate::constants::robotmap::drivetrain_map::{
     BL_DRIVE_ID, BL_ENCODER_ID, BL_TURN_ID, BR_DRIVE_ID, BR_ENCODER_ID, BR_TURN_ID,
@@ -26,8 +26,8 @@ use frcrs::alliance_station;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
 use frcrs::telemetry::Telemetry;
 use nalgebra::{Rotation, Rotation2, Vector2, vector};
-use std::f64::EPSILON;
 use pid::Pid;
+use std::f64::EPSILON;
 use std::f64::consts::PI;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
@@ -358,8 +358,6 @@ impl Drivetrain {
             false => vector![x, y],
         };
 
-        //println!("target_transformation: {:?}", target_transformation);
-
         let targets = self
             .kinematics
             .get_targets(target_transformation, rotation, max_dt_speed);
@@ -540,7 +538,7 @@ pub async fn update_drivetrain_telemetry(
     .await;
     Telemetry::put_number(
         "robot velocity yaw (rots/s)",
-        angular_velocity.get::<revolution>(),
+        (angular_velocity.get::<revolution>() * 100.0).trunc() / 100.0,
     )
     .await;
 }

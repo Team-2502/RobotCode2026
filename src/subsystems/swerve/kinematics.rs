@@ -85,11 +85,6 @@ impl Kinematics {
             rot * MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND;
         ];
 
-        println!(
-            "kinematics::get_targets: max dt: {}",
-            max_dt_speed.get::<meter>()
-        );
-
         // in m/s
         let setpoint_matrix = self.ik_matrix.clone() * input_matrix;
 
