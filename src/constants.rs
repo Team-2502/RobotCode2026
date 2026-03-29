@@ -186,17 +186,18 @@ pub mod drivetrain {
 
 pub mod localization {
     // How much to distrust current localization state
-    pub const CURRENT_STATE_DRIVE_TRUST: f64 = 0.003;
+    pub const CURRENT_STATE_DRIVE_TRUST: f64 = 3.0;
     pub const CURRENT_STATE_YAW_TRUST: f64 = 0.1;
-    pub const CURRENT_STATE_LINEAR_VELOCITY_TRUST: f64 = 100.0;
-    pub const CURRENT_STATE_ANGULAR_VELOCITY_TRUST: f64 = 100.0;
+    pub const CURRENT_STATE_LINEAR_VELOCITY_TRUST: f64 = 0.5;
+    pub const CURRENT_STATE_ANGULAR_VELOCITY_TRUST: f64 = 0.5;
+    pub const LINEAR_VELOCITY_EMA_ALPHA: f64 = 0.8413951;
 
     pub const VELOCITY_MIN_CONF: f64 = 0.01;
-    pub const LINEAR_VEL_CONF_SCALAR: f64 = 1.0;
-    pub const ANGULAR_VEL_CONF_SCALAR: f64 = 1.0;
+    pub const LINEAR_VEL_CONF_SCALAR: f64 = 0.1;
+    pub const ANGULAR_VEL_CONF_SCALAR: f64 = 0.1;
 
     pub const MAX_LIMELIGHT_POSE_DIFFERENCE_METERS: f64 = 1.0;
-    pub const LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT: u32 = 15;
+    pub const LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT: u32 = 4;
 
     pub const LIMELIGHT_YAW_TRUST: f64 = 2.0;
 }

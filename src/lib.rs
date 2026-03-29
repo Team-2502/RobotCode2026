@@ -108,10 +108,8 @@ impl Ferris {
         if let Ok(mut drivetrain) = self.drivetrain.try_borrow_mut() {
             drivetrain.update_pose().await;
             let pose = drivetrain.localization.get_state();
-            let (linear_velocity, angular_velocity) = drivetrain.localization.get_velocities();
-            update_drivetrain_telemetry(&pose, &linear_velocity, &angular_velocity).await;
+            update_drivetrain_telemetry(&pose).await;
 
-            //println!("auto");
             self.auto
                 .move_to_sample("test_triangle", &mut drivetrain, self.auto.current_sample)
                 .await;

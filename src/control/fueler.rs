@@ -184,7 +184,7 @@ impl Targeting {
 
             if ferris
                 .man_toggle_debouncer
-                .debounce(ferris.controllers.operator.get(11))
+                .debounce(ferris.controllers.operator.get(16))
             {
                 match self.mode {
                     TargetingMode::Idle | TargetingMode::Telemetry | TargetingMode::Track => {
@@ -196,7 +196,7 @@ impl Targeting {
 
             if ferris
                 .idle_toggle_debouncer
-                .debounce(ferris.controllers.operator.get(16))
+                .debounce(ferris.controllers.operator.get(11))
             {
                 match self.mode {
                     TargetingMode::Manual | TargetingMode::Telemetry | TargetingMode::Idle => {
@@ -205,14 +205,6 @@ impl Targeting {
                     TargetingMode::Track => self.mode = TargetingMode::Idle,
                 }
             }
-
-            if ferris
-                .man_toggle_debouncer
-                .debounce(ferris.controllers.operator.get(11))
-            {
-                self.mode = TargetingMode::Manual
-            }
-
             Telemetry::put_string("turret_mode", String::from(self.mode.name())).await;
             Telemetry::put_string("shooter_target", String::from(&self.target.name)).await;
         }
@@ -229,7 +221,7 @@ impl Targeting {
             match self.mode {
                 TargetingMode::Track => match self.target.target_type {
                     TargetType::Hub => shooter.shoot_to(&pose, self.target.target_location),
-                    TargetType::Passing => shooter.pass_to(&pose, self.target.target_location),
+                    TargetType::Passing => shooter.shoot_to(&pose, self.target.target_location),
                 },
                 TargetingMode::Manual => {
                     // shooter.turret.man_yaw(ferris.controllers.operator.get_z());

@@ -14,8 +14,7 @@ impl Swerve {
         if let Ok(mut drivetrain) = ferris.drivetrain.try_borrow_mut() {
             drivetrain.update_pose().await;
             let pose = drivetrain.localization.get_state();
-            let (linear_velocity, angular_velocity) = drivetrain.localization.get_velocities();
-            update_drivetrain_telemetry(&pose, &linear_velocity, &angular_velocity).await;
+            update_drivetrain_telemetry(&pose).await;
         }
     }
 

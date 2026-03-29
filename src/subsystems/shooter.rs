@@ -84,23 +84,24 @@ impl Shooter {
             Length::new::<inch>(vector_to_turret_center_f64.y),
         );
 
-        let distance_target =
-            Length::new::<meter>(distance(target, current_pose + vector_to_turret_center));
-        let angle_target = get_angle_to(current_pose + vector_to_turret_center, target);
-        let turret_relative_angle = get_angle_difs(pose.yaw, angle_target);
-        println!(
-            "shooter::shoot_to: angle target: {}, turret_rel_angle (set_to_call): {}",
-            angle_target.get::<degree>(),
-            turret_relative_angle.get::<degree>()
-        );
+        let velocity_vec = Vector2::new(pose.vx, pose.vy);
+        let tr_velocity = get_target_relative_velocity_vector(velocity_vec, pose, target);
+        let vx = tr_velocity.x.get::<meter>();
+        let vy = tr_velocity.y.get::<meter>();
 
+        let dist = distance(target, current_pose + vector_to_turret_center);
         let current_flywheel_speed = self.get_speed();
-        self.set_velocity(get_scoring_shooter_speed_target(distance_target));
-        self.set_hood(get_scoring_hood_angle_target(
-            distance_target,
-            current_flywheel_speed,
-        ));
 
+        let speed = predict_speed(dist, vx, vy);
+        let hood = predict_hood(dist, vx, vy, current_flywheel_speed);
+        let angle_offset =
+            Angle::new::<radian>(predict_yaw(dist, vx, vy, current_flywheel_speed, hood));
+
+        let angle_target = get_angle_to(current_pose + vector_to_turret_center, target);
+        let turret_relative_angle = get_angle_difs(pose.yaw, angle_target + angle_offset);
+
+        self.set_velocity(speed);
+        self.set_hood(hood);
         self.turret.set_angle(turret_relative_angle);
     }
 
@@ -136,7 +137,7 @@ impl Shooter {
     }
 
     pub fn get_speed(&self) -> f64 {
-        self.shooter_motor_left.get_velocity()
+        (self.shooter_motor_left.get_velocity() + self.shooter_motor_right.get_velocity()) / 2.0
     }
 
     pub fn set_velocity(&self, speed: f64) {

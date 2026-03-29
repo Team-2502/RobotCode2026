@@ -144,9 +144,9 @@ impl Drivetrain {
         self.fr_turn.stop();
     }
 
-    fn update_odo(&mut self) {
+    fn update_odo(&mut self, last_pose: RobotPose) {
         let (difs, measured_angles) = self.get_odo_inputs();
-        let (mut pose_change_vec, yaw_change, translation_error, yaw_error) =
+        let (pose_change_vec, yaw_change, translation_error, yaw_error) =
             self.kinematics.odometry(difs, measured_angles);
 
         self.localization.translation_from_odometry(
@@ -155,34 +155,8 @@ impl Drivetrain {
             translation_error,
             yaw_error,
         );
-    }
 
-    fn update_velocities(&mut self, last_pose: RobotPose) {
-        let (lin_dif, angle_dif) = self.localization.get_state() - last_pose;
-
-        let current_time = Instant::now();
-        let elapsed = current_time.duration_since(self.timer).as_secs_f64() + EPSILON;
-        self.timer = current_time;
-
-        let lin_vel = Vector2::new(
-            Length::new::<meter>(lin_dif.x.get::<meter>() / elapsed),
-            Length::new::<meter>(lin_dif.y.get::<meter>() / elapsed),
-        );
-
-        let ang_vel = angle_dif / elapsed;
-
-        let lin_conf = Vector2::new(
-            Length::new::<meter>(
-                lin_vel.x.get::<meter>() * LINEAR_VEL_CONF_SCALAR + VELOCITY_MIN_CONF,
-            ),
-            Length::new::<meter>(
-                lin_vel.y.get::<meter>() * LINEAR_VEL_CONF_SCALAR + VELOCITY_MIN_CONF,
-            ),
-        );
-        let ang_conf = ang_vel * ANGULAR_VEL_CONF_SCALAR + Angle::new::<degree>(VELOCITY_MIN_CONF);
-
-        self.localization
-            .update_velocities(lin_vel, ang_vel, lin_conf, ang_conf);
+        self.update_velocities(last_pose);
     }
 
     // TODO: gyro things
@@ -199,7 +173,7 @@ impl Drivetrain {
             );
         }
 
-        self.update_odo();
+        self.update_odo(last_pose);
 
         let front_update_handle =
             timeout(Duration::from_millis(100), self.limelight_front.update());
@@ -247,7 +221,34 @@ impl Drivetrain {
                 }
             }
         }
-        self.update_velocities(last_pose);
+    }
+
+    fn update_velocities(&mut self, last_pose: RobotPose) {
+        let (lin_dif, angle_dif) = self.localization.get_state() - last_pose;
+
+        let current_time = Instant::now();
+        let elapsed = current_time.duration_since(self.timer).as_secs_f64() + EPSILON;
+        self.timer = current_time;
+
+        let lin_vel = Vector2::new(
+            Length::new::<meter>(lin_dif.x.get::<meter>() / elapsed),
+            Length::new::<meter>(lin_dif.y.get::<meter>() / elapsed),
+        );
+
+        let ang_vel = angle_dif / elapsed;
+
+        let lin_conf = Vector2::new(
+            Length::new::<meter>(
+                lin_vel.x.get::<meter>() * LINEAR_VEL_CONF_SCALAR + VELOCITY_MIN_CONF,
+            ),
+            Length::new::<meter>(
+                lin_vel.y.get::<meter>() * LINEAR_VEL_CONF_SCALAR + VELOCITY_MIN_CONF,
+            ),
+        );
+        let ang_conf = ang_vel * ANGULAR_VEL_CONF_SCALAR + Angle::new::<degree>(VELOCITY_MIN_CONF);
+
+        self.localization
+            .update_velocities(lin_vel, ang_vel, lin_conf, ang_conf);
     }
 
     pub fn set_gyro_offset(&mut self) {
@@ -504,11 +505,7 @@ pub fn abs_offset(abs_zero_position: Angle, abs_reading: Angle, target: Angle) -
     wrap_angle(target - (abs_reading - abs_zero_position))
 }
 
-pub async fn update_drivetrain_telemetry(
-    pose: &RobotPose,
-    linear_velocity: &Vector2<Length>,
-    angular_velocity: &Angle,
-) {
+pub async fn update_drivetrain_telemetry(pose: &RobotPose) {
     Telemetry::put_number(
         "robot yaw",
         (pose.yaw.get::<degree>() * 100.0).trunc() / 100.0,
@@ -528,17 +525,17 @@ pub async fn update_drivetrain_telemetry(
 
     Telemetry::put_number(
         "robot velocity x (m/s)",
-        (linear_velocity.x.get::<meter>() * 100.0).trunc() / 100.0,
+        (pose.vx.get::<meter>() * 100.0).trunc() / 100.0,
     )
     .await;
     Telemetry::put_number(
         "robot velocity y (m/s)",
-        (linear_velocity.y.get::<meter>() * 100.0).trunc() / 100.0,
+        (pose.vy.get::<meter>() * 100.0).trunc() / 100.0,
     )
     .await;
     Telemetry::put_number(
         "robot velocity yaw (rots/s)",
-        (angular_velocity.get::<revolution>() * 100.0).trunc() / 100.0,
+        (pose.vr.get::<revolution>() * 100.0).trunc() / 100.0,
     )
     .await;
 }
