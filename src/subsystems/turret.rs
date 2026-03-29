@@ -29,6 +29,43 @@ pub enum TurretMode {
     Test,
 }
 
+impl TurretMode {
+    pub fn name(&self) -> &'static str {
+        match self {
+            TurretMode::Idle => "idle",
+            TurretMode::Manual => "man",
+            TurretMode::Track => "track",
+            TurretMode::Test => "test",
+        }
+    }
+
+    pub fn iterator() -> Vec<Self> {
+        vec![
+            TurretMode::Idle,
+            TurretMode::Test,
+            TurretMode::Manual,
+            TurretMode::Track,
+        ]
+    }
+
+    pub fn names() -> Vec<String> {
+        Self::iterator()
+            .iter()
+            .map(|a| a.name().to_owned())
+            .collect()
+    }
+
+    pub fn to_mode(s: &str) -> Self {
+        match s {
+            "idle" => TurretMode::Idle,
+            "man" => TurretMode::Manual,
+            "track" => TurretMode::Track,
+            "test" => TurretMode::Test,
+            _ => TurretMode::Idle,
+        }
+    }
+}
+
 pub struct Turret {
     spin_motor: Talon,
     drivetrain_angle: Angle,
@@ -40,7 +77,6 @@ pub struct Turret {
     pub yaw_offset: Angle,
     relative_turret_zero: Angle,
 }
-
 
 impl Turret {
     pub fn new() -> Self {
