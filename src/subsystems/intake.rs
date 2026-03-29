@@ -3,6 +3,8 @@ use crate::constants::robotmap::intake::{
     INTAKE_DOWN_POSITION, INTAKE_IN_SPEED, INTAKE_TOP_MOTOR_ID, INTAKE_UP_POSITION,
 };
 use frcrs::ctre::{ControlMode, Talon};
+use std::time::Duration;
+use std::time::Instant;
 
 pub struct Intake {
     //intake_top: Talon,
@@ -72,4 +74,37 @@ impl Intake {
         self.indexer_motor.stop();
         self.handoff_motor.stop();
     }
+}
+
+
+#[derive(Clone)]
+pub struct Debouncer {
+    bounce_time: Duration,
+    prev_time: Instant,
+}
+
+impl Debouncer {
+    pub fn new(bounce_time: Duration) -> Debouncer {
+        Debouncer {
+            bounce_time,
+            prev_time: Instant::now(),
+        }
+    }
+    
+    pub fn calculate(&mut self, input: bool) -> bool {
+            let now = Instant::now();
+    
+            if now.duration_since(self.prev_time) > self.bounce_time {
+                self.prev_time = now;
+                if input {
+                    true
+                }
+                else {
+                    false
+                }
+            } 
+            else {
+                false
+            }
+        }
 }
