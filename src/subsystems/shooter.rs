@@ -33,20 +33,7 @@ pub struct Shooter {
     shooter_motor_right: Talon,
     hood_motor: Talon,
     pub distance_offset: Length,
-    pub manual_toggle: bool,
-    pub idle_toggle: bool,
-
     pub turret: Turret,
-}
-impl ShootingTarget {
-    pub fn name(&self) -> &'static str {
-        match self {
-            ShootingTarget::Hub => "Shooting to Hub",
-            ShootingTarget::PassTop => "Passing Top",
-            ShootingTarget::PassBottom => "Passing Bottom",
-            ShootingTarget::PassTelemetry => "Passing from Telemetry",
-        }
-    }
 }
 
 impl Shooter {
@@ -64,8 +51,6 @@ impl Shooter {
             shooter_motor_right,
             hood_motor,
             distance_offset: Length::new::<foot>(SHOOTER_INITAL_DISTANCE_OFFSET_FEET),
-            manual_toggle: false,
-            idle_toggle: false,
 
             turret,
         }
@@ -119,7 +104,7 @@ impl Shooter {
         self.turret.set_angle(turret_relative_angle);
     }
 
-    pub async fn pass_to(&mut self, pose: &RobotPose, target: Vector2<Length>) {
+    pub fn pass_to(&mut self, pose: &RobotPose, target: Vector2<Length>) {
         let current_pose = Vector2::new(pose.x, pose.y);
 
         let mut vector_to_turret_center_f64 = Vector2::new(
@@ -147,7 +132,6 @@ impl Shooter {
             current_flywheel_speed,
         ));
 
-        Telemetry::put_number("angle target", angle_target.get::<degree>()).await;
         self.turret.set_angle(turret_relative_angle);
     }
 

@@ -8,7 +8,7 @@ use crate::constants::config::{
 };
 use crate::constants::robotmap::intake::{HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
 use crate::control::swerve::Swerve;
-use crate::subsystems::intake::Debouncer;
+use crate::debouncer::Debouncer;
 use crate::subsystems::intake::Intake;
 use crate::subsystems::shooter::{
     Shooter, ShootingTarget, get_drivetrain_max_speed, get_scoring_hood_angle_target,
@@ -38,7 +38,7 @@ use uom::si::length::{foot, inch, meter};
 pub mod auto;
 pub mod constants;
 pub mod control;
-pub mod input;
+pub mod debouncer;
 pub mod subsystems;
 
 #[derive(Clone)]
@@ -50,19 +50,16 @@ pub struct Controllers {
 
 pub struct Ferris {
     pub controllers: Controllers,
+    pub idle_toggle_debouncer: Debouncer,
+    pub man_toggle_debouncer: Debouncer,
 
     pub drivetrain: Rc<RefCell<Drivetrain>>,
     pub shooter: Rc<RefCell<Shooter>>,
     pub intake: Rc<RefCell<Intake>>,
 
-    pub shooter_target: ShootingTarget,
-    pub turret_mode: TurretMode,
-
     pub shooter_offset: f64,
     pub dt: Duration,
     pub state: RobotState,
-
-    pub debouncer: Debouncer,
 
     pub auto: Auto,
 }
@@ -81,6 +78,8 @@ impl Ferris {
                 right_drive: Joystick::new(constants::joystick_map::RIGHT_DRIVE),
                 operator: Joystick::new(constants::joystick_map::OPERATOR),
             },
+            idle_toggle_debouncer: Debouncer::new(),
+            man_toggle_debouncer: Debouncer::new(),
 
             // todo: figure out start pose stuff
             // temp hardcoded startpose
@@ -88,15 +87,10 @@ impl Ferris {
             shooter: Rc::new(RefCell::new(Shooter::new())),
             intake: Rc::new(RefCell::new(Intake::new())),
 
-            shooter_target: ShootingTarget::Hub,
-            turret_mode: TurretMode::Idle,
-
             shooter_offset: 0.0,
 
             dt: Duration::from_millis(0),
             state: RobotState::get(),
-
-            debouncer: Debouncer::new(Duration::from_secs_f64(1.0)),
 
             auto: Auto::new(),
         }
@@ -121,9 +115,6 @@ impl Ferris {
             self.auto
                 .move_to_sample("test_triangle", &mut drivetrain, self.auto.current_sample)
                 .await;
-            //self.auto.set_target(mirror_vec(Vector2::new(Length::new::<meter>(4.74182), Length::new::<meter>(5.88162))));
-            //"x":4.74182, "y":5.88162
-            //self.auto.move_to(&mut drivetrain, 0.0, "test_triangle", 0).await;
         }
     }
 

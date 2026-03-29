@@ -1,27 +1,27 @@
 use crate::Ferris;
-use crate::control::shooter::Shooter;
+use crate::control::fueler::Fueler;
 use crate::control::swerve::Swerve;
 
 pub struct Teleop {
     swerve: Swerve,
-    shooter: Shooter,
+    fueler: Fueler,
 }
 
 impl Teleop {
     pub fn new() -> Teleop {
         Teleop {
             swerve: Swerve::new(),
-            shooter: Shooter::new(),
+            fueler: Fueler::new(),
         }
     }
 
     pub async fn update(&mut self, ferris: &mut Ferris) {
         self.swerve.update(ferris).await;
-        self.shooter.update(ferris).await;
+        self.fueler.update(ferris).await;
     }
 
     pub fn act(&mut self, ferris: &mut Ferris) {
         self.swerve.act(ferris);
-        self.shooter.act(ferris);
+        self.fueler.act(ferris);
     }
 }

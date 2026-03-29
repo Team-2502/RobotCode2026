@@ -75,36 +75,3 @@ impl Intake {
         self.handoff_motor.stop();
     }
 }
-
-
-#[derive(Clone)]
-pub struct Debouncer {
-    bounce_time: Duration,
-    prev_time: Instant,
-}
-
-impl Debouncer {
-    pub fn new(bounce_time: Duration) -> Debouncer {
-        Debouncer {
-            bounce_time,
-            prev_time: Instant::now(),
-        }
-    }
-    
-    pub fn calculate(&mut self, input: bool) -> bool {
-            let now = Instant::now();
-    
-            if now.duration_since(self.prev_time) > self.bounce_time {
-                self.prev_time = now;
-                if input {
-                    true
-                }
-                else {
-                    false
-                }
-            } 
-            else {
-                false
-            }
-        }
-}
