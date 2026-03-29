@@ -1,8 +1,7 @@
-#![warn(non_snake_case)]
-
 use RobotCode2026::auto::auto::Auto;
+use RobotCode2026::control::teleop::Teleop;
 use RobotCode2026::subsystems::turret::TurretMode;
-use RobotCode2026::{Ferris, post_shift, teleop};
+use RobotCode2026::{Ferris, post_shift};
 use frcrs::input::RobotMode;
 use frcrs::input::RobotState;
 use frcrs::match_time;
@@ -25,6 +24,7 @@ fn main() {
 
     // we create our ferris here
     let ferris = Rc::new(RefCell::new(Ferris::new()));
+    let mut teleop = Teleop::new();
 
     runtime.block_on(local.run_until(async {
         // we check to make sure hal is initialized if not we panic
@@ -114,7 +114,8 @@ fn main() {
                     robot.dt = dt;
                     robot.update_state();
                     post_shift(match_time()).await;
-                    teleop(&mut robot).await;
+                    teleop.update(&mut robot).await;
+                    teleop.act(&mut robot);
                 }
             }
 

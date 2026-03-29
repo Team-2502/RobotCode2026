@@ -83,7 +83,7 @@ impl Shooter {
         );
     }
 
-    pub async fn shoot_to(&mut self, pose: &RobotPose, target: Vector2<Length>) {
+    pub fn shoot_to(&mut self, pose: &RobotPose, target: Vector2<Length>) {
         let current_pose = Vector2::new(pose.x, pose.y);
 
         let mut vector_to_turret_center_f64 = Vector2::new(
