@@ -104,7 +104,7 @@ impl Turret {
 
         if relative_turret_zero.is_none() {
             let zero = spin_motor.get_position()
-                - (encoder.get_absolute() - TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS)
+                + (encoder.get_absolute() - TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS)
                     * ABS_TO_REL_RATIO;
             relative_turret_zero = Some(Angle::new::<revolution>(zero));
 
@@ -137,13 +137,21 @@ impl Turret {
     }
 
     pub fn move_to_angle(&mut self, angle: Angle) {
-        let position = (Angle::new::<revolution>(self.spin_motor.get_position())
-            + self.relative_turret_zero)
-            .get::<revolution>();
+        println!(
+            "1: relative_turret_zero: {}, spin_pos: {}, encoder_pos: {}",
+            self.relative_turret_zero.get::<revolution>(),
+            self.spin_motor.get_position(),
+            self.encoder.get_absolute()
+        );
 
-        let target_rot = (apply_soft_stop(angle).get::<revolution>() * RELATIVE_TO_TURRET_RATIO)
-            .clamp(position - TURRET_CLAMP, position + TURRET_CLAMP);
+        let position = self.spin_motor.get_position();
+
+        let target_rot = ((apply_soft_stop(angle)).get::<revolution>() * RELATIVE_TO_TURRET_RATIO
+            + self.relative_turret_zero.get::<revolution>())
+        .clamp(position - TURRET_CLAMP, position + TURRET_CLAMP);
         self.spin_motor.set(ControlMode::Position, target_rot);
+
+        // break
 
         // let position = self.spin_motor.get_position();
         // let desired =

@@ -157,35 +157,6 @@ impl Shooter {
     }
 }
 
-pub fn get_drivetrain_max_speed(
-    robot_pose: &RobotPose,
-    robot_velocity: Vector2<Length>,
-    target: Vector2<Length>,
-) -> Length {
-    let hub_centric_velocity =
-        get_target_relative_velocity_vector(robot_velocity, &robot_pose, target);
-    scale_drivetrain_speed(hub_centric_velocity)
-}
-
-fn scale_drivetrain_speed(hub_centric_velocity: Vector2<Length>) -> Length {
-    let angle = Angle::new::<radian>(
-        hub_centric_velocity
-            .y
-            .get::<meter>()
-            .atan2(hub_centric_velocity.x.get::<meter>()),
-    );
-
-    let abs_angle_diff = get_angle_difs(Angle::new::<degree>(90.0), angle).abs();
-
-    if abs_angle_diff < Angle::new::<degree>(45.0) {
-        let percent = abs_angle_diff.get::<degree>() / 45.0;
-        Length::new::<meter>(1.0 + (MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND - 1.0) * percent)
-    } else {
-        println!("{}", MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND);
-        Length::new::<meter>(MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND)
-    }
-}
-
 /// converts the given vector into a coordinate system where +y is towards target, +x is tangent to target, (0, 0) is robot center
 fn get_target_relative_velocity_vector(
     vector: Vector2<Length>,
@@ -209,6 +180,23 @@ fn get_target_relative_velocity_vector(
         Length::new::<meter>(target_relative_vector.x),
         Length::new::<meter>(target_relative_vector.y),
     )
+}
+
+pub fn get_drivetrain_max_speed(
+    robot_pose: &RobotPose,
+    theta: Angle,
+    target: Vector2<Length>,
+) -> Length {
+    let pose = Vector2::new(robot_pose.x, robot_pose.y);
+    let angle_to_hub = get_angle_to(pose, target);
+    let angle_diff = get_angle_difs(theta, angle_to_hub).abs();
+
+    if angle_diff < Angle::new::<degree>(45.0) {
+        let percent = angle_diff.get::<degree>() / 45.0;
+        Length::new::<meter>(1.0 + (MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND - 1.0) * percent)
+    } else {
+        Length::new::<meter>(MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND)
+    }
 }
 
 pub fn get_scoring_shooter_speed_target(distance: Length) -> f64 {
@@ -338,135 +326,4 @@ fn predict_speed(dist: f64, vx: f64, vy: f64) -> f64 {
         + 0.22589500122137 * vxvy2
         + 0.11034899634029 * vxvy2 * dist;
     speed.clamp(30.0, 90.0)
-}
-
-#[cfg(test)]
-mod shooter_tests {
-    use float_cmp::assert_approx_eq;
-
-    use super::*;
-
-    #[test]
-    fn get_target_relative_velocity_vector_test() {
-        // (vector.x, vector.y), (pose.x, pose.y, pose.yaw), (target.x, target.y)
-        let inputs = vec![
-            ((10.0, 10.0), (10.0, 0.0, 10.0), (0.0, 0.0)),    // 1
-            ((-10.0, 10.0), (10.0, 0.0, 10.0), (0.0, 0.0)),   // 2
-            ((-10.0, -10.0), (10.0, 0.0, 10.0), (0.0, 0.0)),  // 3
-            ((10.0, -10.0), (10.0, 0.0, 10.0), (0.0, 0.0)),   // 4
-            ((10.0, 10.0), (10.0, 10.0, 10.0), (0.0, 0.0)),   // 5
-            ((-10.0, 10.0), (10.0, 10.0, 10.0), (0.0, 0.0)),  // 6
-            ((-10.0, -10.0), (10.0, 10.0, 10.0), (0.0, 0.0)), // 7
-            ((10.0, -10.0), (10.0, 10.0, 10.0), (0.0, 0.0)),  // 8
-            ((10.0, 10.0), (0.0, 0.0, 0.0), (5.0, 5.0)),      // 9
-            ((10.0, 10.0), (0.0, 0.0, 0.0), (-5.0, -5.0)),    // 10
-        ];
-
-        // (vector.x, vector.y)
-        let expected = vec![
-            (10.0, -10.0),         // 1
-            (10.0, 10.0),          // 2
-            (-10.0, 10.0),         // 3
-            (-10.0, -10.0),        // 4
-            (0.0, -14.1421356237), // 5
-            (14.1421356237, 0.0),  // 6
-            (0.0, 14.1421356237),  // 7
-            (-14.1421356237, 0.0), // 8
-            (0.0, 14.1421356237),  // 9
-            (0.0, -14.1421356237), // 10
-        ];
-
-        let mut results: Vec<Vector2<Length>> = vec![];
-
-        for input in inputs {
-            let vector = Vector2::new(
-                Length::new::<meter>(input.0.0),
-                Length::new::<meter>(input.0.1),
-            );
-
-            let robot_pose = RobotPose {
-                x: Length::new::<meter>(input.1.0),
-                y: Length::new::<meter>(input.1.1),
-                yaw: Angle::new::<degree>(input.1.2),
-            };
-
-            let target = Vector2::new(
-                Length::new::<meter>(input.2.0),
-                Length::new::<meter>(input.2.1),
-            );
-
-            results.push(get_target_relative_velocity_vector(
-                vector,
-                &robot_pose,
-                target,
-            ));
-        }
-
-        let mut i = 1;
-        for result in &results {
-            println!(
-                "result {}: ({}, {})",
-                i,
-                result.x.get::<meter>(),
-                result.y.get::<meter>()
-            );
-            i += 1;
-        }
-
-        for tuple in expected.iter().zip(results.iter()) {
-            assert_approx_eq!(f64, tuple.0.0, tuple.1.x.get::<meter>(), epsilon = 0.001);
-            assert_approx_eq!(f64, tuple.0.1, tuple.1.y.get::<meter>(), epsilon = 0.001);
-        }
-    }
-
-    #[test]
-    fn scale_drivetrain_speed_test() {
-        let inputs = vec![
-            (0.0, 10.0),              // 1
-            (10.0, 10.0),             // 2
-            (10.0, 0.0),              // 3
-            (10.0, -10.0),            // 4
-            (-10.0, 0.0),             // 5
-            (-10.0, -10.0),           // 6
-            (-10.0, 0.0),             // 7
-            (-10.0, 10.0),            // 8
-            (3.82683432, 9.23879533), // 9
-        ];
-
-        // (vector.x, vector.y)
-        let expected: Vec<f64> = vec![
-            1.0, // 1
-            6.0, // 2
-            6.0, // 3
-            6.0, // 4
-            6.0, // 5
-            6.0, // 6
-            6.0, // 7
-            6.0, // 8
-            3.5, // 9
-        ];
-
-        let mut results: Vec<Length> = vec![];
-
-        for input in inputs {
-            let vector = Vector2::new(Length::new::<meter>(input.0), Length::new::<meter>(input.1));
-
-            results.push(scale_drivetrain_speed(vector));
-        }
-
-        let mut i = 1;
-        for result in &results {
-            println!("result {}: {}", i, result.get::<meter>());
-            i += 1;
-        }
-
-        for tuple in expected.iter().zip(results.iter()) {
-            assert_approx_eq!(
-                f64,
-                tuple.0.to_owned(),
-                tuple.1.get::<meter>(),
-                epsilon = 0.001
-            );
-        }
-    }
 }

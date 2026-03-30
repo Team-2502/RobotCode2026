@@ -255,22 +255,9 @@ impl Drivetrain {
         self.gyro_offset = Angle::new::<radian>(self.gyro.get_rotation().z);
     }
 
-    /// Resets the gyro.
-    pub fn reset_heading(&mut self) {
-        // self.offset = self.limelight_side.get_field_yaw() - self.limelight_side.get_yaw();
-    }
-
-    /// Field-orientate input from the driverstation.
-    /// target_transformation is the x and y input from the driverstation put into a vector.
-    /// This function rotates the driver's field orientated input to be robot oriented but the same direction.
-    pub fn field_orientate(&mut self, target_transformation: Vector2<f64>) -> Vector2<f64> {
+    pub fn field_orientate(&mut self, angle: Angle) -> Angle {
         let pose = self.localization.get_state();
-        //
-        if alliance_station().red() {
-            Rotation2::new(-pose.yaw.get::<radian>()) * target_transformation
-        } else {
-            Rotation2::new(-pose.yaw.get::<radian>() + PI) * target_transformation
-        }
+        -pose.yaw + angle
     }
 
     /// ## Sets drivetrain motor speeds.
@@ -352,16 +339,13 @@ impl Drivetrain {
     }
 
     /// Control the drivetrain.
-    /// x, y, and rotation are driverstation inputs.
-    pub fn control_drivetrain(&mut self, x: f64, y: f64, rotation: f64, max_dt_speed: Length) {
-        let target_transformation = match FIELD_ORIENTED {
-            true => self.field_orientate(vector![x, y]),
-            false => vector![x, y],
+    /// magnitude and theta are for polar coordinate translation, rotation is for robot rotation.
+    pub fn control_drivetrain(&mut self, theta: Angle, magnitude: Length, rotation: Angle) {
+        let new_theta = match FIELD_ORIENTED {
+            true => self.field_orientate(theta),
+            false => theta,
         };
-
-        let targets = self
-            .kinematics
-            .get_targets(target_transformation, rotation, max_dt_speed);
+        let targets = self.kinematics.get_targets(new_theta, magnitude, rotation);
 
         self.set_speeds(targets);
     }

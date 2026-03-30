@@ -21,7 +21,9 @@ impl Teleop {
     }
 
     pub fn act(&mut self, ferris: &mut Ferris) {
-        self.swerve.act(ferris);
+        let target = self.fueler.get_target();
+        let mode = self.fueler.get_mode();
+        self.swerve.act(ferris, target, mode);
         self.fueler.act(ferris);
     }
 }

@@ -72,17 +72,14 @@ impl Kinematics {
         }
     }
 
-    pub fn get_targets(
-        &self,
-        translation: Vector2<f64>,
-        rot: f64,
-        max_dt_speed: Length,
-    ) -> Vec<(f64, Angle)> {
+    pub fn get_targets(&self, theta: Angle, magnitude: Length, rot: Angle) -> Vec<(f64, Angle)> {
+        let swerve_angle = theta + Angle::new::<radian>(PI / 2.0);
+
         // input unit: m/s
         let input_matrix: SMatrix<f64, 3, 1> = matrix![
-            translation.x * max_dt_speed.get::<meter>();
-            translation.y * max_dt_speed.get::<meter>();
-            rot * MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND;
+            f64::cos(swerve_angle.get::<radian>()) * magnitude.get::<meter>();
+            f64::sin(swerve_angle.get::<radian>()) * magnitude.get::<meter>();
+            rot.get::<radian>() ;
         ];
 
         // in m/s

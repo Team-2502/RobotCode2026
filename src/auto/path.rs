@@ -7,15 +7,24 @@ use crate::constants::auto::{
     SWERVE_DRIVE_IE, SWERVE_DRIVE_KD, SWERVE_DRIVE_KF, SWERVE_DRIVE_KFA, SWERVE_DRIVE_KI,
     SWERVE_DRIVE_KP, SWERVE_DRIVE_MAX_ERR, SWERVE_TURN_KP,
 };
-use crate::subsystems::swerve::drivetrain::get_angle_difs;
 use crate::constants::config::MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND;
-use crate::constants::config::{HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND};
+use crate::constants::config::{
+    HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
+};
 use crate::subsystems::swerve::drivetrain::Drivetrain;
+use crate::subsystems::swerve::drivetrain::get_angle_difs;
 use crate::vec_f64;
 use frcrs::trajectory::Path;
+use nalgebra::Rotation2;
 use nalgebra::Vector2;
+use nalgebra::vector;
+use pid::Pid;
+use serde_json::Value;
+use std::f64::consts::PI;
+use std::process::exit;
 use tokio::io::AsyncReadExt;
 use tokio::time::{Instant, sleep};
+use uom::si::angle::degree;
 use uom::si::f64::Angle;
 use uom::si::{
     angle::radian,
@@ -24,27 +33,20 @@ use uom::si::{
     time::second,
     velocity::meter_per_second,
 };
-use pid::Pid;
-use nalgebra::Rotation2;
-use nalgebra::vector;
-use std::f64::consts::PI;
-use uom::si::angle::degree;
-use serde_json::Value;
-use std::process::exit;
 
 #[derive(Clone)]
 pub struct Auto {
     pub start_time: Instant,
     pub pid_turn_to: Pid<f64>,
     pub target_point: Option<Vector2<Length>>,
-    pub current_sample: usize, 
+    pub current_sample: usize,
 }
 
 pub struct Sample {
     pub x: f64,
     pub y: f64,
     pub heading: f64,
-    
+
     pub vx: f64,
     pub vy: f64,
 }
@@ -53,7 +55,7 @@ impl Auto {
     pub fn new() -> Self {
         let pid_turn_to: Pid<f64> =
             Pid::new(999.0, MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND);
-        
+
         Self {
             start_time: Instant::now(),
             pid_turn_to,
@@ -61,7 +63,7 @@ impl Auto {
             current_sample: 0,
         }
     }
-    
+
     pub async fn drive(
         &mut self,
         name: &str,
@@ -73,7 +75,7 @@ impl Auto {
             .await?
             .read_to_string(&mut path_content)
             .await?;
-    
+
         let path = Path::from_trajectory(&path_content);
         let path_unwrapped = path?;
         let waypoints = path_unwrapped.waypoints();
@@ -81,20 +83,25 @@ impl Auto {
         if waypoint_index >= waypoints.len() {
             return Err("waypoint index out of bounds".into());
         }
-    
+
         let start_time = if waypoint_index == 0 {
             0.0
         } else {
             waypoints[waypoint_index - 1]
         };
         let end_time = waypoints[waypoint_index];
-    
-        self.follow_path_segment(drivetrain, path_unwrapped, start_time, end_time).await;
-    
-        drivetrain.control_drivetrain(0., 0., 0., Length::new::<meter>(0.0));
+
+        self.follow_path_segment(drivetrain, path_unwrapped, start_time, end_time)
+            .await;
+
+        drivetrain.control_drivetrain(
+            Angle::new::<degree>(0.0),
+            Length::new::<meter>(0.0),
+            Angle::new::<degree>(0.0),
+        );
         Ok(())
     }
-    
+
     pub async fn follow_path_segment(
         &mut self,
         drivetrain: &mut Drivetrain,
@@ -103,28 +110,28 @@ impl Auto {
         end_time: f64,
     ) {
         let start = self.start_time;
-    
+
         loop {
             let state = RobotState::get();
             //let mut i = Vector2::zeros();
-    
+
             if !state.enabled() {
                 eprintln!("robot not enabled");
                 return;
             }
-    
+
             // drivetrain.update_limelight().await;
             // drivetrain.update_localization().await;
             drivetrain.update_pose().await;
-    
+
             let elapsed = start.elapsed().as_secs_f64() + start_time;
-    
+
             if elapsed > end_time {
                 return;
             }
-    
+
             let _pose = drivetrain.localization.get_state();
-    
+
             let setpoint = if alliance_station().red() {
                 path.get(Time::new::<second>(elapsed)).mirror(
                     Length::new::<meter>(HALF_FIELD_LENGTH_METERS),
@@ -133,11 +140,11 @@ impl Auto {
             } else {
                 path.get(Time::new::<second>(elapsed))
             };
-    
+
             let angle = setpoint.heading;
             let position = Vector2::new(setpoint.x, setpoint.y);
             println!("target: {:?} -- {:?}", position, angle);
-    
+
             self.auto_set_angle(angle);
             self.set_target(position);
             let velocity = Vector2::new(
@@ -146,64 +153,62 @@ impl Auto {
             )
             .norm();
             //self.move_to(drivetrain, velocity);
-    
+
             // angle = Angle::new::<degree>(calculate_relative_target(
             //     pose.yaw.get::<degree>(),
             //     angle.get::<degree>(),
             // ));
-    
+
             // let error_position =
             //     vec_f64(position) - Vector2::new(pose.x.get::<meter>(), pose.y.get::<meter>());
             // let error_angle = angle;
-    
+
             // if error_position.abs().max() < SWERVE_DRIVE_IE {
             //     i += error_position;
             // }
-    
+
             // if elapsed > path.length().get::<second>()
             //     && error_position.abs().max() < SWERVE_DRIVE_MAX_ERR
             //     && error_angle.abs().get::<radian>() < 0.075
             // {
             //     break;
             // }
-    
+
             // error_angle *= SWERVE_TURN_KP;
             // error_position *= -SWERVE_DRIVE_KP;
-    
+
             // let mut speed = error_position;
-    
+
             // let velocity = Vector2::new(setpoint.velocity_x, setpoint.velocity_y);
             // let velocity = velocity.map(|x| x.get::<meter_per_second>());
-    
+
             // let velocity_next = Vector2::new(setpoint.velocity_x, setpoint.velocity_y)
             //     .map(|x| x.get::<meter_per_second>());
-    
+
             // let acceleration = (velocity_next - velocity) * 1000. / 20.;
-    
+
             // speed += velocity * -SWERVE_DRIVE_KF;
             // speed += acceleration * -SWERVE_DRIVE_KFA;
             // speed += i * -SWERVE_DRIVE_KI * dt.as_secs_f64();
-    
+
             // let speed_s = speed;
             // speed += (speed - last_error) * SWERVE_DRIVE_KD * dt.as_secs_f64();
             // last_error = speed_s;
-    
+
             // drivetrain.control_drivetrain(speed.x, speed.y, error_angle.get::<degree>());
-    
+
             sleep(Duration::from_millis(20)).await;
         }
     }
-    
-    pub fn move_towards(&mut self, drivetrain: &mut Drivetrain, angle: Angle, velocity: f64, rotate_rate: Angle) {
-        let velocity_vector = vector![velocity / MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND, 0.0];
-        // gone now -> dt is 90 degrees to left + PI / 2.0
-        let field_veloctiy = Rotation2::new(angle.get::<radian>() + PI / 2.0) * velocity_vector;
-        drivetrain.control_drivetrain(
-            field_veloctiy.x,
-            field_veloctiy.y,
-            rotate_rate.get::<radian>() / MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND,
-            Length::new::<meter>(2.0)
-        );
+
+    pub fn move_towards(
+        &mut self,
+        drivetrain: &mut Drivetrain,
+        angle: Angle,
+        velocity: f64,
+        rotate_rate: Angle,
+    ) {
+        drivetrain.control_drivetrain(angle, Length::new::<meter>(velocity), rotate_rate);
     }
 
     pub fn auto_set_angle(&mut self, angle: Angle) {
@@ -224,7 +229,13 @@ impl Auto {
         }
     }
 
-    pub async fn move_to(&mut self, drivetrain: &mut Drivetrain, velocity: f64, name: &str, index: usize) {
+    pub async fn move_to(
+        &mut self,
+        drivetrain: &mut Drivetrain,
+        velocity: f64,
+        name: &str,
+        index: usize,
+    ) {
         let pose = drivetrain.localization.get_state();
         let setpoint = self.pid_turn_to.setpoint;
         let error = get_angle_difs(pose.yaw, Angle::new::<radian>(setpoint));
@@ -242,14 +253,13 @@ impl Auto {
         //println!("pose: {:?}", pose);
         let angle = if index == 0 {
             f64::atan2(distance.y.get::<meter>(), distance.x.get::<meter>())
-        } 
-        else {
+        } else {
             let current_sample = self.get_sample(name, index).await.unwrap();
             let prev_sample = self.get_sample(name, index - 1).await.unwrap();
             let current = Vector2::new(current_sample.x, current_sample.y);
             let prev = Vector2::new(prev_sample.x, prev_sample.y);
             let pose = Vector2::new(pose.x.get::<meter>(), pose.y.get::<meter>());
-            
+
             let mut v = current - prev;
             let vm = v.norm();
             v = v / v.norm();
@@ -284,8 +294,12 @@ impl Auto {
     pub fn set_target(&mut self, target: Vector2<Length>) {
         self.target_point = Some(target);
     }
-    
-    pub async fn get_sample(&self, name: &str, index: usize) -> Result<(Sample), Box<dyn std::error::Error>> {
+
+    pub async fn get_sample(
+        &self,
+        name: &str,
+        index: usize,
+    ) -> Result<(Sample), Box<dyn std::error::Error>> {
         let mut path_content = String::new();
         File::open(format!("/home/lvuser/deploy/choreo/{}.traj", name))
             .await?
@@ -299,11 +313,27 @@ impl Auto {
         let heading = samples[index]["heading"].as_f64().unwrap();
         let vx = samples[index]["vx"].as_f64().unwrap();
         let vy = samples[index]["vy"].as_f64().unwrap();
-        
-        
-        Ok(if alliance_station().red() {Sample{x, y, heading, vx, vy}.mirror()} else {Sample{x, y, heading, vx, vy}})
+
+        Ok(if alliance_station().red() {
+            Sample {
+                x,
+                y,
+                heading,
+                vx,
+                vy,
+            }
+            .mirror()
+        } else {
+            Sample {
+                x,
+                y,
+                heading,
+                vx,
+                vy,
+            }
+        })
     }
-    
+
     pub async fn get_length(&self, name: &str) -> Result<(usize), Box<dyn std::error::Error>> {
         let mut path_content = String::new();
         File::open(format!("/home/lvuser/deploy/choreo/{}.traj", name))
@@ -314,12 +344,12 @@ impl Auto {
         let json: Value = serde_json::from_str(&path_content)?;
         Ok(json["trajectory"]["samples"].as_array().unwrap().len())
     }
-    
+
     pub async fn get_velocity(&self, name: &str, index: usize) -> f64 {
         let sample = self.get_sample(name, index).await.unwrap();
         Vector2::new(sample.x, sample.y).norm()
     }
-    
+
     pub async fn at_sample(&self, drivetrain: &mut Drivetrain, sample: Sample, name: &str) -> bool {
         let pose = drivetrain.localization.get_state();
         let distance = if self.target_point.is_some() {
@@ -329,17 +359,27 @@ impl Auto {
             Vector2::new(Length::new::<meter>(0.0), Length::new::<meter>(0.0))
         };
         //println!("err: {}", distance.x.get::<meter>().abs() + distance.y.get::<meter>().abs());
-        distance.x.get::<meter>().abs() + distance.y.get::<meter>().abs() < self.get_velocity(name, self.current_sample).await * 0.015
+        distance.x.get::<meter>().abs() + distance.y.get::<meter>().abs()
+            < self.get_velocity(name, self.current_sample).await * 0.015
     }
-    
+
     pub async fn move_to_sample(&mut self, name: &str, drivetrain: &mut Drivetrain, index: usize) {
         let sample = self.get_sample(name, index).await.unwrap();
         // if self.current_sample == 10 {
         //     panic!("made it to point");
         // }
-        self.set_target(Vector2::new(Length::new::<meter>(sample.x), Length::new::<meter>(sample.y)));
-        self.move_to(drivetrain, self.get_velocity(name, index).await, name, index).await;
-        
+        self.set_target(Vector2::new(
+            Length::new::<meter>(sample.x),
+            Length::new::<meter>(sample.y),
+        ));
+        self.move_to(
+            drivetrain,
+            self.get_velocity(name, index).await,
+            name,
+            index,
+        )
+        .await;
+
         let past = if index != 0 {
             let pose = drivetrain.localization.get_state();
             let current_sample = self.get_sample(name, index).await.unwrap();
@@ -347,22 +387,24 @@ impl Auto {
             let current = Vector2::new(current_sample.x, current_sample.y);
             let prev = Vector2::new(prev_sample.x, prev_sample.y);
             let pose = Vector2::new(pose.x.get::<meter>(), pose.y.get::<meter>());
-            
+
             let mut v = current - prev;
             let vm = v.norm();
             v = v / v.norm();
-    
+
             let pose_from_start = pose - prev;
             let t = v.x * pose_from_start.x + v.y * pose_from_start.y;
             println!(" {}:  t: {} vm: {}", self.current_sample, t, vm);
             t > vm
-        }
-        else {
+        } else {
             false
         };
-        
+
         // false normally past
-        if (self.at_sample(drivetrain, sample, name).await || past) && self.current_sample == index && self.current_sample + 5 < self.get_length(name).await.unwrap() {
+        if (self.at_sample(drivetrain, sample, name).await || past)
+            && self.current_sample == index
+            && self.current_sample + 5 < self.get_length(name).await.unwrap()
+        {
             self.current_sample += 5;
             //println!("{}", self.current_sample);
         }
@@ -395,7 +437,7 @@ impl Sample {
 //         target_relative
 //     }
 // }
-// 
+//
 pub fn mirror_vec(vec: Vector2<Length>) -> Vector2<Length> {
     let x = HALF_FIELD_LENGTH_METERS * 2.0 - vec.x.get::<meter>();
     let y = HALF_FIELD_WIDTH_METERS * 2.0 - vec.y.get::<meter>();

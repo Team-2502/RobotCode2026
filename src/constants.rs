@@ -23,11 +23,10 @@ pub mod config {
     pub const BLUE_HUB_X_INCHES: f64 = 182.11;
     pub const RED_HUB_X_INCHES: f64 = 469.11;
 
-    // og y: 4.029456
-    pub const HUB_RED: Vector2<f64> = Vector2::new(11.915394, 4.034536 + 0.28);
-    pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.625594, 4.034536 - 0.28);
-    // pub const HUB_RED: Vector2<f64> = Vector2::new(11.915394, 4.034536);
-    // pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.625594, 4.034536);
+    // pub const HUB_RED: Vector2<f64> = Vector2::new(11.915394, 4.034536 + 0.28);
+    // pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.625594, 4.034536 - 0.28);
+    pub const HUB_RED: Vector2<f64> = Vector2::new(11.915394, 4.034536);
+    pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.625594, 4.034536);
 
     pub const RED_PASS_TOP_OFFSET_METERS: Vector2<f64> = Vector2::new(3.0, 2.01);
     pub const RED_PASS_BOTTOM_OFFSET_METERS: Vector2<f64> = Vector2::new(3.0, -2.01);
@@ -71,7 +70,7 @@ pub mod robotmap {
 
     pub mod turret {
         pub const SPIN_MOTOR_ID: i32 = 16;
-        pub const ENCODER_ID: i32 = 1000;
+        pub const ENCODER_ID: i32 = 2;
     }
 
     pub mod intake {
@@ -123,7 +122,7 @@ pub mod turret {
     pub const HOOD_MIN_SOFTSTOP: f64 = -0.370361 + 0.2;
 
     // meters
-    pub const TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = -0.21395; /* og */
+    pub const TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = -0.199463; /* og */
     pub const TOLERANCE: f64 = 0.001;
 }
 

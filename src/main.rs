@@ -22,10 +22,6 @@ fn main() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let local = task::LocalSet::new();
 
-    // we create our ferris here
-    let ferris = Rc::new(RefCell::new(Ferris::new()));
-    let mut teleop = Teleop::new();
-
     runtime.block_on(local.run_until(async {
         // we check to make sure hal is initialized if not we panic
         if !init_hal() {
@@ -37,6 +33,10 @@ fn main() {
 
         // this initializes our telemetry server on port 5807
         Telemetry::init(5807);
+
+        // we create our ferris here
+        let ferris = Rc::new(RefCell::new(Ferris::new()));
+        let mut teleop = Teleop::new();
 
         // this initializes network tables on the default port
         NetworkTable::init();

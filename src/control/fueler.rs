@@ -12,17 +12,20 @@ use crate::subsystems::shooter::{
 use crate::subsystems::swerve::drivetrain::FieldZone::{
     self, BlueBottom, BlueTop, MiddleBottom, MiddleTop, RedBottom, RedTop,
 };
-use crate::subsystems::swerve::drivetrain::get_zone;
+use crate::subsystems::swerve::drivetrain::{get_angle_difs, get_zone};
 use crate::subsystems::turret::TurretMode;
 use crate::subsystems::vision::distance;
 use crate::{Ferris, HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
 use frcrs::alliance_station;
 use frcrs::telemetry::Telemetry;
 use nalgebra::{RowOVector, RowSVector, Vector2};
+use uom::si::angle::degree;
 use uom::si::f64::Length;
 use uom::si::length::meter;
+use uom::si::quantities::Angle;
 
-enum TargetingMode {
+#[derive(Clone, PartialEq)]
+pub enum TargetingMode {
     Idle,
     Manual,
     Track,
@@ -47,10 +50,10 @@ enum TargetType {
 }
 
 #[derive(Clone)]
-struct Target {
-    target_type: TargetType,
-    target_location: Vector2<Length>,
-    name: String,
+pub struct Target {
+    pub target_type: TargetType,
+    pub target_location: Vector2<Length>,
+    pub name: String,
 }
 
 impl Target {
@@ -166,8 +169,8 @@ impl Targeting {
                 match zone {
                     FieldZone::BlueBottom => self.target = self.red_bottom.clone(),
                     FieldZone::BlueTop => self.target = self.red_top.clone(),
-                    FieldZone::MiddleBottom => self.target = self.red_bottom.clone(),
-                    FieldZone::MiddleTop => self.target = self.red_top.clone(),
+                    FieldZone::MiddleBottom => self.target = self.red_hub.clone(),
+                    FieldZone::MiddleTop => self.target = self.red_hub.clone(),
                     FieldZone::RedBottom => self.target = self.red_hub.clone(),
                     FieldZone::RedTop => self.target = self.red_hub.clone(),
                 }
@@ -234,15 +237,12 @@ impl Targeting {
                     //     distance,
                     //     current_flywheel_speed,
                     // ));
-                    shooter.turret.stop();
-                    shooter.stop();
+                    shooter.turret.set_angle(Angle::new::<degree>(0.0));
                 }
                 TargetingMode::Idle => {
-                    shooter.turret.stop();
                     shooter.stop();
                 }
                 TargetingMode::Telemetry => {
-                    shooter.turret.stop();
                     shooter.stop();
                 }
             }
@@ -301,5 +301,13 @@ impl Fueler {
     pub fn act(&mut self, ferris: &mut Ferris) {
         self.targeting.act(ferris);
         self.launcher.act(ferris);
+    }
+
+    pub fn get_target(&self) -> Target {
+        self.targeting.target.clone()
+    }
+
+    pub fn get_mode(&self) -> TargetingMode {
+        self.targeting.mode.clone()
     }
 }

@@ -1,5 +1,5 @@
 use crate::Ferris;
-use crate::auto::path::{get_waypoint};
+use crate::auto::path::get_waypoint;
 use crate::constants::config::{HUB_BLUE, HUB_RED};
 use frcrs::alliance_station;
 use nalgebra::Vector2;
@@ -64,7 +64,7 @@ impl Auto {
             Auto::DasAuto => {
                 //das_auto(Rc::clone(&ferris)).await.expect("auto is geeked");
             }
-            Auto::Move => {}//move_test(Rc::clone(&ferris)).await.expect("auto is geeked"),
+            Auto::Move => {} //move_test(Rc::clone(&ferris)).await.expect("auto is geeked"),
         }
     }
 }

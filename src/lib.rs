@@ -1,39 +1,23 @@
 // use crate::auto::path::drive;
 use crate::auto::path::Auto;
-use crate::auto::path::mirror_vec;
-use crate::constants::config::{
-    BLUE_PASS_BOTTOM_OFFSET_METERS, BLUE_PASS_TOP_OFFSET_METERS, HUB_BLUE, HUB_RED,
-    MANUAL_TURRET_MODE_DISTANCE_MAX_METERS, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
-    RED_PASS_BOTTOM_OFFSET_METERS, RED_PASS_TOP_OFFSET_METERS,
-};
+
+use crate::constants::config::MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND;
 use crate::constants::robotmap::intake::{HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
-use crate::control::swerve::Swerve;
+
 use crate::debouncer::Debouncer;
 use crate::subsystems::intake::Intake;
-use crate::subsystems::shooter::{
-    Shooter, ShootingTarget, get_drivetrain_max_speed, get_scoring_hood_angle_target,
-    get_scoring_shooter_speed_target,
-};
-use crate::subsystems::swerve::drivetrain::FieldZone::{
-    BlueBottom, BlueTop, MiddleBottom, MiddleTop, RedBottom, RedTop,
-};
-use crate::subsystems::swerve::drivetrain::{Drivetrain, get_zone, update_drivetrain_telemetry};
-use crate::subsystems::turret::TurretMode;
-use crate::subsystems::vision::distance;
+use crate::subsystems::shooter::{Shooter, get_drivetrain_max_speed};
+use crate::subsystems::swerve::drivetrain::{Drivetrain, update_drivetrain_telemetry};
 use frcrs::alliance_shift;
 use frcrs::input::{Joystick, RobotState};
 use frcrs::telemetry::Telemetry;
-use frcrs::{alliance_station, deadzone};
 use nalgebra::Vector2;
 use std::cell::RefCell;
-use std::f64::consts::PI;
 use std::rc::Rc;
 use std::time::Duration;
-use tokio::join;
 use tokio::time::Instant;
-use uom::si::angle::{degree, radian};
-use uom::si::f64::{Angle, Length};
-use uom::si::length::{foot, inch, meter};
+use uom::si::f64::Length;
+use uom::si::length::meter;
 
 pub mod auto;
 pub mod constants;
