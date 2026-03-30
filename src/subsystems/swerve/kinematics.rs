@@ -1,11 +1,10 @@
 use crate::constants::config::{
-    MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND, MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND,
-    WHEELBASE_LENGTH_METERS, WHEELBASE_WIDTH_METERS,
+    MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND, WHEELBASE_LENGTH_METERS, WHEELBASE_WIDTH_METERS,
 };
 use crate::constants::drivetrain::{SWERVE_WHEEL_CIRCUMFERENCE_INCHES, WHEEL_ENCODER_STD_DEV};
 use nalgebra::{SMatrix, Vector2, matrix};
 use std::f64::consts::PI;
-use uom::si::angle::{degree, revolution};
+use uom::si::angle::revolution;
 use uom::si::length::{inch, meter};
 use uom::si::{angle::radian, f64::Angle, f64::Length};
 

@@ -1,18 +1,7 @@
 use crate::Ferris;
-use crate::auto::path::get_waypoint;
-use crate::constants::config::{HUB_BLUE, HUB_RED};
-use frcrs::alliance_station;
-use nalgebra::Vector2;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::ops::Deref;
 use std::rc::Rc;
-use std::time::Duration;
-use tokio::time::sleep;
-use uom::si::angle::degree;
-use uom::si::f64::Angle;
-use uom::si::f64::Length;
-use uom::si::length::meter;
 
 #[derive(Serialize, Deserialize)]
 pub enum Auto {

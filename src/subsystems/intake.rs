@@ -3,8 +3,6 @@ use crate::constants::robotmap::intake::{
     INTAKE_DOWN_POSITION, INTAKE_IN_SPEED, INTAKE_TOP_MOTOR_ID, INTAKE_UP_POSITION,
 };
 use frcrs::ctre::{ControlMode, Talon};
-use std::time::Duration;
-use std::time::Instant;
 
 pub struct Intake {
     //intake_top: Talon,

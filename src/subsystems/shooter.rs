@@ -1,6 +1,9 @@
 use crate::constants::config::{
     MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND, SHOOTER_INITAL_DISTANCE_OFFSET_FEET,
 };
+use crate::constants::localization::{
+    COMMANDED_VELOCITY_WEIGHT, POSE_ANTICIPATION_TIMESTEP_SECS, YAW_ANTICIPATION_TIMESTEP_SECS,
+};
 use crate::constants::robotmap::shooter::{
     HOOD_MOTOR_ID, SHOOTER_CANBUS, SHOOTER_MOTOR_LEFT_ID, SHOOTER_MOTOR_RIGHT_ID,
 };
@@ -14,7 +17,6 @@ use crate::subsystems::swerve::drivetrain::get_angle_difs;
 use crate::subsystems::turret::{Turret, get_angle_to};
 use crate::subsystems::vision::distance;
 use frcrs::ctre::{ControlMode, Talon};
-use frcrs::telemetry::Telemetry;
 use nalgebra::{Rotation2, Vector2};
 use uom::si::angle::{degree, radian};
 use uom::si::f64::{Angle, Length};
@@ -68,8 +70,18 @@ impl Shooter {
         );
     }
 
-    pub fn shoot_to(&mut self, pose: &RobotPose, target: Vector2<Length>) {
+    pub fn shoot_to(
+        &mut self,
+        pose: &RobotPose,
+        target: Vector2<Length>,
+        commanded_theta: Angle,
+        commanded_magnitude: Length,
+    ) {
         let current_pose = Vector2::new(pose.x, pose.y);
+        let future_pose = Vector2::new(
+            pose.x + pose.vx * POSE_ANTICIPATION_TIMESTEP_SECS,
+            pose.y + pose.vy * POSE_ANTICIPATION_TIMESTEP_SECS,
+        );
 
         let mut vector_to_turret_center_f64 = Vector2::new(
             ORIGIN_TO_TURRET_CENTER_X_INCHES,
@@ -84,23 +96,39 @@ impl Shooter {
             Length::new::<inch>(vector_to_turret_center_f64.y),
         );
 
-        let velocity_vec = Vector2::new(pose.vx, pose.vy);
-        let tr_velocity = get_target_relative_velocity_vector(velocity_vec, pose, target);
+        let velocity_vec = Vector2::new(pose.vx.get::<meter>(), pose.vy.get::<meter>());
+        let commanded_vec = Vector2::new(
+            f64::cos(commanded_theta.get::<radian>()) * commanded_magnitude.get::<meter>(),
+            f64::sin(commanded_theta.get::<radian>()) * commanded_magnitude.get::<meter>(),
+        );
+
+        let weighted_vel_f64 = (1.0 - COMMANDED_VELOCITY_WEIGHT) * velocity_vec
+            + COMMANDED_VELOCITY_WEIGHT * commanded_vec;
+        let weighted_vel = Vector2::new(
+            Length::new::<meter>(weighted_vel_f64.x),
+            Length::new::<meter>(weighted_vel_f64.y),
+        );
+
+        let tr_velocity = get_target_relative_velocity_vector(weighted_vel, pose, target);
         let vx = tr_velocity.x.get::<meter>();
         let vy = tr_velocity.y.get::<meter>();
 
         let dist = distance(target, current_pose + vector_to_turret_center);
+        let future_dist = distance(target, future_pose + vector_to_turret_center);
         let current_flywheel_speed = self.get_speed();
 
-        let speed = predict_speed(dist, vx, vy);
+        let speed = predict_speed(future_dist, vx, vy);
         let hood = predict_hood(dist, vx, vy, current_flywheel_speed);
         let angle_offset =
             Angle::new::<radian>(predict_yaw(dist, vx, vy, current_flywheel_speed, hood));
 
-        let angle_target = get_angle_to(current_pose + vector_to_turret_center, target);
-        let turret_relative_angle = get_angle_difs(pose.yaw, angle_target + angle_offset);
+        let angle_target = get_angle_to(future_pose + vector_to_turret_center, target);
+        let turret_relative_angle = get_angle_difs(
+            pose.yaw + pose.vr * YAW_ANTICIPATION_TIMESTEP_SECS,
+            angle_target + angle_offset,
+        );
 
-        self.set_velocity(speed);
+        self.set_velocity((speed * 1.1));
         self.set_hood(hood);
         self.turret.set_angle(turret_relative_angle);
     }
@@ -141,8 +169,11 @@ impl Shooter {
     }
 
     pub fn set_velocity(&self, speed: f64) {
-        self.shooter_motor_left.set(ControlMode::Velocity, speed);
-        self.shooter_motor_right.set(ControlMode::Velocity, speed);
+        let scaled_speed = speed.clamp(30.0, 100.0);
+        self.shooter_motor_left
+            .set(ControlMode::Velocity, scaled_speed);
+        self.shooter_motor_right
+            .set(ControlMode::Velocity, scaled_speed);
     }
 
     pub fn get_hood(&self) -> f64 {

@@ -1,6 +1,4 @@
-use crate::constants::config::{
-    MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND, MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND,
-};
+use crate::constants::config::MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND;
 use crate::control::fueler::{Target, TargetingMode};
 use crate::{
     Ferris, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND, get_drivetrain_max_speed,
@@ -8,7 +6,7 @@ use crate::{
 };
 use frcrs::{alliance_station, deadzone};
 use std::f64::consts::PI;
-use uom::si::angle::{radian, revolution};
+use uom::si::angle::radian;
 use uom::si::f64::{Angle, Length};
 use uom::si::length::meter;
 

@@ -1,6 +1,5 @@
 use std::fs::File;
 use std::io::{Read, Write};
-use std::panic;
 
 use crate::constants::config::MANUAL_TURRET_YAW_CHANGE_SCALAR;
 use crate::constants::robotmap::drivetrain_map::DRIVETRAIN_CANBUS;
@@ -9,7 +8,6 @@ use crate::constants::robotmap::turret::{ENCODER_ID, SPIN_MOTOR_ID};
 use crate::constants::turret::{
     ABS_TO_REL_RATIO, ORIGIN_TO_TURRET_CENTER_X_INCHES, ORIGIN_TO_TURRET_CENTER_Y_INCHES,
     RELATIVE_TO_TURRET_RATIO, TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS, TURRET_CLAMP,
-    TURRET_DEADZONE, TURRET_EMA_ALPHA, TURRET_EMA_TOLERANCE,
 };
 use crate::subsystems::localization::RobotPose;
 use frcrs::alliance_station;
@@ -70,7 +68,6 @@ pub struct Turret {
     spin_motor: Talon,
     drivetrain_angle: Angle,
     encoder: CanCoder,
-    average_turret_angle: Angle,
 
     pub man_turret_angle: Angle,
     pub desired_angle: Angle,
@@ -82,8 +79,6 @@ impl Turret {
     pub fn new() -> Self {
         let spin_motor = Talon::new(SPIN_MOTOR_ID, DRIVETRAIN_CANBUS);
         let encoder = CanCoder::new(ENCODER_ID, Some(SHOOTER_CANBUS.to_string()));
-
-        let turret_pose = spin_motor.get_position();
 
         let file_result = File::open("/tmp/turret_zero");
         let mut relative_turret_zero: Option<Angle> = None;
@@ -123,7 +118,6 @@ impl Turret {
             spin_motor,
             drivetrain_angle: Angle::new::<degree>(0.0),
             encoder,
-            average_turret_angle: Angle::new::<revolution>(turret_pose),
             relative_turret_zero: relative_turret_zero.unwrap(),
 
             man_turret_angle: Angle::new::<degree>(0.0),

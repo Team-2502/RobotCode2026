@@ -10,8 +10,8 @@ pub mod config {
 
     pub const FIELD_ORIENTED: bool = true;
     pub const MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND: f64 = 16.3;
-    pub const MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND: f64 = 6.0;
-    pub const MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND: f64 = 3.0 * PI;
+    pub const MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND: f64 = 4.5;
+    pub const MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND: f64 = 2.0 * PI;
     pub const MINIMUM_MODULE_VELOCITY_METERS_PER_SECOND: f64 = 0.05;
     pub const MANUAL_TURRET_MODE_DISTANCE_MAX_METERS: f64 = 7.62;
     pub const MANUAL_TURRET_YAW_CHANGE_SCALAR: f64 = 2.0;
@@ -80,7 +80,7 @@ pub mod robotmap {
         pub const INTAKE_DOWN_POSITION: f64 = 0.0;
         pub const INTAKE_UP_POSITION: f64 = 0.0;
 
-        pub const INTAKE_IN_SPEED: f64 = 0.75;
+        pub const INTAKE_IN_SPEED: f64 = 1.0;
         pub const INTAKE_REVSERSE_SPEED: f64 = -0.5;
         pub const HANDOFF_SPEED: f64 = 1.0;
     }
@@ -185,7 +185,11 @@ pub mod localization {
     pub const CURRENT_STATE_YAW_TRUST: f64 = 0.1;
     pub const CURRENT_STATE_LINEAR_VELOCITY_TRUST: f64 = 0.5;
     pub const CURRENT_STATE_ANGULAR_VELOCITY_TRUST: f64 = 0.5;
-    pub const LINEAR_VELOCITY_EMA_ALPHA: f64 = 0.8413951;
+
+    pub const LINEAR_VELOCITY_EMA_ALPHA: f64 = 0.9;
+    pub const ANGULAR_VELOCITY_EMA_ALPHA: f64 = 0.65;
+
+    pub const COMMANDED_VELOCITY_WEIGHT: f64 = 0.2;
 
     pub const VELOCITY_MIN_CONF: f64 = 0.01;
     pub const LINEAR_VEL_CONF_SCALAR: f64 = 0.1;
@@ -195,6 +199,9 @@ pub mod localization {
     pub const LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT: u32 = 4;
 
     pub const LIMELIGHT_YAW_TRUST: f64 = 2.0;
+
+    pub const POSE_ANTICIPATION_TIMESTEP_SECS: f64 = 0.025;
+    pub const YAW_ANTICIPATION_TIMESTEP_SECS: f64 = 0.05;
 }
 
 pub mod auto {

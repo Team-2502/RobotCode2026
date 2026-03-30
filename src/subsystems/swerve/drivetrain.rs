@@ -1,13 +1,12 @@
 use crate::constants::config::{
     BLUE_HUB_X_INCHES, FIELD_ORIENTED, HALF_FIELD_WIDTH_METERS,
-    MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
-    MINIMUM_MODULE_VELOCITY_METERS_PER_SECOND, RED_HUB_X_INCHES,
+    MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND, MINIMUM_MODULE_VELOCITY_METERS_PER_SECOND,
+    RED_HUB_X_INCHES,
 };
 use crate::constants::drivetrain::{
     BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
     FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
     GYRO_OFFSET_UPDATE_RATIO, PIGEON_YAW_STD_DEV, SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO,
-    SWERVE_WHEEL_CIRCUMFERENCE_INCHES,
 };
 use crate::constants::localization::{
     ANGULAR_VEL_CONF_SCALAR, LIMELIGHT_YAW_TRUST, LINEAR_VEL_CONF_SCALAR, VELOCITY_MIN_CONF,
@@ -21,14 +20,12 @@ use crate::constants::robotmap::shooter::SHOOTER_CANBUS;
 use crate::subsystems::localization::{Localization, RobotPose};
 use crate::subsystems::swerve::kinematics::Kinematics;
 use crate::subsystems::vision::Vision;
-use crate::vec_f64;
 use frcrs::alliance_station;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
 use frcrs::telemetry::Telemetry;
-use nalgebra::{Rotation, Rotation2, Vector2, vector};
+use nalgebra::Vector2;
 use pid::Pid;
 use std::f64::EPSILON;
-use std::f64::consts::PI;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 use tokio::time::{Instant, timeout};
@@ -49,6 +46,9 @@ pub struct Drivetrain {
     pub(in crate::subsystems::swerve) kinematics: Kinematics,
     pub localization: Localization,
     last_modules: Vec<(Angle, Angle)>,
+
+    pub commanded_angle: Angle,
+    pub commanded_magnitude: Length,
 
     //pub(crate::subsystems::swerve) makes this pub to everything in crate::subsystems::swerve
     fl_encoder: CanCoder,
@@ -97,9 +97,6 @@ impl Drivetrain {
             5807,
         ));
 
-        let auto_pid_turn_to: Pid<f64> =
-            Pid::new(999.0, MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND);
-
         Drivetrain {
             gyro: Pigeon::new(GYRO_ID, Some(SHOOTER_CANBUS.to_string())),
             gyro_offset: Angle::new::<degree>(0.0),
@@ -110,6 +107,9 @@ impl Drivetrain {
             kinematics: Kinematics::new(),
             localization: Localization::new(),
             last_modules: Vec::new(),
+
+            commanded_angle: Angle::new::<degree>(0.0),
+            commanded_magnitude: Length::new::<meter>(0.0),
 
             fl_encoder,
             fl_drive: Talon::new(FL_DRIVE_ID, DRIVETRAIN_CANBUS),
@@ -224,7 +224,10 @@ impl Drivetrain {
     }
 
     fn update_velocities(&mut self, last_pose: RobotPose) {
-        let (lin_dif, angle_dif) = self.localization.get_state() - last_pose;
+        let current_state = self.localization.get_state();
+
+        let lin_dif = Vector2::new(current_state.x - last_pose.x, current_state.y - last_pose.y);
+        let angle_dif = get_angle_difs(last_pose.yaw, current_state.yaw);
 
         let current_time = Instant::now();
         let elapsed = current_time.duration_since(self.timer).as_secs_f64() + EPSILON;
@@ -237,18 +240,7 @@ impl Drivetrain {
 
         let ang_vel = angle_dif / elapsed;
 
-        let lin_conf = Vector2::new(
-            Length::new::<meter>(
-                lin_vel.x.get::<meter>() * LINEAR_VEL_CONF_SCALAR + VELOCITY_MIN_CONF,
-            ),
-            Length::new::<meter>(
-                lin_vel.y.get::<meter>() * LINEAR_VEL_CONF_SCALAR + VELOCITY_MIN_CONF,
-            ),
-        );
-        let ang_conf = ang_vel * ANGULAR_VEL_CONF_SCALAR + Angle::new::<degree>(VELOCITY_MIN_CONF);
-
-        self.localization
-            .update_velocities(lin_vel, ang_vel, lin_conf, ang_conf);
+        self.localization.update_velocities(lin_vel, ang_vel);
     }
 
     pub fn set_gyro_offset(&mut self) {
@@ -345,6 +337,10 @@ impl Drivetrain {
             true => self.field_orientate(theta),
             false => theta,
         };
+
+        self.commanded_magnitude = magnitude;
+        self.commanded_angle = new_theta;
+
         let targets = self.kinematics.get_targets(new_theta, magnitude, rotation);
 
         self.set_speeds(targets);

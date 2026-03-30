@@ -1,24 +1,13 @@
-use std::collections::VecDeque;
-
 use crate::constants::config::{
     BLUE_PASS_BOTTOM_OFFSET_METERS, BLUE_PASS_TOP_OFFSET_METERS, HUB_BLUE, HUB_RED,
-    MANUAL_TURRET_MODE_DISTANCE_MAX_METERS, RED_PASS_BOTTOM_OFFSET_METERS,
-    RED_PASS_TOP_OFFSET_METERS,
+    RED_PASS_BOTTOM_OFFSET_METERS, RED_PASS_TOP_OFFSET_METERS,
 };
-use crate::subsystems::shooter::{
-    ShootingTarget, get_drivetrain_max_speed, get_scoring_hood_angle_target,
-    get_scoring_shooter_speed_target,
-};
-use crate::subsystems::swerve::drivetrain::FieldZone::{
-    self, BlueBottom, BlueTop, MiddleBottom, MiddleTop, RedBottom, RedTop,
-};
-use crate::subsystems::swerve::drivetrain::{get_angle_difs, get_zone};
-use crate::subsystems::turret::TurretMode;
-use crate::subsystems::vision::distance;
+use crate::subsystems::swerve::drivetrain::FieldZone;
+use crate::subsystems::swerve::drivetrain::get_zone;
 use crate::{Ferris, HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
 use frcrs::alliance_station;
 use frcrs::telemetry::Telemetry;
-use nalgebra::{RowOVector, RowSVector, Vector2};
+use nalgebra::Vector2;
 use uom::si::angle::degree;
 use uom::si::f64::Length;
 use uom::si::length::meter;
@@ -214,8 +203,12 @@ impl Targeting {
     }
 
     fn act(&mut self, ferris: &mut Ferris) {
-        let pose = if let Ok(drivetrain) = ferris.drivetrain.try_borrow_mut() {
-            drivetrain.localization.get_state()
+        let (pose, cmd_ang, cmd_mag) = if let Ok(drivetrain) = ferris.drivetrain.try_borrow_mut() {
+            (
+                drivetrain.localization.get_state(),
+                drivetrain.commanded_angle,
+                drivetrain.commanded_magnitude,
+            )
         } else {
             return;
         };
@@ -223,8 +216,12 @@ impl Targeting {
         if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
             match self.mode {
                 TargetingMode::Track => match self.target.target_type {
-                    TargetType::Hub => shooter.shoot_to(&pose, self.target.target_location),
-                    TargetType::Passing => shooter.shoot_to(&pose, self.target.target_location),
+                    TargetType::Hub => {
+                        shooter.shoot_to(&pose, self.target.target_location, cmd_ang, cmd_mag)
+                    }
+                    TargetType::Passing => {
+                        shooter.shoot_to(&pose, self.target.target_location, cmd_ang, cmd_mag)
+                    }
                 },
                 TargetingMode::Manual => {
                     // shooter.turret.man_yaw(ferris.controllers.operator.get_z());
@@ -261,8 +258,6 @@ impl Launcher {
         }
     }
 
-    async fn update(&mut self, ferris: &mut Ferris) {}
-
     fn act(&mut self, ferris: &mut Ferris) {
         if let Ok(intake) = ferris.intake.try_borrow_mut() {
             if ferris.controllers.operator.get(1) {
@@ -295,7 +290,6 @@ impl Fueler {
 
     pub async fn update(&mut self, ferris: &mut Ferris) {
         self.targeting.update(ferris).await;
-        self.launcher.update(ferris).await;
     }
 
     pub fn act(&mut self, ferris: &mut Ferris) {

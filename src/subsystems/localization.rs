@@ -1,12 +1,11 @@
 use nalgebra::{SMatrix, SVector, Vector2, matrix};
-use std::ops::{Div, Sub};
+use std::ops::Sub;
 use uom::si::angle::radian;
 use uom::si::f64::{Angle, Length};
 use uom::si::length::meter;
 
 use crate::constants::localization::{
-    CURRENT_STATE_ANGULAR_VELOCITY_TRUST, CURRENT_STATE_DRIVE_TRUST,
-    CURRENT_STATE_LINEAR_VELOCITY_TRUST, CURRENT_STATE_YAW_TRUST,
+    ANGULAR_VELOCITY_EMA_ALPHA, CURRENT_STATE_DRIVE_TRUST, CURRENT_STATE_YAW_TRUST,
     LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT, LINEAR_VELOCITY_EMA_ALPHA,
     MAX_LIMELIGHT_POSE_DIFFERENCE_METERS,
 };
@@ -152,8 +151,6 @@ impl Localization {
         &mut self,
         linear_velocity: Vector2<Length>,
         angular_velocity: Angle,
-        linear_velocity_err: Vector2<Length>,
-        angular_velocity_err: Angle,
     ) {
         self.state[(3, 0)] = self.state[(3, 0)] * LINEAR_VELOCITY_EMA_ALPHA
             + linear_velocity.x.get::<meter>() * (1.0 - LINEAR_VELOCITY_EMA_ALPHA);
@@ -161,34 +158,8 @@ impl Localization {
         self.state[(4, 0)] = self.state[(4, 0)] * LINEAR_VELOCITY_EMA_ALPHA
             + linear_velocity.y.get::<meter>() * (1.0 - LINEAR_VELOCITY_EMA_ALPHA);
 
-        // let measurement: SMatrix<f64, 3, 1> = matrix![
-        //     linear_velocity.x.get::<meter>();
-        //     linear_velocity.y.get::<meter>();
-        //     angular_velocity.get::<radian>();
-        // ];
-
-        // let state_to_measurement = matrix![
-        //     0.0, 0.0, 0.0, 1.0, 0.0, 0.0;
-        //     0.0, 0.0, 0.0, 0.0, 1.0, 0.0;
-        //     0.0, 0.0, 0.0, 0.0, 0.0, 1.0;
-        // ];
-
-        // let measurement_confidence = matrix![
-        //     linear_velocity_err.x.get::<meter>() * linear_velocity_err.x.get::<meter>(), 0.0, 0.0;
-        //     0.0, linear_velocity_err.y.get::<meter>() * linear_velocity_err.y.get::<meter>(), 0.0;
-        //     0.0, 0.0, angular_velocity_err.get::<radian>() * angular_velocity_err.get::<radian>();
-        // ];
-
-        // self.state_confidence[(3, 3)] += CURRENT_STATE_LINEAR_VELOCITY_TRUST;
-        // self.state_confidence[(4, 4)] += CURRENT_STATE_LINEAR_VELOCITY_TRUST;
-        // self.state_confidence[(5, 5)] += CURRENT_STATE_ANGULAR_VELOCITY_TRUST;
-
-        // self.update_measurement(
-        //     measurement,
-        //     state_to_measurement,
-        //     measurement_confidence,
-        //     -1,
-        // );
+        self.state[(5, 0)] = self.state[(5, 0)] * ANGULAR_VELOCITY_EMA_ALPHA
+            + angular_velocity.get::<radian>() * (1.0 - ANGULAR_VELOCITY_EMA_ALPHA);
     }
 
     pub fn update_yaw(&mut self, new_yaw: Angle, error: f64) {

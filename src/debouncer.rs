@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant, UNIX_EPOCH};
+use std::time::Instant;
 
 pub struct Debouncer {
     last_input: Instant,
