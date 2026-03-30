@@ -42,7 +42,7 @@ impl Auto {
             .collect()
     }
 
-    pub async fn run_auto<'a>(ferris: Rc<RefCell<Ferris>>, chosen: Auto) {
+    pub async fn run_auto<'a>(_ferris: Rc<RefCell<Ferris>>, chosen: Auto) {
         match chosen {
             Auto::Test => {
                 //est(Rc::clone(&ferris)).await.expect("Failed running auto");

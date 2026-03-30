@@ -33,7 +33,7 @@ impl TargetingMode {
 }
 
 #[derive(Clone)]
-enum TargetType {
+pub enum TargetType {
     Hub,
     Passing,
 }

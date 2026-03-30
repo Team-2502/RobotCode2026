@@ -1,6 +1,5 @@
 use crate::constants::config::{
-    BLUE_HUB_X_INCHES, FIELD_ORIENTED, HALF_FIELD_WIDTH_METERS,
-    MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND, MINIMUM_MODULE_VELOCITY_METERS_PER_SECOND,
+    BLUE_HUB_X_INCHES, FIELD_ORIENTED, HALF_FIELD_WIDTH_METERS, MINIMUM_MODULE_VELOCITY_METERS_PER_SECOND,
     RED_HUB_X_INCHES,
 };
 use crate::constants::drivetrain::{
@@ -9,7 +8,7 @@ use crate::constants::drivetrain::{
     GYRO_OFFSET_UPDATE_RATIO, PIGEON_YAW_STD_DEV, SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO,
 };
 use crate::constants::localization::{
-    ANGULAR_VEL_CONF_SCALAR, LIMELIGHT_YAW_TRUST, LINEAR_VEL_CONF_SCALAR, VELOCITY_MIN_CONF,
+    LIMELIGHT_YAW_TRUST,
 };
 use crate::constants::robotmap::drivetrain_map::{
     BL_DRIVE_ID, BL_ENCODER_ID, BL_TURN_ID, BR_DRIVE_ID, BR_ENCODER_ID, BR_TURN_ID,
@@ -24,7 +23,6 @@ use frcrs::alliance_station;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
 use frcrs::telemetry::Telemetry;
 use nalgebra::Vector2;
-use pid::Pid;
 use std::f64::EPSILON;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;

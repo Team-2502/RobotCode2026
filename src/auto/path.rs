@@ -136,7 +136,7 @@ impl Auto {
 
             self.auto_set_angle(angle);
             self.set_target(position);
-            let velocity = Vector2::new(
+            let _velocity = Vector2::new(
                 setpoint.velocity_x.get::<meter_per_second>(),
                 setpoint.velocity_y.get::<meter_per_second>(),
             )
@@ -221,7 +221,7 @@ impl Auto {
     pub async fn move_to(
         &mut self,
         drivetrain: &mut Drivetrain,
-        velocity: f64,
+        _velocity: f64,
         name: &str,
         index: usize,
     ) {
@@ -288,7 +288,7 @@ impl Auto {
         &self,
         name: &str,
         index: usize,
-    ) -> Result<(Sample), Box<dyn std::error::Error>> {
+    ) -> Result<Sample, Box<dyn std::error::Error>> {
         let mut path_content = String::new();
         File::open(format!("/home/lvuser/deploy/choreo/{}.traj", name))
             .await?
@@ -323,7 +323,7 @@ impl Auto {
         })
     }
 
-    pub async fn get_length(&self, name: &str) -> Result<(usize), Box<dyn std::error::Error>> {
+    pub async fn get_length(&self, name: &str) -> Result<usize, Box<dyn std::error::Error>> {
         let mut path_content = String::new();
         File::open(format!("/home/lvuser/deploy/choreo/{}.traj", name))
             .await?
@@ -339,7 +339,7 @@ impl Auto {
         Vector2::new(sample.x, sample.y).norm()
     }
 
-    pub async fn at_sample(&self, drivetrain: &mut Drivetrain, sample: Sample, name: &str) -> bool {
+    pub async fn at_sample(&self, drivetrain: &mut Drivetrain, _sample: Sample, name: &str) -> bool {
         let pose = drivetrain.localization.get_state();
         let distance = if self.target_point.is_some() {
             let current = Vector2::new(pose.x, pose.y);

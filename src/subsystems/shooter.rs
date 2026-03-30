@@ -128,7 +128,7 @@ impl Shooter {
             angle_target + angle_offset,
         );
 
-        self.set_velocity((speed * 1.1));
+        self.set_velocity(speed * 1.1);
         self.set_hood(hood);
         self.turret.set_angle(turret_relative_angle);
     }
