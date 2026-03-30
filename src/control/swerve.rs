@@ -1,4 +1,6 @@
-use crate::constants::config::MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND;
+use crate::constants::config::{
+    MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND, MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND,
+};
 use crate::control::fueler::{Target, TargetingMode};
 use crate::{
     Ferris, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND, get_drivetrain_max_speed,
@@ -67,7 +69,8 @@ impl Swerve {
             drivetrain.control_drivetrain(
                 field_theta,
                 magnitude * input_magnitude,
-                deadzoned_z * Angle::new::<revolution>(MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND),
+                deadzoned_z
+                    * Angle::new::<radian>(MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND),
             );
         }
     }

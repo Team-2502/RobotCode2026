@@ -79,7 +79,7 @@ impl Kinematics {
         let input_matrix: SMatrix<f64, 3, 1> = matrix![
             f64::cos(swerve_angle.get::<radian>()) * magnitude.get::<meter>();
             f64::sin(swerve_angle.get::<radian>()) * magnitude.get::<meter>();
-            rot.get::<radian>() ;
+            rot.get::<radian>();
         ];
 
         // in m/s

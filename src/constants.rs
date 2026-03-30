@@ -23,8 +23,6 @@ pub mod config {
     pub const BLUE_HUB_X_INCHES: f64 = 182.11;
     pub const RED_HUB_X_INCHES: f64 = 469.11;
 
-    // pub const HUB_RED: Vector2<f64> = Vector2::new(11.915394, 4.034536 + 0.28);
-    // pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.625594, 4.034536 - 0.28);
     pub const HUB_RED: Vector2<f64> = Vector2::new(11.915394, 4.034536);
     pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.625594, 4.034536);
 
@@ -32,8 +30,6 @@ pub mod config {
     pub const RED_PASS_BOTTOM_OFFSET_METERS: Vector2<f64> = Vector2::new(3.0, -2.01);
     pub const BLUE_PASS_TOP_OFFSET_METERS: Vector2<f64> = Vector2::new(-3.0, 2.01);
     pub const BLUE_PASS_BOTTOM_OFFSET_METERS: Vector2<f64> = Vector2::new(-3.0, -2.01);
-
-    pub const MAX_ITER: i32 = 12;
 }
 
 pub mod robotmap {
