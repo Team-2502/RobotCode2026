@@ -3,10 +3,11 @@
 - [ ] fix velocity (not getting high enough, presumably confidence constants are broken)
   - average ds command and current velocity for elsewhere
   - turret velocity 
-- [ ] check if drivetrain speed limiter is working for shoot on the fly
+- [x] check if drivetrain speed limiter is working for shoot on the fly
   - jittery
 - [ ] think about speed limiting while passing
-- [ ] test to make sure max speeds are actually max speeds
+- [x] test to make sure max speeds are actually max speeds
+- [ ] crazy snap to 90 tech
 -----
 ### turret
 - [ ] regs. for passing, yaw
@@ -25,6 +26,6 @@
 - [ ] how to pass in starting pose for auton
 - [ ] think about efficient calibration workflow at comp
 - [ ] notes: in lib.rs, currently calling shooter tables instead of passing tables for bottom pass target. easy fix, just change shoot_to -> pass_to
-- [ ] debouncer
+- [x] debouncer
 - [x] generational merge conflict
 - [ ] logging system
