@@ -24,9 +24,9 @@ $(DEPLOY): $(dir $(DEPLOY)) $(OUT)
 # just deploys robotcode
 .PHONY: deploy-scp
 deploy-scp: $(OUT)
-	
+
 	ssh lvuser@10.$(TEAM).2 /usr/local/frc/bin/frcKillRobot.sh
-	ssh lvuser@10.$(TEAM).2 rm $(LIB)
+	ssh lvuser@10.$(TEAM).2 rm -f $(LIB)
 	scp $(OUT) lvuser@10.$(TEAM).2:
 	ssh lvuser@10.$(TEAM).2 /usr/local/frc/bin/frcRunRobot.sh
 	ssh lvuser@10.$(TEAM).2 chmod 755 $(LIB)

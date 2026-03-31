@@ -72,7 +72,7 @@ impl Shooter {
             hood_offset = Some(Angle::new::<revolution>(zero));
 
             let zero_bytes = zero.to_ne_bytes();
-            let new_file = File::create("/tmp/turret_zero");
+            let new_file = File::create("/tmp/hood_zero");
 
             #[allow(unused_must_use)]
             if new_file.is_ok() {
