@@ -1,15 +1,15 @@
 use crate::constants::config::{
-    BLUE_HUB_X_INCHES, FIELD_ORIENTED, HALF_FIELD_WIDTH_METERS, MINIMUM_MODULE_VELOCITY_METERS_PER_SECOND,
+    BLUE_HUB_X_INCHES, FIELD_ORIENTED, HALF_FIELD_WIDTH_METERS,
+    MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND, MINIMUM_MODULE_VELOCITY_METERS_PER_SECOND,
     RED_HUB_X_INCHES,
 };
 use crate::constants::drivetrain::{
     BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
-    FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
-    GYRO_OFFSET_UPDATE_RATIO, PIGEON_YAW_STD_DEV, SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO,
+    DRIVETRAIN_ANGLE_SNAP_KP, FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
+    FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS, GYRO_OFFSET_UPDATE_RATIO, PIGEON_YAW_STD_DEV,
+    SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO,
 };
-use crate::constants::localization::{
-    LIMELIGHT_YAW_TRUST,
-};
+use crate::constants::localization::LIMELIGHT_YAW_TRUST;
 use crate::constants::robotmap::drivetrain_map::{
     BL_DRIVE_ID, BL_ENCODER_ID, BL_TURN_ID, BR_DRIVE_ID, BR_ENCODER_ID, BR_TURN_ID,
     DRIVETRAIN_CANBUS, FL_DRIVE_ID, FL_ENCODER_ID, FL_TURN_ID, FR_DRIVE_ID, FR_ENCODER_ID,
@@ -23,6 +23,7 @@ use frcrs::alliance_station;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
 use frcrs::telemetry::Telemetry;
 use nalgebra::Vector2;
+use pid::Pid;
 use std::f64::EPSILON;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
@@ -44,6 +45,7 @@ pub struct Drivetrain {
     pub(in crate::subsystems::swerve) kinematics: Kinematics,
     pub localization: Localization,
     last_modules: Vec<(Angle, Angle)>,
+    pub turn_pid: Pid<f64>,
 
     pub commanded_angle: Angle,
     pub commanded_magnitude: Length,
@@ -95,6 +97,8 @@ impl Drivetrain {
             5807,
         ));
 
+        let mut turn_pid = Pid::new(0.0, MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND);
+
         Drivetrain {
             gyro: Pigeon::new(GYRO_ID, Some(SHOOTER_CANBUS.to_string())),
             gyro_offset: Angle::new::<degree>(0.0),
@@ -105,6 +109,7 @@ impl Drivetrain {
             kinematics: Kinematics::new(),
             localization: Localization::new(),
             last_modules: Vec::new(),
+            turn_pid,
 
             commanded_angle: Angle::new::<degree>(0.0),
             commanded_magnitude: Length::new::<meter>(0.0),

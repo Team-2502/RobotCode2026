@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::io::{Read, Write};
 
-use crate::constants::config::MANUAL_TURRET_YAW_CHANGE_SCALAR;
 use crate::constants::robotmap::drivetrain_map::DRIVETRAIN_CANBUS;
 use crate::constants::robotmap::shooter::SHOOTER_CANBUS;
 use crate::constants::robotmap::turret::{ENCODER_ID, SPIN_MOTOR_ID};
@@ -10,7 +9,6 @@ use crate::constants::turret::{
     RELATIVE_TO_TURRET_RATIO, TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS, TURRET_CLAMP,
 };
 use crate::subsystems::localization::RobotPose;
-use frcrs::alliance_station;
 use frcrs::ctre::{CanCoder, ControlMode, Talon};
 use nalgebra::{Rotation2, Vector2};
 use uom::si::angle::radian;
@@ -131,13 +129,6 @@ impl Turret {
     }
 
     pub fn move_to_angle(&mut self, angle: Angle) {
-        println!(
-            "1: relative_turret_zero: {}, spin_pos: {}, encoder_pos: {}",
-            self.relative_turret_zero.get::<revolution>(),
-            self.spin_motor.get_position(),
-            self.encoder.get_absolute()
-        );
-
         let position = self.spin_motor.get_position();
 
         let target_rot = ((apply_soft_stop(angle)).get::<revolution>() * RELATIVE_TO_TURRET_RATIO
@@ -187,18 +178,6 @@ impl Turret {
 
     pub fn offset_yaw(&mut self, amount: Angle) {
         self.yaw_offset = self.yaw_offset + amount;
-    }
-
-    pub fn man_yaw(&mut self, mut joystick: f64) {
-        if alliance_station().blue() {
-            joystick = -joystick;
-        }
-        let angle =
-            self.man_turret_angle.get::<degree>() + MANUAL_TURRET_YAW_CHANGE_SCALAR * joystick;
-        // println!("here: {}", angle);
-
-        self.move_to_angle(Angle::new::<degree>(angle));
-        // println!("moved? {}", self.apply_soft_stop(angle));
     }
 
     pub fn slow(&self, angle1: f64, angle2: f64) {

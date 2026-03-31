@@ -13,8 +13,6 @@ pub mod config {
     pub const MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND: f64 = 4.5;
     pub const MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND: f64 = 2.0 * PI;
     pub const MINIMUM_MODULE_VELOCITY_METERS_PER_SECOND: f64 = 0.05;
-    pub const MANUAL_TURRET_MODE_DISTANCE_MAX_METERS: f64 = 7.62;
-    pub const MANUAL_TURRET_YAW_CHANGE_SCALAR: f64 = 2.0;
     pub const SHOOTER_INITAL_DISTANCE_OFFSET_FEET: f64 = 1.0;
 
     pub const HALF_FIELD_WIDTH_METERS: f64 = 8.042656 / 2.;
@@ -87,7 +85,6 @@ pub mod robotmap {
 }
 
 pub mod shooter {
-    pub const GEAR_RATIO_HOOD: f64 = 0.0;
     pub const MAX_FLYWHEEL_SPEED: f64 = 100.0;
     pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 1.0;
     // pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 0.88; /* Original */
@@ -103,6 +100,7 @@ pub mod turret {
     pub const TURRET_MAX: f64 = 180.0;
     pub const TURRET_MIN: f64 = -180.0;
     pub const TURRET_CLAMP: f64 = 2.5;
+
     //exponential moving average
     pub const TURRET_EMA_ALPHA: f64 = 0.9639;
     pub const TURRET_EMA_TOLERANCE: f64 = 3.0;
@@ -111,11 +109,9 @@ pub mod turret {
     pub const ORIGIN_TO_TURRET_CENTER_X_INCHES: f64 = -4.0;
     pub const ORIGIN_TO_TURRET_CENTER_Y_INCHES: f64 = -2.25;
 
-    // pub const HOOD_ZERO_POSE: f64 = -0.170177;
-    pub const HOOD_ZERO_POSE: f64 = -0.2;
-    // 0.2 margin
-    pub const HOOD_MAX_SOFTSTOP: f64 = 1.9992675 - 0.2;
-    pub const HOOD_MIN_SOFTSTOP: f64 = -0.370361 + 0.2;
+    // 0.05 margin, 2.2992 range
+    pub const HOOD_MAX_SOFTSTOP: f64 = 2.2992 - 0.05;
+    pub const HOOD_MIN_SOFTSTOP: f64 = 0.05;
 
     // meters
     pub const TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = -0.199463; /* og */
@@ -163,7 +159,7 @@ pub mod drivetrain {
 
     pub const SWERVE_TURN_RATIO: f64 = 12.8;
     pub const SWERVE_DRIVE_RATIO: f64 = 6.12;
-    pub const SWERVE_WHEEL_CIRCUMFERENCE_INCHES: f64 = PI * 4.0;
+    pub const SWERVE_WHEEL_CIRCUMFERENCE_INCHES: f64 = PI * 3.51715;
 
     pub const WHEEL_ENCODER_STD_DEV: f64 = 0.0005;
     pub const PIGEON_YAW_STD_DEV: f64 = 0.001;
@@ -172,6 +168,9 @@ pub mod drivetrain {
     pub const LIMELIGHT_YAW_TRUST: f64 = 2.0; // degrees
 
     pub const GYRO_OFFSET_UPDATE_RATIO: f64 = 0.01;
+
+    pub const DRIVETRAIN_ANGLE_SNAP_KP: f64 = 8.0;
+    pub const DRIVETRAIN_FISH_MODE_KP: f64 = 7.0;
 
     pub const FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.418212890625;
     pub const BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.575927734375;
@@ -200,8 +199,8 @@ pub mod localization {
 
     pub const LIMELIGHT_YAW_TRUST: f64 = 2.0;
 
-    pub const POSE_ANTICIPATION_TIMESTEP_SECS: f64 = 0.025;
-    pub const YAW_ANTICIPATION_TIMESTEP_SECS: f64 = 0.05;
+    pub const POSE_ANTICIPATION_TIMESTEP_SECS: f64 = 0.1;
+    pub const YAW_ANTICIPATION_TIMESTEP_SECS: f64 = 0.0;
 }
 
 pub mod auto {
