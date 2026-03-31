@@ -34,8 +34,9 @@ pub struct Controllers {
 
 pub struct Ferris {
     pub controllers: Controllers,
-    pub idle_toggle_debouncer: Debouncer,
+    pub track_toggle_debouncer: Debouncer,
     pub man_toggle_debouncer: Debouncer,
+    pub telem_toggle_debouncer: Debouncer,
 
     pub drivetrain: Rc<RefCell<Drivetrain>>,
     pub shooter: Rc<RefCell<Shooter>>,
@@ -62,8 +63,9 @@ impl Ferris {
                 right_drive: Joystick::new(constants::joystick_map::RIGHT_DRIVE),
                 operator: Joystick::new(constants::joystick_map::OPERATOR),
             },
-            idle_toggle_debouncer: Debouncer::new(),
+            track_toggle_debouncer: Debouncer::new(),
             man_toggle_debouncer: Debouncer::new(),
+            telem_toggle_debouncer: Debouncer::new(),
 
             // todo: figure out start pose stuff
             // temp hardcoded startpose
