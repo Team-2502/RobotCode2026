@@ -150,6 +150,9 @@ impl Shooter {
         let vy = tr_velocity.y.get::<meter>();
 
         let dist = distance(target, current_pose + vector_to_turret_center);
+
+        println!("distance target w/ turret rot: {:0.3?}", dist);
+
         let future_dist = distance(target, future_pose + vector_to_turret_center);
         let current_flywheel_speed = self.get_speed();
 
@@ -258,8 +261,8 @@ pub fn get_drivetrain_max_speed(
     let angle_to_hub = get_angle_to(pose, target);
     let angle_diff = get_angle_difs(theta, angle_to_hub).abs();
 
-    if angle_diff < Angle::new::<degree>(45.0) {
-        let percent = angle_diff.get::<degree>() / 45.0;
+    if angle_diff < Angle::new::<degree>(80.0) {
+        let percent = angle_diff.get::<degree>() / 80.0;
         Length::new::<meter>(1.0 + (MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND - 1.0) * percent)
     } else {
         Length::new::<meter>(MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND)

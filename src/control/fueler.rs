@@ -160,8 +160,8 @@ impl Targeting {
                 match zone {
                     FieldZone::BlueBottom => self.target = self.red_bottom.clone(),
                     FieldZone::BlueTop => self.target = self.red_top.clone(),
-                    FieldZone::MiddleBottom => self.target = self.red_bottom.clone(),
-                    FieldZone::MiddleTop => self.target = self.red_top.clone(),
+                    FieldZone::MiddleBottom => self.target = self.red_hub.clone(),
+                    FieldZone::MiddleTop => self.target = self.red_hub.clone(),
                     FieldZone::RedBottom => self.target = self.red_hub.clone(),
                     FieldZone::RedTop => self.target = self.red_hub.clone(),
                 }
@@ -266,6 +266,8 @@ impl Targeting {
                     //     current_flywheel_speed,
                     // ));
                     shooter.turret.set_angle(Angle::new::<degree>(0.0));
+                    shooter.set_hood(0.0);
+                    shooter.set_velocity(0.0);
                 }
                 TargetingMode::Idle => {
                     shooter.stop();

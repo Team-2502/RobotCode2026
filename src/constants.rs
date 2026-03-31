@@ -107,12 +107,12 @@ pub mod turret {
     pub const TURRET_EMA_TOLERANCE: f64 = 3.0;
     pub const TURRET_DEADZONE: f64 = 0.3;
 
-    pub const ORIGIN_TO_TURRET_CENTER_X_INCHES: f64 = -4.0;
-    pub const ORIGIN_TO_TURRET_CENTER_Y_INCHES: f64 = -2.25;
+    pub const ORIGIN_TO_TURRET_CENTER_X_INCHES: f64 = 4.0;
+    pub const ORIGIN_TO_TURRET_CENTER_Y_INCHES: f64 = 2.25;
 
     // 0.05 margin, 2.2992 range
-    pub const HOOD_MAX_SOFTSTOP: f64 = 2.2992 - 0.05;
-    pub const HOOD_MIN_SOFTSTOP: f64 = 0.05;
+    pub const HOOD_MAX_SOFTSTOP: f64 = 2.2992 - 0.0;
+    pub const HOOD_MIN_SOFTSTOP: f64 = 0.0;
 
     // meters
     pub const TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = -0.199463; /* og */
@@ -187,7 +187,7 @@ pub mod localization {
     pub const CURRENT_STATE_LINEAR_VELOCITY_TRUST: f64 = 0.5;
     pub const CURRENT_STATE_ANGULAR_VELOCITY_TRUST: f64 = 0.5;
 
-    pub const LINEAR_VELOCITY_EMA_ALPHA: f64 = 0.775;
+    pub const LINEAR_VELOCITY_EMA_ALPHA: f64 = 0.9;
     pub const ANGULAR_VELOCITY_EMA_ALPHA: f64 = 0.775;
 
     pub const COMMANDED_VELOCITY_WEIGHT: f64 = 0.0;
