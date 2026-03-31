@@ -1,19 +1,19 @@
 # RobotCode2026
 ### drivetrain
-- [ ] fix velocity (not getting high enough, presumably confidence constants are broken)
+- [x] fix velocity (not getting high enough, presumably confidence constants are broken)
   - average ds command and current velocity for elsewhere
   - turret velocity 
 - [x] check if drivetrain speed limiter is working for shoot on the fly
   - jittery
 - [ ] think about speed limiting while passing
 - [x] test to make sure max speeds are actually max speeds
-- [ ] crazy snap to 90 tech
+- [x] crazy snap to 90 tech (its fire) 
 -----
 ### turret
 - [ ] regs. for passing, yaw
 - [ ] ensure turret is correctly rotated relative to center of robot
 - [x] turret abs. encoder (accurate zeroing)
-- [ ] tune hood PID? never got changed after plates got recut, but might mess up shooting? be careful
+- [x] tune hood PID? never got changed after plates got recut, but might mess up shooting? be careful
 - [ ] might need to tune turret PID, check if soft stop is working as intended
   - might want to just limit rotation rate
   - might want to think about stopping handoff while snapping back from softstop, low priority
