@@ -147,11 +147,7 @@ impl Localization {
         self.state_confidence = 0.5 * (self.state_confidence + self.state_confidence.transpose());
     }
 
-    pub fn update_velocities(
-        &mut self,
-        linear_velocity: Vector2<Length>,
-        angular_velocity: Angle,
-    ) {
+    pub fn update_velocities(&mut self, linear_velocity: Vector2<Length>, angular_velocity: Angle) {
         self.state[(3, 0)] = self.state[(3, 0)] * LINEAR_VELOCITY_EMA_ALPHA
             + linear_velocity.x.get::<meter>() * (1.0 - LINEAR_VELOCITY_EMA_ALPHA);
 

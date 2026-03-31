@@ -65,6 +65,7 @@ impl TurretMode {
 pub struct Turret {
     spin_motor: Talon,
     drivetrain_angle: Angle,
+    #[allow(unused)]
     encoder: CanCoder,
 
     pub man_turret_angle: Angle,

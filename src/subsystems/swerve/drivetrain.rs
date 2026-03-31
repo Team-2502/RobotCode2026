@@ -5,9 +5,8 @@ use crate::constants::config::{
 };
 use crate::constants::drivetrain::{
     BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
-    DRIVETRAIN_ANGLE_SNAP_KP, FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
-    FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS, GYRO_OFFSET_UPDATE_RATIO, PIGEON_YAW_STD_DEV,
-    SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO,
+    FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
+    GYRO_OFFSET_UPDATE_RATIO, PIGEON_YAW_STD_DEV, SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO,
 };
 use crate::constants::localization::LIMELIGHT_YAW_TRUST;
 use crate::constants::robotmap::drivetrain_map::{
@@ -97,7 +96,7 @@ impl Drivetrain {
             5807,
         ));
 
-        let mut turn_pid = Pid::new(0.0, MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND);
+        let turn_pid = Pid::new(0.0, MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND);
 
         Drivetrain {
             gyro: Pigeon::new(GYRO_ID, Some(SHOOTER_CANBUS.to_string())),

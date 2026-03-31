@@ -159,8 +159,9 @@ pub mod drivetrain {
 
     pub const SWERVE_TURN_RATIO: f64 = 12.8;
     pub const SWERVE_DRIVE_RATIO: f64 = 6.12;
-    pub const SWERVE_WHEEL_CIRCUMFERENCE_INCHES: f64 = PI * 3.51715;
-
+    // pub const SWERVE_WHEEL_CIRCUMFERENCE_INCHES: f64 = PI * 3.51715;
+    pub const SWERVE_WHEEL_CIRCUMFERENCE_INCHES: f64 = PI * 3.865;
+    
     pub const WHEEL_ENCODER_STD_DEV: f64 = 0.0005;
     pub const PIGEON_YAW_STD_DEV: f64 = 0.001;
     pub const CURRENT_STATE_TRUST_SCALAR_DRIVE: f64 = 0.003;

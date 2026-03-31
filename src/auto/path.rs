@@ -339,7 +339,12 @@ impl Auto {
         Vector2::new(sample.x, sample.y).norm()
     }
 
-    pub async fn at_sample(&self, drivetrain: &mut Drivetrain, _sample: Sample, name: &str) -> bool {
+    pub async fn at_sample(
+        &self,
+        drivetrain: &mut Drivetrain,
+        _sample: Sample,
+        name: &str,
+    ) -> bool {
         let pose = drivetrain.localization.get_state();
         let distance = if self.target_point.is_some() {
             let current = Vector2::new(pose.x, pose.y);

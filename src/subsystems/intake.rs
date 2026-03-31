@@ -1,6 +1,5 @@
 use crate::constants::robotmap::intake::{
-    HANDOFF_MOTOR_ID, INDEXER_MOTOR_ID, INTAKE_BOTTOM_MOTOR_ID,
-    INTAKE_TOP_MOTOR_ID
+    HANDOFF_MOTOR_ID, INDEXER_MOTOR_ID, INTAKE_BOTTOM_MOTOR_ID, INTAKE_TOP_MOTOR_ID,
 };
 use frcrs::ctre::{ControlMode, Talon};
 

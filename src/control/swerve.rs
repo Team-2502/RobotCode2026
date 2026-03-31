@@ -1,14 +1,13 @@
 use crate::constants::config::MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND;
-use crate::constants::drivetrain::{DRIVETRAIN_ANGLE_SNAP_KP, DRIVETRAIN_FISH_MODE_KP};
+use crate::constants::drivetrain::DRIVETRAIN_ANGLE_SNAP_KP;
 use crate::control::fueler::{Target, TargetingMode};
-use crate::subsystems::swerve::drivetrain::get_angle_difs;
 use crate::{
     Ferris, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND, get_drivetrain_max_speed,
     update_drivetrain_telemetry,
 };
 use frcrs::{alliance_station, deadzone};
 use std::f64::consts::PI;
-use uom::si::angle::{degree, radian};
+use uom::si::angle::radian;
 use uom::si::f64::{Angle, Length};
 use uom::si::length::meter;
 pub struct Swerve {}
@@ -65,7 +64,7 @@ impl Swerve {
                 Length::new::<meter>(MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND)
             };
 
-            let mut rotation_rate = Angle::new::<degree>(0.0);
+            let rotation_rate: Angle;
             // if ferris.controllers.left_drive.get(1) {
             //     drivetrain.turn_pid.setpoint(
             //         get_angle_difs(
