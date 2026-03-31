@@ -81,7 +81,7 @@ pub mod robotmap {
         pub const INTAKE_IN_SPEED: f64 = 1.0;
         pub const INTAKE_REVSERSE_SPEED: f64 = -0.5;
         pub const HANDOFF_SPEED: f64 = 1.0;
-        pub const INTAKE_SPEED_OSCILLATION_TIME_SECS: f64 = 0.25;
+        pub const INTAKE_SPEED_OSCILLATION_TIME_SECS: f64 = 0.25; /* 0.25 og */
     }
 }
 
@@ -187,8 +187,8 @@ pub mod localization {
     pub const CURRENT_STATE_LINEAR_VELOCITY_TRUST: f64 = 0.5;
     pub const CURRENT_STATE_ANGULAR_VELOCITY_TRUST: f64 = 0.5;
 
-    pub const LINEAR_VELOCITY_EMA_ALPHA: f64 = 0.9;
-    pub const ANGULAR_VELOCITY_EMA_ALPHA: f64 = 0.65;
+    pub const LINEAR_VELOCITY_EMA_ALPHA: f64 = 0.775;
+    pub const ANGULAR_VELOCITY_EMA_ALPHA: f64 = 0.775;
 
     pub const COMMANDED_VELOCITY_WEIGHT: f64 = 0.0;
 
@@ -201,7 +201,7 @@ pub mod localization {
 
     pub const LIMELIGHT_YAW_TRUST: f64 = 2.0;
 
-    pub const POSE_ANTICIPATION_TIMESTEP_SECS: f64 = 0.1;
+    pub const POSE_ANTICIPATION_TIMESTEP_SECS: f64 = 0.0;
     pub const YAW_ANTICIPATION_TIMESTEP_SECS: f64 = 0.0;
 }
 

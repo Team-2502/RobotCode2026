@@ -1,6 +1,7 @@
 use crate::constants::config::{
-    BLUE_PASS_BOTTOM_OFFSET_METERS, BLUE_PASS_TOP_OFFSET_METERS, HUB_BLUE, HUB_RED,
-    RED_PASS_BOTTOM_OFFSET_METERS, RED_PASS_TOP_OFFSET_METERS,
+    BLUE_PASS_BOTTOM_OFFSET_METERS, BLUE_PASS_TOP_OFFSET_METERS, HALF_FIELD_LENGTH_METERS,
+    HALF_FIELD_WIDTH_METERS, HUB_BLUE, HUB_RED, RED_PASS_BOTTOM_OFFSET_METERS,
+    RED_PASS_TOP_OFFSET_METERS,
 };
 use crate::subsystems::swerve::drivetrain::FieldZone;
 use crate::subsystems::swerve::drivetrain::get_zone;
@@ -36,6 +37,7 @@ impl TargetingMode {
 pub enum TargetType {
     Hub,
     Passing,
+    Telem,
 }
 
 #[derive(Clone)]
@@ -158,8 +160,8 @@ impl Targeting {
                 match zone {
                     FieldZone::BlueBottom => self.target = self.red_bottom.clone(),
                     FieldZone::BlueTop => self.target = self.red_top.clone(),
-                    FieldZone::MiddleBottom => self.target = self.red_hub.clone(),
-                    FieldZone::MiddleTop => self.target = self.red_hub.clone(),
+                    FieldZone::MiddleBottom => self.target = self.red_bottom.clone(),
+                    FieldZone::MiddleTop => self.target = self.red_top.clone(),
                     FieldZone::RedBottom => self.target = self.red_hub.clone(),
                     FieldZone::RedTop => self.target = self.red_hub.clone(),
                 }
@@ -187,7 +189,7 @@ impl Targeting {
             }
 
             if ferris
-                .idle_toggle_debouncer
+                .track_toggle_debouncer
                 .debounce(ferris.controllers.operator.get(11))
             {
                 match self.mode {
@@ -197,6 +199,32 @@ impl Targeting {
                     TargetingMode::Track => self.mode = TargetingMode::Idle,
                 }
             }
+
+            if ferris
+                .telem_toggle_debouncer
+                .debounce(ferris.controllers.operator.get(5))
+            {
+                match self.mode {
+                    TargetingMode::Track | TargetingMode::Manual | TargetingMode::Idle => {
+                        self.mode = TargetingMode::Telemetry
+                    }
+                    TargetingMode::Telemetry => self.mode = TargetingMode::Idle,
+                }
+            }
+
+            if self.mode == TargetingMode::Telemetry {
+                let telem_target = Telemetry::get_target_point().await.unwrap();
+
+                self.target = Target {
+                    target_type: TargetType::Telem,
+                    target_location: Vector2::new(
+                        Length::new::<meter>(telem_target.x * HALF_FIELD_LENGTH_METERS * 2.0),
+                        Length::new::<meter>(telem_target.y * HALF_FIELD_WIDTH_METERS * 2.0),
+                    ),
+                    name: "Telemetry Target".to_string(),
+                }
+            }
+
             Telemetry::put_string("turret_mode", String::from(self.mode.name())).await;
             Telemetry::put_string("shooter_target", String::from(&self.target.name)).await;
         }
@@ -220,6 +248,9 @@ impl Targeting {
                         shooter.shoot_to(&pose, self.target.target_location, cmd_ang, cmd_mag)
                     }
                     TargetType::Passing => {
+                        shooter.shoot_to(&pose, self.target.target_location, cmd_ang, cmd_mag)
+                    }
+                    TargetType::Telem => {
                         shooter.shoot_to(&pose, self.target.target_location, cmd_ang, cmd_mag)
                     }
                 },
