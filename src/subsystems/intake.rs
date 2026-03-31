@@ -1,5 +1,8 @@
+use std::{f64::consts::PI, time::Instant};
+
 use crate::constants::robotmap::intake::{
-    HANDOFF_MOTOR_ID, INDEXER_MOTOR_ID, INTAKE_BOTTOM_MOTOR_ID, INTAKE_TOP_MOTOR_ID,
+    HANDOFF_MOTOR_ID, INDEXER_MOTOR_ID, INTAKE_BOTTOM_MOTOR_ID, INTAKE_SPEED_OSCILLATION_TIME_SECS,
+    INTAKE_TOP_MOTOR_ID,
 };
 use frcrs::ctre::{ControlMode, Talon};
 
@@ -8,6 +11,7 @@ pub struct Intake {
     intake_bottom: Talon,
     indexer_motor: Talon,
     handoff_motor: Talon,
+    timer: Instant,
 }
 
 impl Intake {
@@ -22,12 +26,20 @@ impl Intake {
             intake_bottom,
             indexer_motor,
             handoff_motor,
+            timer: Instant::now(),
         }
     }
 
     pub fn set_intake_speed(&self, speed: f64) {
-        self.intake_top.set(ControlMode::Percent, -speed);
-        self.intake_bottom.set(ControlMode::Percent, speed);
+        let cos = f64::cos(
+            Instant::now().duration_since(self.timer).as_secs_f64()
+                * INTAKE_SPEED_OSCILLATION_TIME_SECS
+                * PI,
+        );
+        let oscillated_speed = speed * 0.5 + 0.5 * speed * cos * cos;
+        self.intake_top.set(ControlMode::Percent, -oscillated_speed);
+        self.intake_bottom
+            .set(ControlMode::Percent, oscillated_speed);
     }
 
     pub fn set_handoff(&self, speed: f64) {

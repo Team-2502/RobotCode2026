@@ -75,16 +75,7 @@ fn main() {
 
                 // if more than 150 ms has passed the loop has overun and watchdog triggers
                 if last != 0 && now - last > 150 {
-                    //println!("Loop Overrun: {}ms", now - last);
-                    if let Ok(ferris) = watchdog_ferris.try_borrow_mut() {
-                        // try to stop robot with ferris.stop()
-                        ferris.stop();
-                    } else {
-                        // if we fail to get ferris we exit code 0 (commented out during season)
-                        //println!("FAILED TO GET FERRIS TO STOP");
-                        // exit(1);
-                    }
-                    //println!("Watchdog triggered: Motors stopped");
+                    println!("[WATCHDOG]: Loop Overrun: {}ms", now - last);
                 }
             }
         });

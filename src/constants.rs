@@ -81,6 +81,7 @@ pub mod robotmap {
         pub const INTAKE_IN_SPEED: f64 = 1.0;
         pub const INTAKE_REVSERSE_SPEED: f64 = -0.5;
         pub const HANDOFF_SPEED: f64 = 1.0;
+        pub const INTAKE_SPEED_OSCILLATION_TIME_SECS: f64 = 0.25;
     }
 }
 
@@ -161,7 +162,7 @@ pub mod drivetrain {
     pub const SWERVE_DRIVE_RATIO: f64 = 6.12;
     // pub const SWERVE_WHEEL_CIRCUMFERENCE_INCHES: f64 = PI * 3.51715;
     pub const SWERVE_WHEEL_CIRCUMFERENCE_INCHES: f64 = PI * 3.865;
-    
+
     pub const WHEEL_ENCODER_STD_DEV: f64 = 0.0005;
     pub const PIGEON_YAW_STD_DEV: f64 = 0.001;
     pub const CURRENT_STATE_TRUST_SCALAR_DRIVE: f64 = 0.003;
@@ -189,14 +190,14 @@ pub mod localization {
     pub const LINEAR_VELOCITY_EMA_ALPHA: f64 = 0.9;
     pub const ANGULAR_VELOCITY_EMA_ALPHA: f64 = 0.65;
 
-    pub const COMMANDED_VELOCITY_WEIGHT: f64 = 0.2;
+    pub const COMMANDED_VELOCITY_WEIGHT: f64 = 0.0;
 
     pub const VELOCITY_MIN_CONF: f64 = 0.01;
     pub const LINEAR_VEL_CONF_SCALAR: f64 = 0.1;
     pub const ANGULAR_VEL_CONF_SCALAR: f64 = 0.1;
 
     pub const MAX_LIMELIGHT_POSE_DIFFERENCE_METERS: f64 = 1.0;
-    pub const LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT: u32 = 4;
+    pub const LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT: u32 = 10;
 
     pub const LIMELIGHT_YAW_TRUST: f64 = 2.0;
 

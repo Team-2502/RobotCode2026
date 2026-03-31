@@ -91,9 +91,19 @@ impl Turret {
                     if file.read_exact(&mut buf).is_ok() {
                         relative_turret_zero =
                             Some(Angle::new::<revolution>(f64::from_ne_bytes(buf)));
+                    } else {
+                        panic!("cant read buffer");
                     }
+                } else {
+                    panic!("metadata bad or len != 8");
                 }
+            } else {
+                panic!("metadata bad");
             }
+            println!(
+                "read from file: turret zero: {}",
+                relative_turret_zero.clone().unwrap().get::<revolution>()
+            )
         }
 
         if relative_turret_zero.is_none() {
@@ -101,6 +111,11 @@ impl Turret {
                 + (encoder.get_absolute() - TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS)
                     * ABS_TO_REL_RATIO;
             relative_turret_zero = Some(Angle::new::<revolution>(zero));
+
+            println!(
+                "found no turret zero, writing: {}",
+                relative_turret_zero.clone().unwrap().get::<revolution>()
+            );
 
             let zero_bytes = zero.to_ne_bytes();
             let new_file = File::create("/tmp/turret_zero");
@@ -110,6 +125,8 @@ impl Turret {
                 let mut created_file = new_file.unwrap();
                 created_file.write_all(&zero_bytes);
                 created_file.flush();
+            } else {
+                panic!("cannot write turret zero file");
             }
         }
 
