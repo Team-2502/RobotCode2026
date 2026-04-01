@@ -7,9 +7,8 @@ use crate::constants::localization::{
 use crate::constants::robotmap::shooter::{
     HOOD_MOTOR_ID, SHOOTER_CANBUS, SHOOTER_MOTOR_LEFT_ID, SHOOTER_MOTOR_RIGHT_ID,
 };
-use crate::constants::shooter::{MAX_FLYWHEEL_SPEED, SHOOTER_DISTANCE_ERROR_SMUDGE};
 use crate::constants::turret::{
-    HOOD_MAX_SOFTSTOP, HOOD_MIN_SOFTSTOP, ORIGIN_TO_TURRET_CENTER_X_INCHES,
+    DISTANCE_SMUDGE_METERS, HOOD_MAX_SOFTSTOP, HOOD_MIN_SOFTSTOP, ORIGIN_TO_TURRET_CENTER_X_INCHES,
     ORIGIN_TO_TURRET_CENTER_Y_INCHES,
 };
 use crate::subsystems::localization::RobotPose;
@@ -101,8 +100,8 @@ impl Shooter {
     pub fn set_hood(&mut self, angle: f64) {
         self.hood_motor.set(
             ControlMode::Position,
-            (angle + self.hood_offset.get::<revolution>())
-                .clamp(HOOD_MIN_SOFTSTOP, HOOD_MAX_SOFTSTOP),
+            angle.clamp(HOOD_MIN_SOFTSTOP, HOOD_MAX_SOFTSTOP)
+                + self.hood_offset.get::<revolution>(),
         );
     }
 
@@ -149,15 +148,16 @@ impl Shooter {
         let vx = tr_velocity.x.get::<meter>();
         let vy = tr_velocity.y.get::<meter>();
 
-        let dist = distance(target, current_pose + vector_to_turret_center);
+        let dist =
+            distance(target, current_pose + vector_to_turret_center) + DISTANCE_SMUDGE_METERS;
 
-        println!("distance target w/ turret rot: {:0.3?}", dist);
+        println!("vx {:0.5}, vy {:0.5}, dist: {:0.5}", vx, vy, dist);
 
         let future_dist = distance(target, future_pose + vector_to_turret_center);
         let current_flywheel_speed = self.get_speed();
 
-        let speed = predict_speed(future_dist, vx, vy);
-        let hood = predict_hood(dist, vx, vy, current_flywheel_speed);
+        let speed = predict_hub_speed(future_dist, vx, vy);
+        let hood = predict_hub_hood(dist, vx, vy, current_flywheel_speed);
         let angle_offset =
             Angle::new::<radian>(predict_yaw(dist, vx, vy, current_flywheel_speed, hood));
 
@@ -172,8 +172,18 @@ impl Shooter {
         self.turret.set_angle(turret_relative_angle);
     }
 
-    pub fn pass_to(&mut self, pose: &RobotPose, target: Vector2<Length>) {
+    pub fn pass_to(
+        &mut self,
+        pose: &RobotPose,
+        target: Vector2<Length>,
+        commanded_theta: Angle,
+        commanded_magnitude: Length,
+    ) {
         let current_pose = Vector2::new(pose.x, pose.y);
+        let future_pose = Vector2::new(
+            pose.x + pose.vx * POSE_ANTICIPATION_TIMESTEP_SECS,
+            pose.y + pose.vy * POSE_ANTICIPATION_TIMESTEP_SECS,
+        );
 
         let mut vector_to_turret_center_f64 = Vector2::new(
             ORIGIN_TO_TURRET_CENTER_X_INCHES,
@@ -188,18 +198,41 @@ impl Shooter {
             Length::new::<inch>(vector_to_turret_center_f64.y),
         );
 
-        let distance_target =
-            Length::new::<meter>(distance(target, current_pose + vector_to_turret_center));
-        let angle_target = get_angle_to(current_pose + vector_to_turret_center, target);
-        let turret_relative_angle = get_angle_difs(pose.yaw, angle_target);
+        let velocity_vec = Vector2::new(pose.vx.get::<meter>(), pose.vy.get::<meter>());
+        let commanded_vec = Vector2::new(
+            f64::cos(commanded_theta.get::<radian>()) * commanded_magnitude.get::<meter>(),
+            f64::sin(commanded_theta.get::<radian>()) * commanded_magnitude.get::<meter>(),
+        );
 
+        let weighted_vel_f64 = (1.0 - COMMANDED_VELOCITY_WEIGHT) * velocity_vec
+            + COMMANDED_VELOCITY_WEIGHT * commanded_vec;
+        let weighted_vel = Vector2::new(
+            Length::new::<meter>(weighted_vel_f64.x),
+            Length::new::<meter>(weighted_vel_f64.y),
+        );
+
+        let tr_velocity = get_target_relative_velocity_vector(weighted_vel, pose, target);
+        let vx = tr_velocity.x.get::<meter>();
+        let vy = tr_velocity.y.get::<meter>();
+
+        let dist = distance(target, current_pose + vector_to_turret_center);
+
+        let future_dist = distance(target, future_pose + vector_to_turret_center);
         let current_flywheel_speed = self.get_speed();
-        self.set_velocity(get_passing_shooter_speed_target(distance_target));
-        self.set_hood(get_passing_hood_angle_target(
-            distance_target,
-            current_flywheel_speed,
-        ));
 
+        let speed = predict_pass_speed(future_dist, vx, vy);
+        let hood = predict_pass_hood(dist, vx, vy, current_flywheel_speed);
+        let angle_offset =
+            Angle::new::<radian>(predict_yaw(dist, vx, vy, current_flywheel_speed, hood));
+
+        let angle_target = get_angle_to(future_pose + vector_to_turret_center, target);
+        let turret_relative_angle = get_angle_difs(
+            pose.yaw + pose.vr * YAW_ANTICIPATION_TIMESTEP_SECS,
+            angle_target + angle_offset,
+        );
+
+        self.set_velocity(speed);
+        self.set_hood(hood);
         self.turret.set_angle(turret_relative_angle);
     }
 
@@ -261,139 +294,146 @@ pub fn get_drivetrain_max_speed(
     let angle_to_hub = get_angle_to(pose, target);
     let angle_diff = get_angle_difs(theta, angle_to_hub).abs();
 
-    if angle_diff < Angle::new::<degree>(80.0) {
-        let percent = angle_diff.get::<degree>() / 80.0;
+    if angle_diff < Angle::new::<degree>(60.0) {
+        let percent = angle_diff.get::<degree>() / 60.0;
         Length::new::<meter>(1.0 + (MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND - 1.0) * percent)
     } else {
         Length::new::<meter>(MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND)
     }
 }
 
-pub fn get_scoring_shooter_speed_target(distance: Length) -> f64 {
-    let distance_feet: f64 = distance.get::<foot>() * SHOOTER_DISTANCE_ERROR_SMUDGE;
-    let target =
-        (0.0652772 * (distance_feet * distance_feet)) + (0.954121 * distance_feet) + 38.92606;
-
-    target.clamp(0.0, MAX_FLYWHEEL_SPEED)
-}
-
-pub fn get_scoring_hood_angle_target(distance: Length, current_speed: f64) -> f64 {
-    let zero_hood_dist =
-        -0.05179036 + 0.00224117 * current_speed + -0.02321219 * distance.get::<meter>();
-    let max_hood_dist =
-        -0.20176568 + 0.00665605 * current_speed + -0.02321219 * distance.get::<meter>();
-    let angle_f64 = (-2.03750054 - zero_hood_dist) * zero_hood_dist / max_hood_dist;
-    angle_f64.clamp(0.0, 2.0)
-}
-
-// todo: regressions
-pub fn get_passing_shooter_speed_target(distance: Length) -> f64 {
-    let distance_feet: f64 =
-        distance.get::<meter>() as f64 * 3.28084 * SHOOTER_DISTANCE_ERROR_SMUDGE;
-    let target = (0.0 * (distance_feet * distance_feet)) + (0.0 * distance_feet) + 0.0;
-
-    target.clamp(0.0, MAX_FLYWHEEL_SPEED)
-}
-
-// todo: regressions
-pub fn get_passing_hood_angle_target(distance: Length, current_speed: f64) -> f64 {
-    let distance_feet: f64 =
-        distance.get::<meter>() as f64 * 3.28084 * SHOOTER_DISTANCE_ERROR_SMUDGE;
-    let min_speed = (0.0 * (distance_feet * distance_feet)) + (0.0 * distance_feet) + 0.0;
-    let max_speed = (0.0 * (distance_feet * distance_feet)) + (0.0 * distance_feet) + 0.0;
-    let max_angle = (0.0 * (distance_feet * distance_feet)) + (0.0 * distance_feet) + 0.0;
-
-    if max_angle < 0.0 || current_speed > max_speed {
-        0.0
-    } else if current_speed < min_speed {
-        max_angle
-    } else {
-        let t = 1.0 - (current_speed - min_speed) / (max_speed - min_speed);
-        max_angle * t
-    }
-}
-
-fn predict_yaw(dist: f64, vx: f64, vy: f64, speed: f64, hood: f64) -> f64 {
-    let launch_velocity = speed * (0.14577997574526508 - 0.00015049121874030828 * hood);
-    let launch_angle = (69.91396399643477 - 12.56207643932571 * hood).to_radians();
-    let tof = 0.1019367991845056 * (launch_velocity * launch_angle.sin()) + 0.8648181411925046;
-    if tof.abs() < 1e-9 {
-        return 0.0;
-    }
-    vx.atan2(1.34043298837828 * (dist / tof) - vy + 0.24598678147992)
-}
-
-fn predict_hood(dist: f64, vx: f64, vy: f64, speed: f64) -> f64 {
-    let flywheel = speed * 0.14;
-    let vx2 = vx * vx;
-    let vy2 = vy * vy;
-    let dist2 = dist * dist;
-    let flywheel2 = flywheel * flywheel;
-    let term = 14.577997574526508 * flywheel + vy;
-    if term.abs() < 1e-9 {
-        return 0.0;
-    }
-    let inv_term = 1.0 / term;
-
-    let num = -0.36839033462703 + 0.02061306141286 * vy + 0.00838512238623 * vx2
-        - 0.14755937948384 * dist
-        + 0.10020701135136 * flywheel
-        + 0.0515687877688 * vy * dist
-        + 0.00284413077565 * vy * flywheel
-        - 0.00058493307566 * vy * dist * flywheel
-        - 0.00252780913557 * vy * dist2
-        + 0.00651966765799 * vy2 * dist
-        - 0.00898418209993 * vy2 * flywheel
-        - 0.00022600092684 * vy2 * dist * flywheel
-        + 0.0004097653597 * vy2 * flywheel2
-        - 7.4616806e-07 * vy2 * dist2
-        + 0.0294495829453 * vx2 * dist
-        - 0.01529770258126 * vx2 * flywheel
-        - 0.00125497957061 * vx2 * dist * flywheel
-        - 0.0078604492234 * vx2 * dist2
-        + 0.00086469303317 * vx2 * flywheel2
-        - 5.93345503e-05 * vx2 * dist * flywheel2
-        + 0.00097282272656 * vx2 * dist2 * flywheel
-        - 2.906229428e-05 * vx2 * dist2 * flywheel2
-        + 0.6418027181806 * dist * inv_term;
-
-    let den =
-        0.6127404877969 - 0.0413350616315 * vy + 0.01488951018526 * vx2 + 0.06990762290123 * dist
-            - 0.13889287249169 * flywheel
-            - 0.00590932395805 * vy * dist
-            + 0.00535759152548 * vy * flywheel
-            + 0.00035896826208 * vy * dist * flywheel
-            - 0.00052528256156 * vy * dist2
-            + 0.00069984300315 * vy2 * dist
-            - 0.0004567784541 * vy2 * flywheel
-            + 1.377256345e-05 * vy2 * dist * flywheel
-            + 7.38593401e-06 * vy2 * flywheel2
-            - 1.341855546e-05 * vy2 * dist2
-            + 0.01016311678925 * vx2 * dist
-            - 0.00584988955478 * vx2 * flywheel
-            - 9.662471901e-05 * vx2 * dist * flywheel
-            - 0.00360819016392 * vx2 * dist2
-            + 0.00034990676645 * vx2 * flywheel2
-            - 5.200759247e-05 * vx2 * dist * flywheel2
-            + 0.00042243645456 * vx2 * dist2 * flywheel
-            - 1.136145234e-05 * vx2 * dist2 * flywheel2
-            - 0.11970122446327 * dist * inv_term;
-    if den.abs() < 1e-9 {
-        return 0.0;
-    }
-    num / den
-}
-
-fn predict_speed(dist: f64, vx: f64, vy: f64) -> f64 {
+fn predict_hub_speed(dist: f64, vx: f64, vy: f64) -> f64 {
     let vx2 = vx * vx;
     let vy2 = vy * vy;
     let vxvy2 = vx2 + vy2;
     let dist2 = dist * dist;
-    let speed = 37.48768924052001 + 1.85950428954673 * dist + 0.99263955984153 * dist2
-        - 0.29979616450495 * vy
-        - 0.06945847505217 * vy * dist
-        - 0.22288224790744 * vy * dist2
-        + 0.22589500122137 * vxvy2
-        + 0.11034899634029 * vxvy2 * dist;
-    speed.clamp(30.0, 90.0)
+    let speed = 48.26402033741077
+        + 1.45313626590204 * dist
+        + 0.28497933990905 * dist2
+        + 2.08552942755273 * vy
+        - 0.87492962508219 * vy * dist
+        - 0.0310463487289 * vy * dist2
+        + 0.59753175991412 * vxvy2
+        + 0.02438070724366 * vxvy2 * dist;
+    speed.clamp(30.0, 100.0)
+}
+
+fn predict_hub_hood(dist: f64, vx: f64, vy: f64, speed: f64) -> f64 {
+    let flywheel = speed * 0.14577997574526508;
+    let vx2 = vx * vx;
+    let vy2 = vy * vy;
+    let dist2 = dist * dist;
+    let term1 = dist + flywheel;
+    let term2 = flywheel + vy;
+    if term1.abs() < 1e-9 || term2.abs() < 1e-9 {
+        return 0.0;
+    }
+    let inv_term1 = 1.0 / term1;
+    let inv_term2 = 1.0 / term2;
+    let ux = vx;
+
+    let uy = 2.31930632574723 + 0.87080314191958 * dist
+        - 0.55831432371477 * flywheel
+        - 1.00846814433622 * vy
+        + 0.01653743700391 * dist2
+        - 0.04748169042816 * dist * flywheel
+        + 0.03367359917108 * flywheel * flywheel
+        + 0.00499141699947 * vy * flywheel
+        + 0.01341946850842 * vy * dist
+        - 0.00095734093026 * vy * dist * flywheel
+        + 0.02610786512318 * vx2
+        - 0.00195469419643 * vx2 * flywheel
+        - 0.00126738212072 * vy2
+        + 0.08166170069528 * vx.hypot(vy) * inv_term1
+        + 2.76899075054095 * dist * inv_term2;
+
+    let uz = 0.09936205098565
+        + 0.02104813399762 * dist
+        + 1.11269483003193 * flywheel
+        + 0.19605481403508 * vy
+        - 0.02942888380699 * dist2
+        + 0.02231266584791 * dist * flywheel
+        - 0.00832592641409 * flywheel * flywheel
+        - 0.01771030219332 * vy * flywheel
+        + 0.0854337955929 * vy * dist
+        - 0.00232108908698 * vy * dist * flywheel
+        - 0.09090984838824 * vx2
+        + 0.00395729340336 * vx2 * flywheel
+        - 0.04211126605481 * vy2
+        - 1.03180838142139 * vx.hypot(vy) * inv_term1
+        - 3.13694287243635 * dist * inv_term2;
+    let angle = uz.atan2(ux.hypot(uy)).to_degrees() / -12.56207643932571 + 5.565478313566728;
+    angle + 0.17
+}
+
+fn predict_pass_speed(dist: f64, vx: f64, vy: f64) -> f64 {
+    let vx2 = vx * vx;
+    let vy2 = vy * vy;
+    let vxvy2 = vx2 + vy2;
+    let dist2 = dist * dist;
+    let speed = 35.2969372164117 + 1.65508715011467 * dist + 0.3108259624189 * dist2
+        - 1.46459651949985 * vy
+        - 0.37911499468948 * vy * dist
+        - 0.03985365245764 * vy * dist2
+        + 0.14096777928633 * vxvy2
+        + 0.03920102226153 * vxvy2 * dist;
+    speed.clamp(30.0, 100.0)
+}
+
+fn predict_pass_hood(dist: f64, vx: f64, vy: f64, speed: f64) -> f64 {
+    let flywheel = speed * 0.14577997574526508;
+    let vx2 = vx * vx;
+    let vy2 = vy * vy;
+    let dist2 = dist * dist;
+    let term1 = dist + flywheel;
+    let term2 = flywheel + vy;
+    if term1.abs() < 1e-9 || term2.abs() < 1e-9 {
+        return 0.0;
+    }
+    let inv_term1 = 1.0 / term1;
+    let inv_term2 = 1.0 / term2;
+    let ux = vx;
+
+    let uy = 2.03675058003524 + 0.95267923340142 * dist
+        - 0.67709074682133 * flywheel
+        - 0.91681616131232 * vy
+        + 0.02489338139897 * dist2
+        - 0.06862696241705 * dist * flywheel
+        + 0.04705358150443 * flywheel * flywheel
+        - 0.00308297663015 * vy * flywheel
+        - 0.00664554065875 * vy * dist
+        + 0.00046349869258 * vy * dist * flywheel
+        + 0.07717481930137 * vx2
+        - 0.00563683887608 * vx2 * flywheel
+        + 0.00133046985465 * vy2
+        - 0.29936462144772 * vx.hypot(vy) * inv_term1
+        + 3.00745663885683 * dist * inv_term2;
+
+    let uz = 0.36071337471016 - 0.29550545777051 * dist
+        + 1.1566936615387 * flywheel
+        + 0.13254521320313 * vy
+        - 0.03946110656003 * dist2
+        + 0.05787971099762 * dist * flywheel
+        - 0.0158577396631 * flywheel * flywheel
+        - 0.01459058154521 * vy * flywheel
+        + 0.12068032746825 * vy * dist
+        - 0.0044095155692 * vy * dist * flywheel
+        - 0.13875113842158 * vx2
+        + 0.00728004615683 * vx2 * flywheel
+        - 0.04725195984191 * vy2
+        - 0.53006481464723 * vx.hypot(vy) * inv_term1
+        - 2.7343768311302 * dist * inv_term2;
+    let angle = uz.atan2(ux.hypot(uy)).to_degrees() / -12.56207643932571 + 5.565478313566728;
+    angle + 0.17
+}
+
+fn predict_yaw(dist: f64, vx: f64, vy: f64, speed: f64, hood: f64) -> f64 {
+    let hood_calibrated = hood - 0.17;
+    let launch_velocity = speed * (0.14577997574526508 - 0.00015049121874030828 * hood_calibrated);
+    let launch_angle = (69.91396399643477 - 12.56207643932571 * hood_calibrated).to_radians();
+    let tof = 0.1019367991845056 * (launch_velocity * launch_angle.sin()) + 0.8675195210938735;
+    if tof.abs() < 1e-9 {
+        return 0.0;
+    }
+    vx.atan2(1.34212043514101 * (dist / tof) - vy + 0.24667467825382)
 }

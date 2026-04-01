@@ -117,6 +117,8 @@ pub mod turret {
     // meters
     pub const TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = -0.199463; /* og */
     pub const TOLERANCE: f64 = 0.001;
+
+    pub const DISTANCE_SMUDGE_METERS: f64 = 0.15;
 }
 
 pub mod vision {
@@ -202,7 +204,7 @@ pub mod localization {
     pub const LIMELIGHT_YAW_TRUST: f64 = 2.0;
 
     pub const POSE_ANTICIPATION_TIMESTEP_SECS: f64 = 0.0;
-    pub const YAW_ANTICIPATION_TIMESTEP_SECS: f64 = 0.0;
+    pub const YAW_ANTICIPATION_TIMESTEP_SECS: f64 = 0.05;
 }
 
 pub mod auto {

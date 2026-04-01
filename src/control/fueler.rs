@@ -33,7 +33,7 @@ impl TargetingMode {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum TargetType {
     Hub,
     Passing,
@@ -160,8 +160,8 @@ impl Targeting {
                 match zone {
                     FieldZone::BlueBottom => self.target = self.red_bottom.clone(),
                     FieldZone::BlueTop => self.target = self.red_top.clone(),
-                    FieldZone::MiddleBottom => self.target = self.red_hub.clone(),
-                    FieldZone::MiddleTop => self.target = self.red_hub.clone(),
+                    FieldZone::MiddleBottom => self.target = self.red_bottom.clone(),
+                    FieldZone::MiddleTop => self.target = self.red_top.clone(),
                     FieldZone::RedBottom => self.target = self.red_hub.clone(),
                     FieldZone::RedTop => self.target = self.red_hub.clone(),
                 }
@@ -225,6 +225,20 @@ impl Targeting {
                 }
             }
 
+            if alliance_station().red() {
+                if ferris.controllers.operator.get(3) {
+                    self.target = self.red_bottom.clone();
+                } else if ferris.controllers.operator.get(4) {
+                    self.target = self.red_top.clone();
+                }
+            } else {
+                if ferris.controllers.operator.get(3) {
+                    self.target = self.blue_top.clone();
+                } else if ferris.controllers.operator.get(4) {
+                    self.target = self.blue_bottom.clone();
+                }
+            }
+
             Telemetry::put_string("turret_mode", String::from(self.mode.name())).await;
             Telemetry::put_string("shooter_target", String::from(&self.target.name)).await;
         }
@@ -248,7 +262,7 @@ impl Targeting {
                         shooter.shoot_to(&pose, self.target.target_location, cmd_ang, cmd_mag)
                     }
                     TargetType::Passing => {
-                        shooter.shoot_to(&pose, self.target.target_location, cmd_ang, cmd_mag)
+                        shooter.pass_to(&pose, self.target.target_location, cmd_ang, cmd_mag)
                     }
                     TargetType::Telem => {
                         shooter.shoot_to(&pose, self.target.target_location, cmd_ang, cmd_mag)
@@ -267,7 +281,7 @@ impl Targeting {
                     // ));
                     shooter.turret.set_angle(Angle::new::<degree>(0.0));
                     shooter.set_hood(0.0);
-                    shooter.set_velocity(0.0);
+                    shooter.set_velocity(30.0);
                 }
                 TargetingMode::Idle => {
                     shooter.stop();

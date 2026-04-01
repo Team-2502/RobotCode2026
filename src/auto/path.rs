@@ -358,49 +358,52 @@ impl Auto {
     }
 
     pub async fn move_to_sample(&mut self, name: &str, drivetrain: &mut Drivetrain, index: usize) {
-        let sample = self.get_sample(name, index).await.unwrap();
-        // if self.current_sample == 10 {
-        //     panic!("made it to point");
-        // }
-        self.set_target(Vector2::new(
-            Length::new::<meter>(sample.x),
-            Length::new::<meter>(sample.y),
-        ));
-        self.move_to(
-            drivetrain,
-            self.get_velocity(name, index).await,
-            name,
-            index,
-        )
-        .await;
+        loop {
+            let sample = self.get_sample(name, index).await.unwrap();
+            // if self.current_sample == 10 {
+            //     panic!("made it to point");
+            // }
+            self.set_target(Vector2::new(
+                Length::new::<meter>(sample.x),
+                Length::new::<meter>(sample.y),
+            ));
+            self.move_to(
+                drivetrain,
+                self.get_velocity(name, index).await,
+                name,
+                index,
+            )
+            .await;
 
-        let past = if index != 0 {
-            let pose = drivetrain.localization.get_state();
-            let current_sample = self.get_sample(name, index).await.unwrap();
-            let prev_sample = self.get_sample(name, index - 1).await.unwrap();
-            let current = Vector2::new(current_sample.x, current_sample.y);
-            let prev = Vector2::new(prev_sample.x, prev_sample.y);
-            let pose = Vector2::new(pose.x.get::<meter>(), pose.y.get::<meter>());
+            let past = if index != 0 {
+                let pose = drivetrain.localization.get_state();
+                let current_sample = self.get_sample(name, index).await.unwrap();
+                let prev_sample = self.get_sample(name, index - 1).await.unwrap();
+                let current = Vector2::new(current_sample.x, current_sample.y);
+                let prev = Vector2::new(prev_sample.x, prev_sample.y);
+                let pose = Vector2::new(pose.x.get::<meter>(), pose.y.get::<meter>());
 
-            let mut v = current - prev;
-            let vm = v.norm();
-            v = v / v.norm();
+                let mut v = current - prev;
+                let vm = v.norm();
+                v = v / v.norm();
 
-            let pose_from_start = pose - prev;
-            let t = v.x * pose_from_start.x + v.y * pose_from_start.y;
-            println!(" {}:  t: {} vm: {}", self.current_sample, t, vm);
-            t > vm
-        } else {
-            false
-        };
+                let pose_from_start = pose - prev;
+                let t = v.x * pose_from_start.x + v.y * pose_from_start.y;
+                println!(" {}:  t: {} vm: {}", self.current_sample, t, vm);
+                t > vm
+            } else {
+                false
+            };
 
-        // false normally past
-        if (past || self.at_sample(drivetrain, sample, name).await)
-            && self.current_sample == index
-            && self.current_sample + 1 < self.get_length(name).await.unwrap()
-        {
-            self.current_sample += 1;
-            //println!("{}", self.current_sample);
+            // false normally past
+            if (past || self.at_sample(drivetrain, sample, name).await)
+                && self.current_sample == index
+                && self.current_sample + 1 < self.get_length(name).await.unwrap()
+            {
+                self.current_sample += 1;
+            } else {
+                break;
+            }
         }
     }
 }

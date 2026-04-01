@@ -1,6 +1,6 @@
 use crate::constants::config::MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND;
 use crate::constants::drivetrain::DRIVETRAIN_ANGLE_SNAP_KP;
-use crate::control::fueler::{Target, TargetingMode};
+use crate::control::fueler::{Target, TargetType, TargetingMode};
 use crate::{
     Ferris, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND, get_drivetrain_max_speed,
     update_drivetrain_telemetry,
@@ -58,7 +58,8 @@ impl Swerve {
 
             // get max speed
             let pose = drivetrain.localization.get_state();
-            let magnitude = if mode == TargetingMode::Track {
+            let magnitude = if mode == TargetingMode::Track && target.target_type == TargetType::Hub
+            {
                 get_drivetrain_max_speed(&pose, field_theta, target.target_location)
             } else {
                 Length::new::<meter>(MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND)
