@@ -256,7 +256,7 @@ impl Auto {
             let pose_from_start = pose - prev;
             let t = (v.x * pose_from_start.x + v.y * pose_from_start.y).clamp(0.0, vm);
 
-            let tp = prev + (current - prev) * (0.5 * (vm + t));
+            let tp = prev + (current - prev) * (0.5 * (vm + t) / vm);
             let distance = tp - pose;
 
             //println!("vm: {} t: {} tp: {}", vm, t, tp);
@@ -395,11 +395,11 @@ impl Auto {
         };
 
         // false normally past
-        if (self.at_sample(drivetrain, sample, name).await || past)
+        if (past || self.at_sample(drivetrain, sample, name).await)
             && self.current_sample == index
-            && self.current_sample + 5 < self.get_length(name).await.unwrap()
+            && self.current_sample + 1 < self.get_length(name).await.unwrap()
         {
-            self.current_sample += 5;
+            self.current_sample += 1;
             //println!("{}", self.current_sample);
         }
     }

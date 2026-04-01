@@ -61,7 +61,7 @@ fn main() {
         // Watchdog setup
         let last_loop_time = Arc::new(AtomicU64::new(0));
         let watchdog_last_loop = Arc::clone(&last_loop_time);
-        let watchdog_ferris = ferris.clone();
+        let _watchdog_ferris = ferris.clone();
 
         // Spawn watchdog task
         spawn_local(async move {
