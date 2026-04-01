@@ -1,4 +1,5 @@
 use RobotCode2026::auto::auto::Auto;
+use RobotCode2026::auto::auton_loader::{Auton, AutonList};
 use RobotCode2026::control::teleop::Teleop;
 use RobotCode2026::subsystems::turret::TurretMode;
 use RobotCode2026::{Ferris, post_shift};
@@ -37,6 +38,8 @@ fn main() {
         // we create our ferris here
         let ferris = Rc::new(RefCell::new(Ferris::new()));
         let mut teleop = Teleop::new();
+        let mut auton = Auton::new();
+        auton.set_auto(AutonList::Test);
 
         // this initializes network tables on the default port
         NetworkTable::init();
@@ -113,11 +116,10 @@ fn main() {
             if state.enabled() && state.auto() {
                 if let Ok(mut robot) = ferris.try_borrow_mut() {
                     if robot.state.mode() != RobotMode::Auto {
-                        robot.auto_init();
+                        auton.init();
                     }
                     robot.update_state();
-                    robot.dt = dt;
-                    robot.auto_periodic().await;
+                    auton.run_auton_frame(&mut robot).await;
                 }
             }
             //     //drivetrain.move_towards(Angle::new::<degree>(0.0), 0.0, Angle::new::<degree>(45.0));

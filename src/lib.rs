@@ -96,9 +96,9 @@ impl Ferris {
             let pose = drivetrain.localization.get_state();
             update_drivetrain_telemetry(&pose).await;
 
-            self.auto
-                .move_to_sample("test_triangle", &mut drivetrain, self.auto.current_sample)
-                .await;
+            // self.auto
+            //     .move_to_sample("test_triangle", &mut drivetrain, self.auto.current_sample)
+            //     .await;
         }
     }
 
