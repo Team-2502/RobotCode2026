@@ -8,8 +8,8 @@ use crate::constants::robotmap::shooter::{
     HOOD_MOTOR_ID, SHOOTER_CANBUS, SHOOTER_MOTOR_LEFT_ID, SHOOTER_MOTOR_RIGHT_ID,
 };
 use crate::constants::turret::{
-    DISTANCE_SMUDGE_METERS, HOOD_MAX_SOFTSTOP, HOOD_MIN_SOFTSTOP, ORIGIN_TO_TURRET_CENTER_X_INCHES,
-    ORIGIN_TO_TURRET_CENTER_Y_INCHES,
+    DISTANCE_SCALAR_SMUDGE_METERS, HOOD_MAX_SOFTSTOP, HOOD_MIN_SOFTSTOP,
+    ORIGIN_TO_TURRET_CENTER_X_INCHES, ORIGIN_TO_TURRET_CENTER_Y_INCHES,
 };
 use crate::subsystems::localization::RobotPose;
 use crate::subsystems::swerve::drivetrain::get_angle_difs;
@@ -148,8 +148,8 @@ impl Shooter {
         let vx = tr_velocity.x.get::<meter>();
         let vy = tr_velocity.y.get::<meter>();
 
-        let dist =
-            distance(target, current_pose + vector_to_turret_center) + DISTANCE_SMUDGE_METERS;
+        let dist = distance(target, current_pose + vector_to_turret_center)
+            * DISTANCE_SCALAR_SMUDGE_METERS;
 
         println!("vx {:0.5}, vy {:0.5}, dist: {:0.5}", vx, vy, dist);
 

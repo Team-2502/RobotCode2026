@@ -5,8 +5,10 @@ use tokio::fs::File;
 
 use crate::constants::config::MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND;
 use crate::constants::config::{HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS};
+use crate::MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND;
 use crate::subsystems::swerve::drivetrain::Drivetrain;
 use crate::subsystems::swerve::drivetrain::get_angle_difs;
+use crate::vec_f64;
 use frcrs::trajectory::Path;
 use nalgebra::Vector2;
 use pid::Pid;
@@ -271,6 +273,35 @@ impl Auto {
         // );
         let mut speed = 1.0;
         //println!("speed: {}", speed);
+        let err = distance.x.get::<meter>().abs() + distance.y.get::<meter>().abs();
+        speed = if err < 0.05 { 0.0 } else { speed };
+        self.move_towards(
+            drivetrain,
+            Angle::new::<radian>(angle),
+            speed,
+            Angle::new::<radian>(output.output),
+        );
+    }
+    
+    pub async fn move_to_target(
+        &mut self,
+        drivetrain: &mut Drivetrain,
+    ) {
+        let pose = drivetrain.localization.get_state();
+        let setpoint = self.pid_turn_to.setpoint;
+        let error = get_angle_difs(pose.yaw, Angle::new::<radian>(setpoint));
+        let output = self
+            .pid_turn_to
+            .next_control_output(setpoint + error.get::<radian>());
+
+        let distance = if self.target_point.is_some() {
+            let current = Vector2::new(pose.x, pose.y);
+            self.target_point.unwrap() - current
+        } else {
+            Vector2::new(Length::new::<meter>(0.0), Length::new::<meter>(0.0))
+        };
+        let angle = f64::atan2(distance.y.get::<meter>(), distance.x.get::<meter>());
+        let mut speed = (vec_f64(distance).magnitude() * 2.0).clamp(0.0, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND);
         let err = distance.x.get::<meter>().abs() + distance.y.get::<meter>().abs();
         speed = if err < 0.05 { 0.0 } else { speed };
         self.move_towards(

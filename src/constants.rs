@@ -118,7 +118,7 @@ pub mod turret {
     pub const TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = -0.199463; /* og */
     pub const TOLERANCE: f64 = 0.001;
 
-    pub const DISTANCE_SMUDGE_METERS: f64 = 0.15;
+    pub const DISTANCE_SCALAR_SMUDGE_METERS: f64 = 1.1;
 }
 
 pub mod vision {
@@ -161,7 +161,7 @@ pub mod drivetrain {
     pub const SWERVE_TURN_RATIO: f64 = 12.8;
     pub const SWERVE_DRIVE_RATIO: f64 = 6.12;
     // pub const SWERVE_WHEEL_CIRCUMFERENCE_INCHES: f64 = PI * 3.51715;
-    pub const SWERVE_WHEEL_CIRCUMFERENCE_INCHES: f64 = 12.46875;
+    pub const SWERVE_WHEEL_CIRCUMFERENCE_INCHES: f64 = 12.46875 * 0.831506;
 
     pub const WHEEL_ENCODER_STD_DEV: f64 = 0.0005;
     pub const PIGEON_YAW_STD_DEV: f64 = 0.001;
@@ -190,7 +190,7 @@ pub mod localization {
     pub const LINEAR_VELOCITY_EMA_ALPHA: f64 = 0.9;
     pub const ANGULAR_VELOCITY_EMA_ALPHA: f64 = 0.775;
 
-    pub const COMMANDED_VELOCITY_WEIGHT: f64 = 0.0;
+    pub const COMMANDED_VELOCITY_WEIGHT: f64 = 0.75;
 
     pub const VELOCITY_MIN_CONF: f64 = 0.01;
     pub const LINEAR_VEL_CONF_SCALAR: f64 = 0.1;
@@ -201,7 +201,7 @@ pub mod localization {
 
     pub const LIMELIGHT_YAW_TRUST: f64 = 2.0;
 
-    pub const POSE_ANTICIPATION_TIMESTEP_SECS: f64 = 0.0;
+    pub const POSE_ANTICIPATION_TIMESTEP_SECS: f64 = 0.2;
     pub const YAW_ANTICIPATION_TIMESTEP_SECS: f64 = 0.05;
 }
 

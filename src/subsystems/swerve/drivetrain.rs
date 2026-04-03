@@ -87,7 +87,7 @@ impl Drivetrain {
         let fr_encoder = CanCoder::new(FR_ENCODER_ID, DRIVETRAIN_CANBUS);
 
         let limelight_front = Vision::new(SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::new(10, 25, 2, 200)),
+            IpAddr::V4(Ipv4Addr::new(10, 25, 2, 14)),
             5807,
         ));
 

@@ -10,6 +10,7 @@ use frcrs::networktables::NetworkTable;
 use frcrs::telemetry::Telemetry;
 use frcrs::{init_hal, observe_user_program_starting, refresh_data};
 use std::cell::RefCell;
+use std::f64::consts::PI;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -18,6 +19,9 @@ use tokio::task;
 use tokio::task::spawn_local;
 use tokio::time::sleep;
 use tokio::time::{Duration, Instant};
+use uom::si::angle::degree;
+use uom::si::f64::{Angle, Length};
+use uom::si::length::meter;
 
 fn main() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
@@ -116,10 +120,39 @@ fn main() {
             if state.enabled() && state.auto() {
                 if let Ok(mut robot) = ferris.try_borrow_mut() {
                     if robot.state.mode() != RobotMode::Auto {
+                        robot.auto_init();
                         auton.init();
                     }
                     robot.update_state();
+                    //robot.auto_periodic().await;
                     auton.run_auton_frame(&mut robot).await;
+                }
+            }
+
+            if state.enabled() && state.test() {
+                // if enabled and in teleop run the teleop function
+                if let Ok(robot) = ferris.try_borrow_mut() {
+                    let current_time = Instant::now()
+                        .duration_since(robot.start_time)
+                        .as_secs_f64();
+                    let cos = f64::cos(current_time * PI / 5.0);
+
+                    let v = 40.0 + 10.0 * cos;
+                    let yaw = Angle::new::<degree>(60.0 * cos);
+                    let hood = 2.2992 / 2.0 + 2.0 * cos;
+                    let mag = Length::new::<meter>(1.0);
+                    let theta = Angle::new::<degree>(0.0);
+                    let omega = Angle::new::<degree>(0.0);
+
+                    if let Ok(mut drivetrain) = robot.drivetrain.try_borrow_mut() {
+                        drivetrain.control_drivetrain(theta, mag, omega);
+                    }
+
+                    if let Ok(mut shooter) = robot.shooter.try_borrow_mut() {
+                        shooter.set_velocity(v);
+                        shooter.set_hood(hood);
+                        shooter.turret.set_angle(yaw);
+                    }
                 }
             }
             //     //drivetrain.move_towards(Angle::new::<degree>(0.0), 0.0, Angle::new::<degree>(45.0));
