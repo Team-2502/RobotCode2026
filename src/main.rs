@@ -122,6 +122,7 @@ fn main() {
                         auton.init();
                     }
                     robot.update_state();
+                    auton.update(&mut robot).await;
                     auton.act(&mut robot);
                     //robot.auto_periodic().await;
                     // auton.run_auton_frame(&mut robot).await;

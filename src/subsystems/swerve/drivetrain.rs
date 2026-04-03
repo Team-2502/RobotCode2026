@@ -343,7 +343,11 @@ impl Drivetrain {
         };
 
         self.commanded_magnitude = magnitude;
-        self.commanded_angle = new_theta + Angle::new::<radian>(PI);
+        if alliance_station().red() {
+            self.commanded_angle = new_theta + Angle::new::<radian>(PI);
+        } else {
+            self.commanded_angle = new_theta;
+        }
 
         let targets = self.kinematics.get_targets(new_theta, magnitude, rotation);
 

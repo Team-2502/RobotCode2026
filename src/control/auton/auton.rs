@@ -70,14 +70,16 @@ impl Auton {
             }
         } else if current_time < 8.0 {
             self.auton_fueler.shoot(ferris);
-        } else if current_time < 12.0 {
-            self.auton_swerve.turn_to(
-                ferris,
-                Angle::new::<radian>(PI / 2.0),
-                Length::new::<meter>(0.4953 / 2.0 / 4.0),
-                Angle::new::<radian>(0.0),
-            );
-        } else {
+        }
+        /* else if current_time < 12.0 { */
+        // self.auton_swerve.turn_to(
+        //     ferris,
+        //     Angle::new::<radian>(PI / 2.0),
+        //     Length::new::<meter>(0.4953 / 2.0 / 4.0),
+        //     Angle::new::<radian>(0.0),
+        // );
+        /* } */
+        else {
             ferris.stop();
         }
     }

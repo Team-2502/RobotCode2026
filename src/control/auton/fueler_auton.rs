@@ -138,7 +138,7 @@ impl AutonTargeting {
         }
     }
 
-    fn aim(&mut self, ferris: &mut Ferris) {
+    fn aim(&mut self, ferris: &mut Ferris, target: Target) {
         let (pose, cmd_ang, cmd_mag) = if let Ok(drivetrain) = ferris.drivetrain.try_borrow_mut() {
             (
                 drivetrain.localization.get_state(),
@@ -150,7 +150,7 @@ impl AutonTargeting {
         };
 
         if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
-            shooter.shoot_to(&pose, self.target.target_location, cmd_ang, cmd_mag)
+            shooter.shoot_to(&pose, target.target_location, cmd_ang, cmd_mag)
         }
     }
 }
@@ -199,7 +199,13 @@ impl AutonFueler {
     pub fn shoot(&mut self, ferris: &mut Ferris) {
         self.auton_launcher.handoff(ferris, HANDOFF_SPEED);
         self.auton_launcher.intake(ferris, INTAKE_IN_SPEED);
-        self.auton_targeting.aim(ferris);
+        if alliance_station().red() {
+            self.auton_targeting
+                .aim(ferris, self.auton_targeting.red_hub.clone());
+        } else {
+            self.auton_targeting
+                .aim(ferris, self.auton_targeting.blue_hub.clone());
+        }
     }
 
     pub fn get_target(&self) -> Target {
