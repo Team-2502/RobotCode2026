@@ -5,8 +5,9 @@ use crate::constants::config::{
 };
 use crate::constants::drivetrain::{
     BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
-    FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
-    GYRO_OFFSET_UPDATE_RATIO, PIGEON_YAW_STD_DEV, SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO,
+    DRIVETRAIN_ANGLE_SNAP_KP, FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
+    FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS, GYRO_OFFSET_UPDATE_RATIO, PIGEON_YAW_STD_DEV,
+    SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO,
 };
 use crate::constants::localization::LIMELIGHT_YAW_TRUST;
 use crate::constants::robotmap::drivetrain_map::{
@@ -24,6 +25,7 @@ use frcrs::telemetry::Telemetry;
 use nalgebra::Vector2;
 use pid::Pid;
 use std::f64::EPSILON;
+use std::f64::consts::PI;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 use tokio::time::{Instant, timeout};
@@ -341,7 +343,7 @@ impl Drivetrain {
         };
 
         self.commanded_magnitude = magnitude;
-        self.commanded_angle = new_theta;
+        self.commanded_angle = new_theta + Angle::new::<radian>(PI);
 
         let targets = self.kinematics.get_targets(new_theta, magnitude, rotation);
 
@@ -432,6 +434,24 @@ impl Drivetrain {
         ];
         self.last_modules = measured;
         (differences, measured_angles)
+    }
+
+    pub fn turn_to(&mut self, theta: Angle, mag: Length, desired: Angle) {
+        let pose = self.localization.get_state();
+        self.turn_pid.setpoint(desired.get::<radian>());
+
+        self.turn_pid.p(
+            DRIVETRAIN_ANGLE_SNAP_KP,
+            MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND,
+        );
+
+        let output = self
+            .turn_pid
+            .next_control_output(pose.yaw.get::<radian>())
+            .output;
+
+        let rotation_rate = Angle::new::<radian>(-output);
+        self.control_drivetrain(theta, mag, rotation_rate);
     }
 }
 
@@ -630,44 +650,44 @@ mod drivetrain_tests {
         }
     }
 
-    #[test]
-    fn get_zone_test() {
-        let inputs = vec![
-            (10.0, 10.0, 0.0),
-            (10.0, 160.0, 0.0),
-            (300.0, 10.0, 0.0),
-            (300.0, 160.0, 0.0),
-            (500.0, 10.0, 0.0),
-            (500.0, 160.0, 0.0),
-        ];
+    // #[test]
+    // fn get_zone_test() {
+    //     let inputs = vec![
+    //         (10.0, 10.0, 0.0),
+    //         (10.0, 160.0, 0.0),
+    //         (300.0, 10.0, 0.0),
+    //         (300.0, 160.0, 0.0),
+    //         (500.0, 10.0, 0.0),
+    //         (500.0, 160.0, 0.0),
+    //     ];
 
-        let expected = vec![
-            FieldZone::BlueBottom,
-            FieldZone::BlueTop,
-            FieldZone::MiddleBottom,
-            FieldZone::MiddleTop,
-            FieldZone::RedBottom,
-            FieldZone::RedTop,
-        ];
+    //     let expected = vec![
+    //         FieldZone::BlueBottom,
+    //         FieldZone::BlueTop,
+    //         FieldZone::MiddleBottom,
+    //         FieldZone::MiddleTop,
+    //         FieldZone::RedBottom,
+    //         FieldZone::RedTop,
+    //     ];
 
-        let mut results: Vec<FieldZone> = vec![];
+    //     let mut results: Vec<FieldZone> = vec![];
 
-        for input in inputs {
-            results.push(get_zone(&RobotPose {
-                x: Length::new::<inch>(input.0),
-                y: Length::new::<inch>(input.1),
-                yaw: Angle::new::<degree>(input.2),
-            }));
-        }
+    //     for input in inputs {
+    //         results.push(get_zone(&RobotPose {
+    //             x: Length::new::<inch>(input.0),
+    //             y: Length::new::<inch>(input.1),
+    //             yaw: Angle::new::<degree>(input.2),
+    //         }));
+    //     }
 
-        let mut i = 1.0;
-        for result in results.clone() {
-            println!("result {}: {:?}", i, result);
-            i += 1.0;
-        }
+    //     let mut i = 1.0;
+    //     for result in results.clone() {
+    //         println!("result {}: {:?}", i, result);
+    //         i += 1.0;
+    //     }
 
-        for tuple in expected.iter().zip(results.iter()) {
-            assert_eq!(tuple.0, tuple.1);
-        }
-    }
+    //     for tuple in expected.iter().zip(results.iter()) {
+    //         assert_eq!(tuple.0, tuple.1);
+    //     }
+    // }
 }

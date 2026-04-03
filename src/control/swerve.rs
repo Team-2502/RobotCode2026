@@ -1,5 +1,4 @@
 use crate::constants::config::MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND;
-use crate::constants::drivetrain::DRIVETRAIN_ANGLE_SNAP_KP;
 use crate::control::fueler::{Target, TargetType, TargetingMode};
 use crate::{
     Ferris, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND, get_drivetrain_max_speed,
@@ -65,63 +64,40 @@ impl Swerve {
                 Length::new::<meter>(MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND)
             };
 
-            let rotation_rate: Angle;
-            // if ferris.controllers.left_drive.get(1) {
-            //     drivetrain.turn_pid.setpoint(
-            //         get_angle_difs(
-            //             Angle::new::<radian>(0.0),
-            //             field_theta + Angle::new::<degree>(180.0),
-            //         )
-            //         .get::<degree>(),
-            //     );
-            //     println!(
-            //         "field_theta {}",
-            //         get_angle_difs(Angle::new::<radian>(0.0), field_theta,).get::<degree>()
-            //     );
-
-            //     drivetrain.turn_pid.p(
-            //         DRIVETRAIN_FISH_MODE_KP,
-            //         MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND,
-            //     );
-
-            //     let output = drivetrain
-            //         .turn_pid
-            //         .next_control_output(pose.yaw.get::<radian>())
-            //         .output;
-
-            //     rotation_rate = Angle::new::<radian>(-output);
-            /* } else */
             if ferris.controllers.right_drive.get(1) {
-                // snap angle to 90 degree increment
-                drivetrain
-                    .turn_pid
-                    .setpoint((pose.yaw.get::<radian>() / (PI / 2.0)).round() * (PI / 2.0));
-
-                drivetrain.turn_pid.p(
-                    DRIVETRAIN_ANGLE_SNAP_KP,
-                    MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND,
+                // snap heading to 90 degree increments
+                drivetrain.turn_to(
+                    field_theta,
+                    magnitude * input_magnitude,
+                    Angle::new::<radian>(
+                        (pose.yaw.get::<radian>() / (PI / 2.0)).round() * (PI / 2.0),
+                    ),
                 );
-
-                let output = drivetrain
-                    .turn_pid
-                    .next_control_output(pose.yaw.get::<radian>())
-                    .output;
-
-                rotation_rate = Angle::new::<radian>(-output);
             } else if ferris.controllers.left_drive.get(2) {
                 // snap direction to 90 degree inputs
-                rotation_rate = deadzoned_z
+                let rotation_rate = deadzoned_z
                     * Angle::new::<radian>(MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND);
+
                 field_theta = Angle::new::<radian>(
                     (field_theta.get::<radian>() / (PI / 2.0)).round() * (PI / 2.0),
                 );
+
+                drivetrain.control_drivetrain(
+                    field_theta,
+                    magnitude * input_magnitude,
+                    rotation_rate,
+                );
             } else {
                 // standard behaviour
-                rotation_rate = deadzoned_z
+                // let velocity_mag = (pose.vx * pose.vx + pose.vy * pose.vy).sqrt();
+                let rotation_rate = deadzoned_z
                     * Angle::new::<radian>(MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND);
+                drivetrain.control_drivetrain(
+                    field_theta,
+                    magnitude * input_magnitude,
+                    rotation_rate,
+                );
             }
-
-            drivetrain.control_drivetrain(field_theta, magnitude * input_magnitude, rotation_rate);
         }
     }
 }

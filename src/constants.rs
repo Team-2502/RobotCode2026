@@ -24,10 +24,10 @@ pub mod config {
     pub const HUB_RED: Vector2<f64> = Vector2::new(11.915394, 4.034536);
     pub const HUB_BLUE: Vector2<f64> = Vector2::new(4.625594, 4.034536);
 
-    pub const RED_PASS_TOP_OFFSET_METERS: Vector2<f64> = Vector2::new(3.0, 2.01);
-    pub const RED_PASS_BOTTOM_OFFSET_METERS: Vector2<f64> = Vector2::new(3.0, -2.01);
-    pub const BLUE_PASS_TOP_OFFSET_METERS: Vector2<f64> = Vector2::new(-3.0, 2.01);
-    pub const BLUE_PASS_BOTTOM_OFFSET_METERS: Vector2<f64> = Vector2::new(-3.0, -2.01);
+    pub const RED_PASS_TOP_OFFSET_METERS: Vector2<f64> = Vector2::new(2.0, 2.01);
+    pub const RED_PASS_BOTTOM_OFFSET_METERS: Vector2<f64> = Vector2::new(2.0, -2.01);
+    pub const BLUE_PASS_TOP_OFFSET_METERS: Vector2<f64> = Vector2::new(-2.0, 2.01);
+    pub const BLUE_PASS_BOTTOM_OFFSET_METERS: Vector2<f64> = Vector2::new(-2.0, -2.01);
 }
 
 pub mod robotmap {
@@ -190,7 +190,7 @@ pub mod localization {
     pub const LINEAR_VELOCITY_EMA_ALPHA: f64 = 0.9;
     pub const ANGULAR_VELOCITY_EMA_ALPHA: f64 = 0.775;
 
-    pub const COMMANDED_VELOCITY_WEIGHT: f64 = 0.75;
+    pub const COMMANDED_VELOCITY_WEIGHT: f64 = 0.65; /* og 0.65 */
 
     pub const VELOCITY_MIN_CONF: f64 = 0.01;
     pub const LINEAR_VEL_CONF_SCALAR: f64 = 0.1;
@@ -201,7 +201,7 @@ pub mod localization {
 
     pub const LIMELIGHT_YAW_TRUST: f64 = 2.0;
 
-    pub const POSE_ANTICIPATION_TIMESTEP_SECS: f64 = 0.2;
+    pub const POSE_ANTICIPATION_TIMESTEP_SECS: f64 = 0.1;
     pub const YAW_ANTICIPATION_TIMESTEP_SECS: f64 = 0.05;
 }
 

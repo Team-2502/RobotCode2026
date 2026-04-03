@@ -23,7 +23,7 @@ pub enum TargetingMode {
 }
 
 impl TargetingMode {
-    fn name(&self) -> String {
+    pub fn name(&self) -> String {
         match self {
             TargetingMode::Idle => "Idle".to_string(),
             TargetingMode::Manual => "Manual".to_string(),
@@ -48,7 +48,7 @@ pub struct Target {
 }
 
 impl Target {
-    fn new(target_type: TargetType, target_location: Vector2<Length>, name: String) -> Target {
+    pub fn new(target_type: TargetType, target_location: Vector2<Length>, name: String) -> Target {
         Target {
             target_type,
             target_location,
@@ -70,7 +70,7 @@ struct Targeting {
 }
 
 impl Targeting {
-    fn new() -> Targeting {
+    pub fn new() -> Targeting {
         let starting_target = Target::new(
             TargetType::Passing,
             Vector2::new(Length::new::<meter>(0.0), Length::new::<meter>(0.0)),

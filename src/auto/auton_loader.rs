@@ -1,11 +1,10 @@
-use frcrs::{alliance_station, drive};
+use crate::control::fueler::Fueler;
+use crate::control::swerve::Swerve;
 use std::f64::consts::PI;
 use std::time::Instant;
 use uom::si::angle::radian;
 use uom::si::f64::{Angle, Length};
 use uom::si::length::meter;
-use nalgebra::Vector2;
-use crate::{HUB_BLUE, HUB_RED, BLUE_PASS_TOP_OFFSET_METERS, RED_PASS_TOP_OFFSET_METERS};
 
 use crate::Ferris;
 
@@ -49,6 +48,8 @@ pub struct Auton {
     start_time: Instant,
     index: usize,
     setpoints: Vec<AutonSetpoint>,
+    swerve: Swerve,
+    fueler: Fueler,
 }
 
 impl Auton {
@@ -57,6 +58,8 @@ impl Auton {
             start_time: Instant::now(),
             index: 0,
             setpoints: load_auton(AutonList::None),
+            swerve: Swerve::new(),
+            fueler: Fueler::new(),
         }
     }
 
@@ -64,78 +67,97 @@ impl Auton {
         self.setpoints = load_auton(auton);
     }
 
-    pub async fn run_auton_frame(&mut self, ferris: &mut Ferris) {
-        if let Ok(mut drivetrain) = ferris.drivetrain.try_borrow_mut() {
-            drivetrain.update_pose().await;
-            let current_time = Instant::now().duration_since(self.start_time).as_secs_f64();
-            if current_time < 2.0 {
-                drivetrain.control_drivetrain(
-                    Angle::new::<radian>(0.0),
-                    Length::new::<meter>(1.0),
-                    Angle::new::<radian>(0.0),
-                );
-            } 
-            // else if current_time < 4 {
-                
-            // }
-            else {
-                if let Ok(mut intake) = ferris.intake.try_borrow_mut() {
-                    if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
-                        let (pose, cmd_ang, cmd_mag) = 
-                            (
-                                drivetrain.localization.get_state(),
-                                drivetrain.commanded_angle,
-                                drivetrain.commanded_magnitude,
-                            );
-                        match alliance_station().blue() {
-                            true => {
-                                shooter.shoot_to(&pose, Vector2::new(
-                                    Length::new::<meter>(HUB_BLUE.x),
-                                    Length::new::<meter>(HUB_BLUE.y),
-                                ), cmd_ang, cmd_mag)
-                            }
-                            false => {
-                                shooter.shoot_to(&pose, Vector2::new(
-                                    Length::new::<meter>(HUB_RED.x),
-                                    Length::new::<meter>(HUB_RED.y),
-                                ), cmd_ang, cmd_mag)
-                            }
-                        }
-                    }
-                }
-                //drivetrain.stop();
-                drivetrain.control_drivetrain(
-                    Angle::new::<radian>(0.0),
-                    Length::new::<meter>(0.0),
-                    Angle::new::<radian>(0.0),
-                );
-            }
-            //     if self.index >= self.setpoints.len() {
-            //         return ();
-            //     }
+    pub async fn update(&mut self, ferris: &mut Ferris) {
+        self.swerve.update(ferris).await;
+        self.fueler.update(ferris).await;
+    }
 
-            //     while self.index < self.setpoints.len() && current_time > self.setpoints[self.index].t {
-            //         self.index += 1;
-            //     }
+    pub fn run_auton_frame(&mut self, ferris: &mut Ferris) {
 
-            //     if self.index >= self.setpoints.len() {
-            //         return ();
-            //     }
+        // TODO: CAN ONLY BORROW ONE MUT AT A TIME
+        // if let Ok(mut drivetrain) = ferris.drivetrain.try_borrow_mut() {
+        //     if let Ok(mut intake) = ferris.intake.try_borrow_mut() {
+        //         if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
+        //             drivetrain.update_pose().await;
+        //             let current_time = Instant::now().duration_since(self.start_time).as_secs_f64();
+        //             if current_time < 2.0 {
+        //                 drivetrain.control_drivetrain(
+        //                     Angle::new::<radian>(PI),
+        //                     Length::new::<meter>(1.0),
+        //                     Angle::new::<radian>(0.0),
+        //                 );
+        //             } else if current_time < 4.0 {
+        //                 drivetrain.turn_to(
+        //                     Angle::new::<radian>(0.0),
+        //                     Length::new::<meter>(0.0),
+        //                     Angle::new::<radian>(PI),
+        //                 );
+        //             } else if current_time < 6.0 {
+        //                 drivetrain.turn_to(
+        //                     Angle::new::<radian>(0.0),
+        //                     Length::new::<meter>(0.0),
+        //                     Angle::new::<radian>(0.0),
+        //                 );
+        //             } else if current_time < 8.0 {
+        //                 let (pose, cmd_ang, cmd_mag) = (
+        //                     drivetrain.localization.get_state(),
+        //                     drivetrain.commanded_angle,
+        //                     drivetrain.commanded_magnitude,
+        //                 );
+        //                 intake.set_intake_speed(INTAKE_IN_SPEED);
+        //                 intake.set_handoff(HANDOFF_SPEED);
+        //                 match alliance_station().blue() {
+        //                     true => shooter.shoot_to(
+        //                         &pose,
+        //                         Vector2::new(
+        //                             Length::new::<meter>(HUB_BLUE.x),
+        //                             Length::new::<meter>(HUB_BLUE.y),
+        //                         ),
+        //                         cmd_ang,
+        //                         cmd_mag,
+        //                     ),
+        //                     false => shooter.shoot_to(
+        //                         &pose,
+        //                         Vector2::new(
+        //                             Length::new::<meter>(HUB_RED.x),
+        //                             Length::new::<meter>(HUB_RED.y),
+        //                         ),
+        //                         cmd_ang,
+        //                         cmd_mag,
+        //                     ),
+        //                 }
+        //             } else {
+        //                 ferris.stop();
+        //             }
+        //         }
+        //     }
 
-            //     if alliance_station().blue() {
-            //         let (theta, magnitude, rotation) =
-            //             self.setpoints[self.index].get_drivetrain_inputs();
-            //         drivetrain.control_drivetrain(theta, magnitude, rotation);
-            //     } else {
-            //         let (theta, magnitude, rotation) = self.setpoints[self.index]
-            //             .get_mirror()
-            //             .get_drivetrain_inputs();
-            //         drivetrain.control_drivetrain(theta, magnitude, rotation);
-            //     }
-            // } else {
-            //     println!("[AUTON]: Failed to get ferris, ending auton");
-            // }
-        }
+        //     if self.index >= self.setpoints.len() {
+        //         return ();
+        //     }
+
+        //     while self.index < self.setpoints.len() && current_time > self.setpoints[self.index].t {
+        //         self.index += 1;
+        //     }
+
+        //     if self.index >= self.setpoints.len() {
+        //         return ();
+        //     }
+
+        //     if alliance_station().blue() {
+        //         let (theta, magnitude, rotation) =
+        //             self.setpoints[self.index].get_drivetrain_inputs();
+        //         drivetrain.control_drivetrain(theta, magnitude, rotation);
+        //     } else {
+        //         let (theta, magnitude, rotation) = self.setpoints[self.index]
+        //             .get_mirror()
+        //             .get_drivetrain_inputs();
+        //         drivetrain.control_drivetrain(theta, magnitude, rotation);
+        //     }
+        // } else {
+        //     println!("[AUTON]: Failed to get ferris, ending auton");
+        // }
+        // }
     }
 
     pub fn init(&mut self) {
