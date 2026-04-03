@@ -199,6 +199,9 @@ impl AutonFueler {
     pub fn shoot(&mut self, ferris: &mut Ferris) {
         self.auton_launcher.handoff(ferris, HANDOFF_SPEED);
         self.auton_launcher.intake(ferris, INTAKE_IN_SPEED);
+    }
+
+    pub fn aim(&mut self, ferris: &mut Ferris) {
         if alliance_station().red() {
             self.auton_targeting
                 .aim(ferris, self.auton_targeting.red_hub.clone());
