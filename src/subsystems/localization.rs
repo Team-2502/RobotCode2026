@@ -1,6 +1,6 @@
 use nalgebra::{SMatrix, SVector, Vector2, matrix};
 use std::ops::Sub;
-use uom::si::angle::radian;
+use uom::si::angle::{degree, radian};
 use uom::si::f64::{Angle, Length};
 use uom::si::length::meter;
 
@@ -9,6 +9,7 @@ use crate::constants::localization::{
     LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT, LINEAR_VELOCITY_EMA_ALPHA,
     MAX_LIMELIGHT_POSE_DIFFERENCE_METERS,
 };
+use crate::subsystems::swerve::drivetrain::get_angle_difs;
 
 pub struct Localization {
     state: SMatrix<f64, 6, 1>,
@@ -178,7 +179,11 @@ impl Localization {
             + (current_state.y - robot_pose.y) * (current_state.y - robot_pose.y))
             .sqrt();
 
-        if pose_diff_scalar > Length::new::<meter>(MAX_LIMELIGHT_POSE_DIFFERENCE_METERS) {
+        let yaw_diff = get_angle_difs(new_yaw, current_state.yaw);
+
+        if pose_diff_scalar > Length::new::<meter>(MAX_LIMELIGHT_POSE_DIFFERENCE_METERS)
+            || yaw_diff.get::<degree>().abs() > 90.0
+        {
             self.limelight_outlier_count += 1;
 
             if self.limelight_outlier_count < LIMELIGHT_ACCEPTABLE_OUTLIER_COUNT {
