@@ -53,21 +53,17 @@ impl Auton {
                 );
             }
         } else if current_time < 3.0 {
-            if alliance_station().red() {
-                self.auton_swerve.turn_to(
-                    ferris,
-                    Angle::new::<radian>(0.0),
-                    Length::new::<meter>(0.0),
-                    Angle::new::<radian>(PI),
-                );
+            let desired = if alliance_station().red() {
+                Angle::new::<radian>(0.0)
             } else {
-                self.auton_swerve.turn_to(
-                    ferris,
-                    Angle::new::<radian>(0.0),
-                    Length::new::<meter>(0.0),
-                    Angle::new::<radian>(0.0),
-                );
-            }
+                Angle::new::<radian>(0.0)
+            };
+            self.auton_swerve.turn_to(
+                ferris,
+                Angle::new::<radian>(0.0),
+                Length::new::<meter>(0.0),
+                desired,
+            );
         } else if current_time < 5.0 {
             self.auton_fueler.aim(ferris);
         } else if current_time < 10.0 {
