@@ -1,31 +1,22 @@
-# RobotCode2026
-### drivetrain
-- [x] fix velocity (not getting high enough, presumably confidence constants are broken)
-  - average ds command and current velocity for elsewhere
-  - turret velocity 
-- [x] check if drivetrain speed limiter is working for shoot on the fly
-  - jittery
-- [ ] think about speed limiting while passing
-- [x] test to make sure max speeds are actually max speeds
-- [x] crazy snap to 90 tech (its fire) 
+# RobotCode2026 -  Outreach Branch - Controls Below
+### left drive
+- left button: reset heading
+- right button: snap to 90 degrees for driving
+- bottom button: snap to 90 degrees for heading
+- trigger: slow mode
+- x/y: translation
+- z: rotation
 -----
-### turret
-- [ ] regs. for passing, yaw
-- [ ] ensure turret is correctly rotated relative to center of robot
-- [x] turret abs. encoder (accurate zeroing)
-- [x] tune hood PID? never got changed after plates got recut, but might mess up shooting? be careful
-- [ ] might need to tune turret PID, check if soft stop is working as intended
-  - might want to just limit rotation rate
-  - might want to think about stopping handoff while snapping back from softstop, low priority
-- [ ] think about soft stop behavior while shooting
-- [ ] man mode
+### right drive
+- left button: toggle turret
+- right button: press and hold to enable operator
+- bottom button: outtake
+- trigger: shoot
+- move joystick away from middle to adjust hood
+- z: turret yaw
+- throttle: shooter velocity; ZERO AT BOTTOM
 --- 
-### misc.
-- [ ] recalibrate limelights?
-- [x] fix deadzone being high on inputs 
-- [ ] how to pass in starting pose for auton
-- [ ] think about efficient calibration workflow at comp
-- [ ] notes: in lib.rs, currently calling shooter tables instead of passing tables for bottom pass target. easy fix, just change shoot_to -> pass_to
-- [x] debouncer
-- [x] generational merge conflict
-- [ ] logging system
+### operator 
+- trigger = shoot, idk if we trust them with anything else lmao
+---
+remember to switch out drivers regularly!
