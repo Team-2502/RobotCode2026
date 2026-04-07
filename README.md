@@ -20,3 +20,4 @@
 - trigger = shoot, idk if we trust them with anything else lmao
 ---
 remember to switch out drivers regularly!
+the smaller the kid, the more points :) - viki pham 2026 (the goat)
