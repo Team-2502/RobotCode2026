@@ -1,323 +1,97 @@
-use crate::constants::config::{
-    BLUE_PASS_BOTTOM_OFFSET_METERS, BLUE_PASS_TOP_OFFSET_METERS, HALF_FIELD_LENGTH_METERS,
-    HALF_FIELD_WIDTH_METERS, HUB_BLUE, HUB_RED, RED_PASS_BOTTOM_OFFSET_METERS,
-    RED_PASS_TOP_OFFSET_METERS,
+use crate::{
+    Ferris, HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED,
+    constants::config::{
+        ESTIMATED_FRAME_TIME_SECONDS, HOOD_ROTATE_RATE_ROTS_PER_SEC,
+        TURRET_ROTATE_RATE_RADS_PER_SEC,
+    },
 };
-use crate::subsystems::swerve::drivetrain::FieldZone;
-use crate::subsystems::swerve::drivetrain::get_zone;
-use crate::{Ferris, HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
-use frcrs::alliance_station;
-use frcrs::telemetry::Telemetry;
-use nalgebra::Vector2;
-use uom::si::angle::degree;
-use uom::si::f64::Length;
-use uom::si::length::meter;
-use uom::si::quantities::Angle;
-
-#[derive(Clone, PartialEq)]
-pub enum TargetingMode {
-    Idle,
-    Manual,
-    Track,
-    Telemetry,
-}
-
-impl TargetingMode {
-    pub fn name(&self) -> String {
-        match self {
-            TargetingMode::Idle => "Idle".to_string(),
-            TargetingMode::Manual => "Manual".to_string(),
-            TargetingMode::Track => "Track".to_string(),
-            TargetingMode::Telemetry => "Telemetry".to_string(),
-        }
-    }
-}
-
-#[derive(Clone, PartialEq)]
-pub enum TargetType {
-    Hub,
-    Passing,
-    Telem,
-}
-
-#[derive(Clone)]
-pub struct Target {
-    pub target_type: TargetType,
-    pub target_location: Vector2<Length>,
-    pub name: String,
-}
-
-impl Target {
-    pub fn new(target_type: TargetType, target_location: Vector2<Length>, name: String) -> Target {
-        Target {
-            target_type,
-            target_location,
-            name,
-        }
-    }
-}
+use frcrs::deadzone;
+use uom::si::angle::{degree, radian, revolution};
+use uom::si::f64::Angle;
 
 struct Targeting {
-    mode: TargetingMode,
-    target: Target,
-
-    blue_hub: Target,
-    blue_top: Target,
-    blue_bottom: Target,
-    red_hub: Target,
-    red_top: Target,
-    red_bottom: Target,
+    turret_angle: Angle,
 }
 
 impl Targeting {
     pub fn new() -> Targeting {
-        let starting_target = Target::new(
-            TargetType::Passing,
-            Vector2::new(Length::new::<meter>(0.0), Length::new::<meter>(0.0)),
-            "Custom".to_string(),
-        );
-
-        let blue_hub = Target::new(
-            TargetType::Hub,
-            Vector2::new(
-                Length::new::<meter>(HUB_BLUE.x),
-                Length::new::<meter>(HUB_BLUE.y),
-            ),
-            "Blue Hub".to_string(),
-        );
-
-        let blue_top = Target::new(
-            TargetType::Passing,
-            Vector2::new(
-                Length::new::<meter>(HUB_BLUE.x + BLUE_PASS_TOP_OFFSET_METERS.x),
-                Length::new::<meter>(HUB_BLUE.y + BLUE_PASS_TOP_OFFSET_METERS.y),
-            ),
-            "Passing Blue Top".to_string(),
-        );
-
-        let blue_bottom = Target::new(
-            TargetType::Passing,
-            Vector2::new(
-                Length::new::<meter>(HUB_BLUE.x + BLUE_PASS_BOTTOM_OFFSET_METERS.x),
-                Length::new::<meter>(HUB_BLUE.y + BLUE_PASS_BOTTOM_OFFSET_METERS.y),
-            ),
-            "Passing Blue Bottom".to_string(),
-        );
-
-        let red_hub = Target::new(
-            TargetType::Hub,
-            Vector2::new(
-                Length::new::<meter>(HUB_RED.x),
-                Length::new::<meter>(HUB_RED.y),
-            ),
-            "Red Hub".to_string(),
-        );
-
-        let red_top = Target::new(
-            TargetType::Passing,
-            Vector2::new(
-                Length::new::<meter>(HUB_RED.x + RED_PASS_TOP_OFFSET_METERS.x),
-                Length::new::<meter>(HUB_RED.y + RED_PASS_TOP_OFFSET_METERS.y),
-            ),
-            "Passing Red Top".to_string(),
-        );
-
-        let red_bottom = Target::new(
-            TargetType::Passing,
-            Vector2::new(
-                Length::new::<meter>(HUB_RED.x + RED_PASS_BOTTOM_OFFSET_METERS.x),
-                Length::new::<meter>(HUB_RED.y + RED_PASS_BOTTOM_OFFSET_METERS.y),
-            ),
-            "Passing Red Bottom".to_string(),
-        );
-
         Targeting {
-            mode: TargetingMode::Idle,
-            target: starting_target,
-
-            blue_hub,
-            blue_top,
-            blue_bottom,
-            red_hub,
-            red_top,
-            red_bottom,
-        }
-    }
-
-    async fn update(&mut self, ferris: &mut Ferris) {
-        let pose = if let Ok(drivetrain) = ferris.drivetrain.try_borrow_mut() {
-            drivetrain.localization.get_state()
-        } else {
-            return;
-        };
-
-        if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
-            shooter.turret.update_turret(pose.yaw);
-
-            let zone = get_zone(&pose);
-
-            if alliance_station().red() {
-                match zone {
-                    FieldZone::BlueBottom => self.target = self.red_bottom.clone(),
-                    FieldZone::BlueTop => self.target = self.red_top.clone(),
-                    FieldZone::MiddleBottom => self.target = self.red_bottom.clone(),
-                    FieldZone::MiddleTop => self.target = self.red_top.clone(),
-                    FieldZone::RedBottom => self.target = self.red_hub.clone(),
-                    FieldZone::RedTop => self.target = self.red_hub.clone(),
-                }
-            } else {
-                match zone {
-                    FieldZone::BlueBottom => self.target = self.blue_hub.clone(),
-                    FieldZone::BlueTop => self.target = self.blue_hub.clone(),
-                    FieldZone::MiddleBottom => self.target = self.blue_bottom.clone(),
-                    FieldZone::MiddleTop => self.target = self.blue_top.clone(),
-                    FieldZone::RedBottom => self.target = self.blue_bottom.clone(),
-                    FieldZone::RedTop => self.target = self.blue_top.clone(),
-                }
-            }
-
-            if ferris
-                .man_toggle_debouncer
-                .debounce(ferris.controllers.operator.get(16))
-            {
-                match self.mode {
-                    TargetingMode::Idle | TargetingMode::Telemetry | TargetingMode::Track => {
-                        self.mode = TargetingMode::Manual
-                    }
-                    TargetingMode::Manual => self.mode = TargetingMode::Idle,
-                }
-            }
-
-            if ferris
-                .track_toggle_debouncer
-                .debounce(ferris.controllers.operator.get(11))
-            {
-                match self.mode {
-                    TargetingMode::Manual | TargetingMode::Telemetry | TargetingMode::Idle => {
-                        self.mode = TargetingMode::Track
-                    }
-                    TargetingMode::Track => self.mode = TargetingMode::Idle,
-                }
-            }
-
-            if ferris
-                .telem_toggle_debouncer
-                .debounce(ferris.controllers.operator.get(5))
-            {
-                match self.mode {
-                    TargetingMode::Track | TargetingMode::Manual | TargetingMode::Idle => {
-                        self.mode = TargetingMode::Telemetry
-                    }
-                    TargetingMode::Telemetry => self.mode = TargetingMode::Idle,
-                }
-            }
-
-            if self.mode == TargetingMode::Telemetry {
-                let telem_target = Telemetry::get_target_point().await.unwrap();
-
-                self.target = Target {
-                    target_type: TargetType::Telem,
-                    target_location: Vector2::new(
-                        Length::new::<meter>(telem_target.x * HALF_FIELD_LENGTH_METERS * 2.0),
-                        Length::new::<meter>(telem_target.y * HALF_FIELD_WIDTH_METERS * 2.0),
-                    ),
-                    name: "Telemetry Target".to_string(),
-                }
-            }
-
-            if alliance_station().red() {
-                if ferris.controllers.operator.get(3) {
-                    self.target = self.red_bottom.clone();
-                } else if ferris.controllers.operator.get(4) {
-                    self.target = self.red_top.clone();
-                }
-            } else {
-                if ferris.controllers.operator.get(3) {
-                    self.target = self.blue_top.clone();
-                } else if ferris.controllers.operator.get(4) {
-                    self.target = self.blue_bottom.clone();
-                }
-            }
-
-            Telemetry::put_string("turret_mode", String::from(self.mode.name())).await;
-            Telemetry::put_string("shooter_target", String::from(&self.target.name)).await;
+            turret_angle: Angle::new::<degree>(0.0),
         }
     }
 
     fn act(&mut self, ferris: &mut Ferris) {
-        let (pose, cmd_ang, cmd_mag) = if let Ok(drivetrain) = ferris.drivetrain.try_borrow_mut() {
-            (
-                drivetrain.localization.get_state(),
-                drivetrain.commanded_angle,
-                drivetrain.commanded_magnitude,
-            )
-        } else {
-            return;
-        };
-
         if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
-            match self.mode {
-                TargetingMode::Track => match self.target.target_type {
-                    TargetType::Hub => {
-                        shooter.shoot_to(&pose, self.target.target_location, cmd_ang, cmd_mag)
-                    }
-                    TargetType::Passing => {
-                        shooter.pass_to(&pose, self.target.target_location, cmd_ang, cmd_mag)
-                    }
-                    TargetType::Telem => {
-                        shooter.shoot_to(&pose, self.target.target_location, cmd_ang, cmd_mag)
-                    }
-                },
-                TargetingMode::Manual => {
-                    // shooter.turret.man_yaw(ferris.controllers.operator.get_z());
-                    // let percent_distance = (ferris.controllers.operator.get_throttle() + 1.0) / 2.0;
-                    // let distance = percent_distance
-                    //     * Length::new::<meter>(MANUAL_TURRET_MODE_DISTANCE_MAX_METERS);
-                    // let current_flywheel_speed = shooter.get_speed();
-                    // shooter.set_velocity(get_scoring_shooter_speed_target(distance));
-                    // shooter.set_hood(get_scoring_hood_angle_target(
-                    //     distance,
-                    //     current_flywheel_speed,
-                    // ));
-                    shooter.turret.set_angle(Angle::new::<degree>(0.0));
-                    shooter.set_hood(0.0);
-                    shooter.set_velocity(30.0);
-                }
-                TargetingMode::Idle => {
-                    shooter.stop();
-                }
-                TargetingMode::Telemetry => {
-                    shooter.stop();
-                }
-            }
+            let deadzone_output = 0.0..1.0;
+            let deadzone_input = 0.05..1.0;
+            let deadzoned_x = deadzone(
+                -ferris.controllers.right_drive.get_y(),
+                &deadzone_input,
+                &deadzone_output,
+            );
+            let deadzoned_y = deadzone(
+                -ferris.controllers.right_drive.get_x(),
+                &deadzone_input,
+                &deadzone_output,
+            );
+            let deadzoned_z = deadzone(
+                ferris.controllers.right_drive.get_z(),
+                &deadzone_input,
+                &deadzone_output,
+            );
+
+            let mag = (deadzoned_x * deadzoned_x + deadzoned_y * deadzoned_y)
+                .sqrt()
+                .clamp(-1.0, 1.0);
+
+            let hood = shooter.get_hood()
+                + mag * HOOD_ROTATE_RATE_ROTS_PER_SEC * ESTIMATED_FRAME_TIME_SECONDS;
+
+            self.turret_angle += Angle::new::<radian>(
+                deadzoned_z * TURRET_ROTATE_RATE_RADS_PER_SEC * ESTIMATED_FRAME_TIME_SECONDS,
+            );
+
+            shooter.set_hood(hood);
+            shooter.turret.set_angle(self.turret_angle);
         }
     }
 }
-
-struct Launcher {
-    currently_shooting: bool,
-}
+struct Launcher {}
 
 impl Launcher {
     fn new() -> Launcher {
-        Launcher {
-            currently_shooting: false,
-        }
+        Launcher {}
     }
 
     fn act(&mut self, ferris: &mut Ferris) {
+        if let Ok(shooter) = ferris.shooter.try_borrow_mut() {
+            let percent = (ferris.controllers.right_drive.get_throttle() + 1.0) / 2.0;
+            shooter.set_velocity(30.0 + 60.0 * percent);
+        }
+
         if let Ok(intake) = ferris.intake.try_borrow_mut() {
-            if ferris.controllers.operator.get(1) {
+            if ferris.controllers.right_drive.get(4) && ferris.controllers.operator.get(1) {
                 intake.set_intake_speed(INTAKE_IN_SPEED);
                 intake.set_handoff(HANDOFF_SPEED);
-                self.currently_shooting = true;
-            } else if ferris.controllers.operator.get(2) {
+            } else if ferris.controllers.right_drive.get(1) {
+                intake.set_intake_speed(INTAKE_IN_SPEED);
+                intake.set_handoff(HANDOFF_SPEED);
+            }
+
+            if ferris.controllers.right_drive.get(3) {
                 intake.set_intake_speed(INTAKE_REVSERSE_SPEED);
                 intake.set_handoff(-HANDOFF_SPEED);
-            } else {
-                intake.stop();
-                self.currently_shooting = false;
             }
+
+            // if ferris.controllers.operator.get(1) {
+            //     intake.set_intake_speed(INTAKE_IN_SPEED);
+            //     intake.set_handoff(HANDOFF_SPEED);
+            // } else if ferris.controllers.operator.get(2) {
+            //     intake.set_intake_speed(INTAKE_REVSERSE_SPEED);
+            //     intake.set_handoff(-HANDOFF_SPEED);
+            // } else {
+            //     intake.stop();
+            // }
         }
     }
 }
@@ -335,20 +109,8 @@ impl Fueler {
         }
     }
 
-    pub async fn update(&mut self, ferris: &mut Ferris) {
-        self.targeting.update(ferris).await;
-    }
-
     pub fn act(&mut self, ferris: &mut Ferris) {
         self.targeting.act(ferris);
         self.launcher.act(ferris);
-    }
-
-    pub fn get_target(&self) -> Target {
-        self.targeting.target.clone()
-    }
-
-    pub fn get_mode(&self) -> TargetingMode {
-        self.targeting.mode.clone()
     }
 }

@@ -17,13 +17,10 @@ impl Teleop {
 
     pub async fn update(&mut self, ferris: &mut Ferris) {
         self.swerve.update(ferris).await;
-        self.fueler.update(ferris).await;
     }
 
     pub fn act(&mut self, ferris: &mut Ferris) {
-        let target = self.fueler.get_target();
-        let mode = self.fueler.get_mode();
-        self.swerve.act(ferris, target, mode);
+        self.swerve.act(ferris);
         self.fueler.act(ferris);
     }
 }

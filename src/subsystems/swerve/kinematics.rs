@@ -1,5 +1,5 @@
 use crate::constants::config::{
-    MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND, WHEELBASE_LENGTH_METERS, WHEELBASE_WIDTH_METERS,
+    MAX_DRIVETRAIN_MODULE_REVOLUTIONS_PER_SECOND, WHEELBASE_LENGTH_METERS, WHEELBASE_WIDTH_METERS,
 };
 use crate::constants::drivetrain::{SWERVE_WHEEL_CIRCUMFERENCE_INCHES, WHEEL_ENCODER_STD_DEV};
 use nalgebra::{SMatrix, Vector2, matrix};
@@ -105,8 +105,8 @@ impl Kinematics {
         let mut multiplier = 1.0;
 
         let mut scaled: Vec<(f64, Angle)> = Vec::new();
-        if max > MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND {
-            multiplier = MAX_DRIVETRAIN_REVOLUTIONS_PER_SECOND / max;
+        if max > MAX_DRIVETRAIN_MODULE_REVOLUTIONS_PER_SECOND {
+            multiplier = MAX_DRIVETRAIN_MODULE_REVOLUTIONS_PER_SECOND / max;
         }
 
         for mut setpoint in setpoints.clone() {

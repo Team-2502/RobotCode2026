@@ -1,55 +1,35 @@
 use crate::constants::config::{
-    BLUE_HUB_X_INCHES, FIELD_ORIENTED, HALF_FIELD_WIDTH_METERS,
-    MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND, MINIMUM_MODULE_VELOCITY_METERS_PER_SECOND,
-    RED_HUB_X_INCHES,
+    FIELD_ORIENTED, MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND,
+    MINIMUM_MODULE_VELOCITY_METERS_PER_SECOND,
 };
 use crate::constants::drivetrain::{
     BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS, BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
     DRIVETRAIN_ANGLE_SNAP_KP, FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
-    FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS, GYRO_OFFSET_UPDATE_RATIO, PIGEON_YAW_STD_DEV,
-    SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO,
+    FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS, SWERVE_DRIVE_RATIO, SWERVE_TURN_RATIO,
 };
-use crate::constants::localization::LIMELIGHT_YAW_TRUST;
 use crate::constants::robotmap::drivetrain_map::{
     BL_DRIVE_ID, BL_ENCODER_ID, BL_TURN_ID, BR_DRIVE_ID, BR_ENCODER_ID, BR_TURN_ID,
     DRIVETRAIN_CANBUS, FL_DRIVE_ID, FL_ENCODER_ID, FL_TURN_ID, FR_DRIVE_ID, FR_ENCODER_ID,
     FR_TURN_ID, GYRO_ID,
 };
 use crate::constants::robotmap::shooter::SHOOTER_CANBUS;
-use crate::subsystems::localization::{Localization, RobotPose};
 use crate::subsystems::swerve::kinematics::Kinematics;
 use crate::subsystems::vision::Vision;
-use frcrs::alliance_station;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
-use frcrs::telemetry::Telemetry;
-use nalgebra::Vector2;
 use pid::Pid;
-use std::f64::EPSILON;
-use std::f64::consts::PI;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::time::Duration;
-use tokio::time::{Instant, timeout};
+use tokio::time::Instant;
 use uom::si::angle::{degree, radian, revolution};
 use uom::si::f64::{Angle, Length};
-use uom::si::length::{inch, meter};
 
-/// Drivetrain struct.
-/// kinematics field interfaces with inverse kinematics functions.
-/// motor_encoder_offsets are the absolute positions of the CANCoders on startup. These allow us to start the robot without physically zeroing the wheels.
 pub struct Drivetrain {
     pub(in crate::subsystems::swerve) gyro: Pigeon,
     gyro_offset: Angle,
-    gyro_set: bool,
     pub limelight_side: Vision,
     pub limelight_front: Vision,
     timer: Instant,
     pub(in crate::subsystems::swerve) kinematics: Kinematics,
-    pub localization: Localization,
-    last_modules: Vec<(Angle, Angle)>,
     pub turn_pid: Pid<f64>,
-
-    pub commanded_angle: Angle,
-    pub commanded_magnitude: Length,
 
     //pub(crate::subsystems::swerve) makes this pub to everything in crate::subsystems::swerve
     fl_encoder: CanCoder,
@@ -67,16 +47,6 @@ pub struct Drivetrain {
     fr_encoder: CanCoder,
     pub(in crate::subsystems::swerve) fr_drive: Talon,
     pub(in crate::subsystems::swerve) fr_turn: Talon,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum FieldZone {
-    BlueTop,
-    BlueBottom,
-    MiddleTop,
-    MiddleBottom,
-    RedTop,
-    RedBottom,
 }
 
 impl Drivetrain {
@@ -103,17 +73,11 @@ impl Drivetrain {
         Drivetrain {
             gyro: Pigeon::new(GYRO_ID, Some(SHOOTER_CANBUS.to_string())),
             gyro_offset: Angle::new::<degree>(0.0),
-            gyro_set: false,
             limelight_front,
             limelight_side,
             timer: Instant::now(),
             kinematics: Kinematics::new(),
-            localization: Localization::new(),
-            last_modules: Vec::new(),
             turn_pid,
-
-            commanded_angle: Angle::new::<degree>(0.0),
-            commanded_magnitude: Length::new::<meter>(0.0),
 
             fl_encoder,
             fl_drive: Talon::new(FL_DRIVE_ID, DRIVETRAIN_CANBUS),
@@ -148,103 +112,8 @@ impl Drivetrain {
         self.fr_turn.stop();
     }
 
-    fn update_odo(&mut self, last_pose: RobotPose) {
-        let (difs, measured_angles) = self.get_odo_inputs();
-        let (pose_change_vec, yaw_change, translation_error, yaw_error) =
-            self.kinematics.odometry(difs, measured_angles);
-
-        self.localization.translation_from_odometry(
-            pose_change_vec,
-            yaw_change,
-            translation_error,
-            yaw_error,
-        );
-
-        self.update_velocities(last_pose);
-    }
-
-    // TODO: gyro things
-    /// updates the limelight values and passes in drivetrain data for fom
-    pub async fn update_pose(&mut self) {
-        let last_pose = self.localization.get_state();
-        let gyro_angle = Angle::new::<radian>(self.gyro.get_rotation().z);
-        let gyro_yaw_error = Angle::new::<degree>(PIGEON_YAW_STD_DEV);
-
-        if self.gyro_set {
-            self.localization.update_yaw(
-                gyro_angle + self.gyro_offset,
-                gyro_yaw_error.get::<radian>(),
-            );
-        }
-
-        self.update_odo(last_pose);
-
-        let front_update_handle =
-            timeout(Duration::from_millis(100), self.limelight_front.update());
-        let side_update_handle = timeout(Duration::from_millis(100), self.limelight_side.update());
-
-        if front_update_handle.await.is_ok() {
-            if self.limelight_front.has_tag() {
-                let not_outlier = self.localization.update_pose_from_limelight(
-                    self.limelight_front.get_botpose().unwrap(),
-                    self.limelight_front.get_field_yaw(),
-                    self.limelight_front.get_location_error(),
-                    self.limelight_front.get_yaw_error()
-                        + Angle::new::<degree>(LIMELIGHT_YAW_TRUST),
-                );
-                if not_outlier {
-                    let current_offset = self.limelight_front.get_field_yaw() - gyro_angle;
-                    if self.gyro_set {
-                        self.gyro_offset += GYRO_OFFSET_UPDATE_RATIO
-                            * get_angle_difs(self.gyro_offset, current_offset)
-                    } else {
-                        self.gyro_offset = current_offset;
-                        self.gyro_set = true;
-                    }
-                }
-            }
-        }
-
-        if side_update_handle.await.is_ok() {
-            if self.limelight_side.has_tag() {
-                let not_outlier = self.localization.update_pose_from_limelight(
-                    self.limelight_side.get_botpose().unwrap(),
-                    self.limelight_side.get_field_yaw(),
-                    self.limelight_side.get_location_error(),
-                    self.limelight_side.get_yaw_error() + Angle::new::<degree>(LIMELIGHT_YAW_TRUST),
-                );
-                if not_outlier {
-                    let current_offset = self.limelight_side.get_field_yaw() - gyro_angle;
-                    if self.gyro_set {
-                        self.gyro_offset += GYRO_OFFSET_UPDATE_RATIO
-                            * get_angle_difs(self.gyro_offset, current_offset)
-                    } else {
-                        self.gyro_offset = current_offset;
-                        self.gyro_set = true;
-                    }
-                }
-            }
-        }
-    }
-
-    fn update_velocities(&mut self, last_pose: RobotPose) {
-        let current_state = self.localization.get_state();
-
-        let lin_dif = Vector2::new(current_state.x - last_pose.x, current_state.y - last_pose.y);
-        let angle_dif = get_angle_difs(last_pose.yaw, current_state.yaw);
-
-        let current_time = Instant::now();
-        let elapsed = current_time.duration_since(self.timer).as_secs_f64() + EPSILON;
-        self.timer = current_time;
-
-        let lin_vel = Vector2::new(
-            Length::new::<meter>(lin_dif.x.get::<meter>() / elapsed),
-            Length::new::<meter>(lin_dif.y.get::<meter>() / elapsed),
-        );
-
-        let ang_vel = angle_dif / elapsed;
-
-        self.localization.update_velocities(lin_vel, ang_vel);
+    pub fn get_dt_heading(&self) -> Angle {
+        Angle::new::<radian>(self.gyro.get_rotation().z) - self.gyro_offset
     }
 
     pub fn set_gyro_offset(&mut self) {
@@ -252,8 +121,8 @@ impl Drivetrain {
     }
 
     pub fn field_orientate(&mut self, angle: Angle) -> Angle {
-        let pose = self.localization.get_state();
-        -pose.yaw + angle
+        let yaw = self.get_dt_heading();
+        -yaw + angle
     }
 
     /// ## Sets drivetrain motor speeds.
@@ -342,106 +211,13 @@ impl Drivetrain {
             false => theta,
         };
 
-        self.commanded_magnitude = magnitude;
-        if alliance_station().red() {
-            self.commanded_angle = new_theta + Angle::new::<radian>(PI);
-        } else {
-            self.commanded_angle = new_theta;
-        }
-
         let targets = self.kinematics.get_targets(new_theta, magnitude, rotation);
 
         self.set_speeds(targets);
     }
 
-    /// Drive revolution differences, turn angle diff
-    fn get_odo_inputs(&mut self) -> (Vec<(Angle, Angle)>, Vec<Angle>) {
-        if self.last_modules.is_empty() {
-            self.last_modules = vec![
-                (
-                    Angle::new::<revolution>(self.fl_drive.get_position() / SWERVE_DRIVE_RATIO),
-                    Angle::new::<revolution>(self.fl_turn.get_position()) / SWERVE_TURN_RATIO,
-                ),
-                (
-                    Angle::new::<revolution>(self.bl_drive.get_position() / SWERVE_DRIVE_RATIO),
-                    Angle::new::<revolution>(self.bl_turn.get_position()) / SWERVE_TURN_RATIO,
-                ),
-                (
-                    Angle::new::<revolution>(self.br_drive.get_position() / SWERVE_DRIVE_RATIO),
-                    Angle::new::<revolution>(self.br_turn.get_position()) / SWERVE_TURN_RATIO,
-                ),
-                (
-                    Angle::new::<revolution>(self.fr_drive.get_position() / SWERVE_DRIVE_RATIO),
-                    Angle::new::<revolution>(self.fr_turn.get_position()) / SWERVE_TURN_RATIO,
-                ),
-            ];
-        }
-
-        let measured = vec![
-            (
-                Angle::new::<revolution>(self.fl_drive.get_position() / SWERVE_DRIVE_RATIO),
-                Angle::new::<revolution>(self.fl_turn.get_position()) / SWERVE_TURN_RATIO,
-            ),
-            (
-                Angle::new::<revolution>(self.bl_drive.get_position() / SWERVE_DRIVE_RATIO),
-                Angle::new::<revolution>(self.bl_turn.get_position()) / SWERVE_TURN_RATIO,
-            ),
-            (
-                Angle::new::<revolution>(self.br_drive.get_position() / SWERVE_DRIVE_RATIO),
-                Angle::new::<revolution>(self.br_turn.get_position()) / SWERVE_TURN_RATIO,
-            ),
-            (
-                Angle::new::<revolution>(self.fr_drive.get_position() / SWERVE_DRIVE_RATIO),
-                Angle::new::<revolution>(self.fr_turn.get_position()) / SWERVE_TURN_RATIO,
-            ),
-        ];
-        let differences = vec![
-            (
-                get_angle_difs(self.last_modules[0].0, measured[0].0),
-                get_angle_difs(self.last_modules[0].1, measured[0].1),
-            ),
-            (
-                get_angle_difs(self.last_modules[1].0, measured[1].0),
-                get_angle_difs(self.last_modules[1].1, measured[1].1),
-            ),
-            (
-                get_angle_difs(self.last_modules[2].0, measured[2].0),
-                get_angle_difs(self.last_modules[2].1, measured[2].1),
-            ),
-            (
-                get_angle_difs(self.last_modules[3].0, measured[3].0),
-                get_angle_difs(self.last_modules[3].1, measured[3].1),
-            ),
-        ];
-
-        let measured_angles = vec![
-            -abs_offset(
-                Angle::new::<revolution>(FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS),
-                Angle::new::<revolution>(self.fl_encoder.get_absolute()),
-                Angle::new::<degree>(0.0),
-            ),
-            -abs_offset(
-                Angle::new::<revolution>(BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS),
-                Angle::new::<revolution>(self.bl_encoder.get_absolute()),
-                Angle::new::<degree>(0.0),
-            ),
-            -abs_offset(
-                Angle::new::<revolution>(BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS),
-                Angle::new::<revolution>(self.br_encoder.get_absolute()),
-                Angle::new::<degree>(0.0),
-            ),
-            -abs_offset(
-                Angle::new::<revolution>(FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS),
-                Angle::new::<revolution>(self.fr_encoder.get_absolute()),
-                Angle::new::<degree>(0.0),
-            ),
-        ];
-        self.last_modules = measured;
-        (differences, measured_angles)
-    }
-
     pub fn turn_to(&mut self, theta: Angle, mag: Length, desired: Angle) {
-        let pose = self.localization.get_state();
+        let yaw = self.get_dt_heading();
         self.turn_pid.setpoint(desired.get::<radian>());
 
         self.turn_pid.p(
@@ -451,31 +227,11 @@ impl Drivetrain {
 
         let output = self
             .turn_pid
-            .next_control_output(pose.yaw.get::<radian>())
+            .next_control_output(yaw.get::<radian>())
             .output;
 
         let rotation_rate = Angle::new::<radian>(-output);
         self.control_drivetrain(theta, mag, rotation_rate);
-    }
-}
-
-pub fn get_zone(pose: &RobotPose) -> FieldZone {
-    if pose.y.get::<meter>() < HALF_FIELD_WIDTH_METERS {
-        if pose.x.get::<inch>() < BLUE_HUB_X_INCHES {
-            FieldZone::BlueBottom
-        } else if pose.x.get::<inch>() < RED_HUB_X_INCHES {
-            FieldZone::MiddleBottom
-        } else {
-            FieldZone::RedBottom
-        }
-    } else {
-        if pose.x.get::<inch>() < BLUE_HUB_X_INCHES {
-            FieldZone::BlueTop
-        } else if pose.x.get::<inch>() < RED_HUB_X_INCHES {
-            FieldZone::MiddleTop
-        } else {
-            FieldZone::RedTop
-        }
     }
 }
 
@@ -507,191 +263,5 @@ fn optimize_difs(dif: Angle) -> (Angle, f64) {
 }
 
 pub fn abs_offset(abs_zero_position: Angle, abs_reading: Angle, target: Angle) -> Angle {
-    // current_angle + get_angle_difs(get_angle_difs(abs_zero_position, abs_reading), target)
     wrap_angle(target - (abs_reading - abs_zero_position))
-}
-
-pub async fn update_drivetrain_telemetry(pose: &RobotPose) {
-    Telemetry::put_number(
-        "robot yaw",
-        (pose.yaw.get::<degree>() * 100.0).trunc() / 100.0,
-    )
-    .await;
-    Telemetry::put_number("robot x", (pose.x.get::<meter>() * 100.0).trunc() / 100.0).await;
-    Telemetry::put_number("robot y", (pose.y.get::<meter>() * 100.0).trunc() / 100.0).await;
-    Telemetry::set_robot_pose(
-        (
-            pose.x.get::<meter>() / 17.55,
-            1.0 - pose.y.get::<meter>() / 8.05,
-            pose.yaw.get::<degree>(),
-        ),
-        alliance_station().red(),
-    )
-    .await;
-
-    Telemetry::put_number(
-        "robot velocity x (m/s)",
-        (pose.vx.get::<meter>() * 100.0).trunc() / 100.0,
-    )
-    .await;
-    Telemetry::put_number(
-        "robot velocity y (m/s)",
-        (pose.vy.get::<meter>() * 100.0).trunc() / 100.0,
-    )
-    .await;
-    Telemetry::put_number(
-        "robot velocity yaw (rots/s)",
-        (pose.vr.get::<revolution>() * 100.0).trunc() / 100.0,
-    )
-    .await;
-}
-
-#[cfg(test)]
-mod drivetrain_tests {
-    use super::*;
-    use float_cmp::assert_approx_eq;
-    use std::panic;
-    use uom::si::length::Length;
-
-    // Measured is 0-360
-    // Target is -180 to 180
-    #[test]
-    fn get_difs_test() {
-        // (measured, target)
-        let inputs = vec![
-            (Angle::new::<degree>(0.0), Angle::new::<degree>(180.0)), // 1
-            (Angle::new::<degree>(90.0), Angle::new::<degree>(180.0)), // 2
-            (Angle::new::<degree>(180.0), Angle::new::<degree>(180.0)), // 3
-            (Angle::new::<degree>(270.0), Angle::new::<degree>(180.0)), // 4
-            (Angle::new::<degree>(360.0), Angle::new::<degree>(180.0)), // 5
-            (Angle::new::<degree>(0.0), Angle::new::<degree>(-180.0)), // 6
-            (Angle::new::<degree>(90.0), Angle::new::<degree>(-180.0)), // 7
-            (Angle::new::<degree>(180.0), Angle::new::<degree>(-180.0)), // 8
-            (Angle::new::<degree>(270.0), Angle::new::<degree>(-180.0)), // 9
-            (Angle::new::<degree>(360.0), Angle::new::<degree>(-180.0)), // 10
-            (Angle::new::<degree>(350.0), Angle::new::<degree>(10.0)), // 11
-            (Angle::new::<degree>(10.0), Angle::new::<degree>(-10.0)), // 12
-        ];
-
-        let expected = vec![
-            Angle::new::<degree>(180.0),  // 1
-            Angle::new::<degree>(90.0),   // 2
-            Angle::new::<degree>(0.0),    // 3
-            Angle::new::<degree>(-90.0),  // 4
-            Angle::new::<degree>(-180.0), // 5
-            Angle::new::<degree>(-180.0), // 6
-            Angle::new::<degree>(90.0),   // 7
-            Angle::new::<degree>(0.0),    // 8
-            Angle::new::<degree>(-90.0),  // 9
-            Angle::new::<degree>(-180.0), // 10
-            Angle::new::<degree>(20.0),   // 11
-            Angle::new::<degree>(-20.0),  // 12
-        ];
-
-        let mut results = Vec::new();
-
-        for tuple in inputs {
-            results.push(get_angle_difs(tuple.0, tuple.1));
-        }
-
-        let mut i = 1.0;
-        for result in results.clone() {
-            println!("result {}: {}", i, result.get::<degree>());
-            i += 1.0;
-        }
-
-        for tuple in expected.iter().zip(results.iter()) {
-            assert_approx_eq!(
-                f64,
-                tuple.0.get::<degree>(),
-                tuple.1.get::<degree>(),
-                epsilon = 0.001
-            );
-        }
-    }
-
-    #[test]
-    fn optimize_difs_test() {
-        let inputs = vec![
-            Angle::new::<degree>(0.0),    // 1
-            Angle::new::<degree>(45.0),   // 2
-            Angle::new::<degree>(90.0),   // 3
-            Angle::new::<degree>(135.0),  // 4
-            Angle::new::<degree>(180.0),  // 5
-            Angle::new::<degree>(-45.0),  // 6
-            Angle::new::<degree>(-90.0),  // 7
-            Angle::new::<degree>(-135.0), // 8
-            Angle::new::<degree>(-180.0), // 9
-        ];
-
-        let expected = vec![
-            (Angle::new::<degree>(0.0), 1.0),    // 1
-            (Angle::new::<degree>(45.0), 1.0),   // 2
-            (Angle::new::<degree>(90.0), 1.0),   // 3
-            (Angle::new::<degree>(-45.0), -1.0), // 4
-            (Angle::new::<degree>(0.0), -1.0),   // 5
-            (Angle::new::<degree>(-45.0), 1.0),  // 6
-            (Angle::new::<degree>(-90.0), 1.0),  // 7
-            (Angle::new::<degree>(45.0), -1.0),  // 8
-            (Angle::new::<degree>(0.0), -1.0),   // 9
-        ];
-
-        let mut results = Vec::new();
-
-        for input in inputs {
-            results.push(optimize_difs(input));
-        }
-
-        let mut i = 1.0;
-        for result in results.clone() {
-            println!("result {}: ({}, {})", i, result.0.get::<degree>(), result.1);
-            i += 1.0;
-        }
-
-        for tuple in expected.iter().zip(results.iter()) {
-            assert_approx_eq!(f64, tuple.0.1, tuple.1.1);
-            assert_approx_eq!(f64, tuple.0.0.get::<degree>(), tuple.1.0.get::<degree>());
-        }
-    }
-
-    // #[test]
-    // fn get_zone_test() {
-    //     let inputs = vec![
-    //         (10.0, 10.0, 0.0),
-    //         (10.0, 160.0, 0.0),
-    //         (300.0, 10.0, 0.0),
-    //         (300.0, 160.0, 0.0),
-    //         (500.0, 10.0, 0.0),
-    //         (500.0, 160.0, 0.0),
-    //     ];
-
-    //     let expected = vec![
-    //         FieldZone::BlueBottom,
-    //         FieldZone::BlueTop,
-    //         FieldZone::MiddleBottom,
-    //         FieldZone::MiddleTop,
-    //         FieldZone::RedBottom,
-    //         FieldZone::RedTop,
-    //     ];
-
-    //     let mut results: Vec<FieldZone> = vec![];
-
-    //     for input in inputs {
-    //         results.push(get_zone(&RobotPose {
-    //             x: Length::new::<inch>(input.0),
-    //             y: Length::new::<inch>(input.1),
-    //             yaw: Angle::new::<degree>(input.2),
-    //         }));
-    //     }
-
-    //     let mut i = 1.0;
-    //     for result in results.clone() {
-    //         println!("result {}: {:?}", i, result);
-    //         i += 1.0;
-    //     }
-
-    //     for tuple in expected.iter().zip(results.iter()) {
-    //         assert_eq!(tuple.0, tuple.1);
-    //     }
-    // }
 }
