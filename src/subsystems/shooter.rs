@@ -81,10 +81,10 @@ impl Shooter {
         self.shooter_motor_left.set(ControlMode::Percent, speed);
         self.shooter_motor_right.set(ControlMode::Percent, -speed);
     }
-    
+
     pub fn get_hood(&self) -> f64 {
-            self.hood_motor.get_position()
-        }
+        self.hood_motor.get_position()
+    }
 
     pub fn set_hood(&mut self, angle: f64) {
         self.hood_motor.set(
@@ -95,7 +95,7 @@ impl Shooter {
     }
 
     pub fn set_velocity(&self, speed: f64) {
-        let scaled_speed = speed.clamp(30.0, 100.0);
+        let scaled_speed = speed.clamp(10.0, 100.0);
         self.shooter_motor_left
             .set(ControlMode::Velocity, scaled_speed);
         self.shooter_motor_right

@@ -36,6 +36,7 @@ pub struct Ferris {
     pub shooter_offset: f64,
     pub dt: Duration,
     pub state: RobotState,
+    pub shooter_enabled: bool,
 }
 
 impl Default for Ferris {
@@ -66,6 +67,7 @@ impl Ferris {
 
             dt: Duration::from_millis(0),
             state: RobotState::get(),
+            shooter_enabled: false,
         }
     }
 

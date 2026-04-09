@@ -83,7 +83,7 @@ fn main() {
                     robot.update_state();
 
                     teleop.update(&mut robot).await;
-                    teleop.act(&mut robot);
+                    teleop.act(&mut robot).await;
                 }
             }
 

@@ -19,8 +19,8 @@ impl Teleop {
         self.swerve.update(ferris).await;
     }
 
-    pub fn act(&mut self, ferris: &mut Ferris) {
-        self.swerve.act(ferris);
+    pub async fn act(&mut self, ferris: &mut Ferris) {
+        self.swerve.act(ferris).await;
         self.fueler.act(ferris);
     }
 }

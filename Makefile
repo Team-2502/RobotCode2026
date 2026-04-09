@@ -24,7 +24,7 @@ $(DEPLOY): $(dir $(DEPLOY)) $(OUT)
 # just deploys robotcode
 .PHONY: deploy-scp
 deploy-scp: $(OUT)
-
+	cargo build --release --target arm-unknown-linux-gnueabi
 	ssh lvuser@10.$(TEAM).2 /usr/local/frc/bin/frcKillRobot.sh
 	ssh lvuser@10.$(TEAM).2 rm -f $(LIB)
 	scp $(OUT) lvuser@10.$(TEAM).2:

@@ -23,8 +23,8 @@ use uom::si::angle::{degree, radian, revolution};
 use uom::si::f64::{Angle, Length};
 
 pub struct Drivetrain {
-    pub(in crate::subsystems::swerve) gyro: Pigeon,
-    gyro_offset: Angle,
+    pub gyro: Pigeon,
+    pub gyro_zero: Angle,
     pub limelight_side: Vision,
     pub limelight_front: Vision,
     timer: Instant,
@@ -72,7 +72,7 @@ impl Drivetrain {
 
         Drivetrain {
             gyro: Pigeon::new(GYRO_ID, Some(SHOOTER_CANBUS.to_string())),
-            gyro_offset: Angle::new::<degree>(0.0),
+            gyro_zero: Angle::new::<degree>(0.0),
             limelight_front,
             limelight_side,
             timer: Instant::now(),
@@ -113,11 +113,14 @@ impl Drivetrain {
     }
 
     pub fn get_dt_heading(&self) -> Angle {
-        Angle::new::<radian>(self.gyro.get_rotation().z) - self.gyro_offset
+        get_angle_difs(
+            self.gyro_zero,
+            Angle::new::<radian>(self.gyro.get_rotation().z),
+        )
     }
 
-    pub fn set_gyro_offset(&mut self) {
-        self.gyro_offset = Angle::new::<radian>(self.gyro.get_rotation().z);
+    pub fn set_gyro_zero(&mut self) {
+        self.gyro_zero = Angle::new::<radian>(self.gyro.get_rotation().z);
     }
 
     pub fn field_orientate(&mut self, angle: Angle) -> Angle {
