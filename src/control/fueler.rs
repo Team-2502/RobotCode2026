@@ -1,30 +1,17 @@
-use crate::{
-    Ferris, HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED,
-    constants::{
-        config::{
-            ESTIMATED_FRAME_TIME_SECONDS, HOOD_ROTATE_RATE_ROTS_PER_SEC,
-            TURRET_ROTATE_RATE_RADS_PER_SEC,
-        },
-        shooter::MAX_FLYWHEEL_SPEED,
-    },
-};
+use crate::{Ferris, HANDOFF_SPEED, INTAKE_IN_SPEED, constants::shooter::MAX_FLYWHEEL_SPEED};
 use frcrs::deadzone;
-use uom::si::angle::{degree, radian};
+use uom::si::angle::degree;
 use uom::si::f64::Angle;
 
-struct Targeting {
-    turret_angle: Angle,
-}
+struct Targeting {}
 
 impl Targeting {
     pub fn new() -> Targeting {
-        Targeting {
-            turret_angle: Angle::new::<degree>(0.0),
-        }
+        Targeting {}
     }
 
     fn act(&mut self, ferris: &mut Ferris) {
-        if let Ok(mut intake) = ferris.intake.try_borrow_mut() {
+        if let Ok(intake) = ferris.intake.try_borrow_mut() {
             if ferris.controllers.right_drive.get(4) && ferris.controllers.operator.get(1) {
                 intake.set_intake_speed(INTAKE_IN_SPEED);
                 intake.set_handoff(HANDOFF_SPEED);
@@ -84,31 +71,6 @@ impl Launcher {
                 shooter.stop();
             }
         }
-
-        // if let Ok(intake) = ferris.intake.try_borrow_mut() {
-        //     if ferris.controllers.right_drive.get(4) && ferris.controllers.operator.get(1) {
-        //         intake.set_intake_speed(INTAKE_IN_SPEED);
-        //         intake.set_handoff(HANDOFF_SPEED);
-        //     } else if ferris.controllers.right_drive.get(1) {
-        //         intake.set_intake_speed(INTAKE_IN_SPEED);
-        //         intake.set_handoff(HANDOFF_SPEED);
-        //     }
-
-        //     if ferris.controllers.right_drive.get(1) {
-        //         intake.set_intake_speed(INTAKE_REVSERSE_SPEED);
-        //         intake.set_handoff(-HANDOFF_SPEED);
-        //     }
-
-        //     // if ferris.controllers.operator.get(1) {
-        //     //     intake.set_intake_speed(INTAKE_IN_SPEED);
-        //     //     intake.set_handoff(HANDOFF_SPEED);
-        //     // } else if ferris.controllers.operator.get(2) {
-        //     //     intake.set_intake_speed(INTAKE_REVSERSE_SPEED);
-        //     //     intake.set_handoff(-HANDOFF_SPEED);
-        //     // } else {
-        //     //     intake.stop();
-        //     // }
-        // }
     }
 }
 

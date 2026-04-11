@@ -8,7 +8,7 @@ use frcrs::ctre::{ControlMode, Talon};
 use std::fs::File;
 use std::io::{Read, Write};
 use uom::si::angle::revolution;
-use uom::si::f64::{Angle, Length};
+use uom::si::f64::Angle;
 
 #[derive(PartialEq, Clone)]
 pub enum ShootingTarget {

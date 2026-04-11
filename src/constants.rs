@@ -1,8 +1,6 @@
 pub mod config {
     use std::f64::consts::PI;
 
-    use nalgebra::Vector2;
-
     /// Wheel-Wheel width of robot.
     pub const WHEELBASE_WIDTH_METERS: f64 = 0.4953;
     /// Wheel-Wheel length of robot.

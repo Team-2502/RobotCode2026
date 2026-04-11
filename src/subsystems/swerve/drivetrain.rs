@@ -18,7 +18,6 @@ use crate::subsystems::vision::Vision;
 use frcrs::ctre::{CanCoder, ControlMode, Pigeon, Talon};
 use pid::Pid;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use tokio::time::Instant;
 use uom::si::angle::{degree, radian, revolution};
 use uom::si::f64::{Angle, Length};
 
@@ -27,7 +26,6 @@ pub struct Drivetrain {
     pub gyro_zero: Angle,
     pub limelight_side: Vision,
     pub limelight_front: Vision,
-    timer: Instant,
     pub(in crate::subsystems::swerve) kinematics: Kinematics,
     pub turn_pid: Pid<f64>,
 
@@ -75,7 +73,6 @@ impl Drivetrain {
             gyro_zero: Angle::new::<degree>(0.0),
             limelight_front,
             limelight_side,
-            timer: Instant::now(),
             kinematics: Kinematics::new(),
             turn_pid,
 

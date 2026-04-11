@@ -1,6 +1,4 @@
-use crate::constants::config::MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND;
-use crate::constants::robotmap::intake::{HANDOFF_SPEED, INTAKE_IN_SPEED, INTAKE_REVSERSE_SPEED};
-
+use crate::constants::robotmap::intake::{HANDOFF_SPEED, INTAKE_IN_SPEED};
 use crate::debouncer::Debouncer;
 use crate::subsystems::intake::Intake;
 use crate::subsystems::shooter::Shooter;

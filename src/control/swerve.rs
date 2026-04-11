@@ -3,7 +3,6 @@ use crate::constants::config::{
     MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND,
     SLOW_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND, SLOW_DRIVETRAIN_SPEED_METERS_PER_SECOND,
 };
-use crate::subsystems::swerve::drivetrain::get_angle_difs;
 use frcrs::telemetry::Telemetry;
 use frcrs::{alliance_station, deadzone};
 use std::f64::consts::PI;
@@ -56,14 +55,12 @@ impl Swerve {
             // setup inputs into polar conv, field orient
             let input_magnitude = (deadzoned_x * deadzoned_x + deadzoned_y * deadzoned_y).sqrt();
             let theta = Angle::new::<radian>(deadzoned_y.atan2(deadzoned_x));
-            let mut field_theta = if alliance_station().red() {
+            let field_theta = if alliance_station().red() {
                 theta + Angle::new::<radian>(PI)
             } else {
                 theta
             };
 
-            // get max speed
-            let yaw = drivetrain.get_dt_heading();
             let magnitude = Length::new::<meter>(MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND);
 
             if ferris.controllers.left_drive.get(1) {

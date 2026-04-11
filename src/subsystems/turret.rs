@@ -5,16 +5,16 @@ use crate::constants::robotmap::drivetrain_map::DRIVETRAIN_CANBUS;
 use crate::constants::robotmap::shooter::SHOOTER_CANBUS;
 use crate::constants::robotmap::turret::{ENCODER_ID, SPIN_MOTOR_ID};
 use crate::constants::turret::{
-    ABS_TO_REL_RATIO, ORIGIN_TO_TURRET_CENTER_X_INCHES, ORIGIN_TO_TURRET_CENTER_Y_INCHES,
-    RELATIVE_TO_TURRET_RATIO, TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS, TURRET_CLAMP,
+    ABS_TO_REL_RATIO, RELATIVE_TO_TURRET_RATIO, TURRET_ABSOLUTE_ENCODER_ZERO_ROTATIONS,
+    TURRET_CLAMP,
 };
 use frcrs::ctre::{CanCoder, ControlMode, Talon};
-use nalgebra::{Rotation2, Vector2};
+use nalgebra::Vector2;
 use uom::si::angle::radian;
 use uom::si::angle::{degree, revolution};
 use uom::si::f64::Angle;
 use uom::si::f64::Length;
-use uom::si::length::{inch, meter};
+use uom::si::length::meter;
 
 pub struct Turret {
     spin_motor: Talon,
