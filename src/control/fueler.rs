@@ -58,14 +58,26 @@ impl Launcher {
 
         if ferris.shooter_enabled {
             if let Ok(mut shooter) = ferris.shooter.try_borrow_mut() {
-                let mut percent = (ferris.controllers.left_drive.get_throttle() + 1.0) / 2.0;
-                if percent < 0.05 {
-                    percent = 0.0;
+                let mut percent_flywheel =
+                    (ferris.controllers.left_drive.get_throttle() + 1.0) / 2.0;
+                if percent_flywheel < 0.05 {
+                    percent_flywheel = 0.0;
                 }
-                println!("percent: {}", percent);
-                shooter.set_velocity(MAX_FLYWHEEL_SPEED * percent);
+                println!("percent: {}", percent_flywheel);
+                shooter.set_velocity(MAX_FLYWHEEL_SPEED * percent_flywheel);
                 shooter.set_hood(1.75);
-                shooter.turret.set_angle(Angle::new::<degree>(0.0));
+
+                let deadzone_output = 0.0..1.0;
+                let deadzone_input = 0.05..1.0;
+                let deadzoned_z = deadzone(
+                    ferris.controllers.operator.get_z(),
+                    &deadzone_input,
+                    &deadzone_output,
+                );
+
+                let yaw = -60.0 * deadzoned_z;
+
+                shooter.turret.set_angle(Angle::new::<degree>(yaw));
             }
         } else {
             if let Ok(shooter) = ferris.shooter.try_borrow_mut() {
