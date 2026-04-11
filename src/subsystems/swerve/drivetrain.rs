@@ -331,6 +331,10 @@ impl Drivetrain {
             self.bl_drive.set(ControlMode::Percent, 0.0);
             self.br_drive.set(ControlMode::Percent, 0.0);
             self.fr_drive.set(ControlMode::Percent, 0.0);
+            self.fl_turn.set(ControlMode::Percent, 0.0);
+            self.bl_turn.set(ControlMode::Percent, 0.0);
+            self.br_turn.set(ControlMode::Percent, 0.0);
+            self.fr_turn.set(ControlMode::Percent, 0.0);
         }
     }
 
