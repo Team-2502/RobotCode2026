@@ -77,7 +77,7 @@ pub mod robotmap {
 }
 
 pub mod shooter {
-    pub const MAX_FLYWHEEL_SPEED: f64 = 100.0;
+    pub const MAX_FLYWHEEL_SPEED: f64 = 75.0;
     pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 1.0;
     // pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 0.88; /* Original */
     // pub const SHOOTER_DISTANCE_ERROR_SMUDGE: f64 = 0.94; /* Northern Lights */
@@ -165,8 +165,9 @@ pub mod drivetrain {
     pub const DRIVETRAIN_ANGLE_SNAP_KP: f64 = 8.0;
     pub const DRIVETRAIN_FISH_MODE_KP: f64 = 7.0;
 
+    // Bevels towards intake side
     pub const FL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.418212890625;
-    pub const BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.575927734375;
+    pub const BL_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.340576;
     pub const BR_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.811767578125;
     pub const FR_ABSOLUTE_ENCODER_ZERO_ROTATIONS: f64 = 0.90576171875;
 }

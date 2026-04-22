@@ -52,7 +52,7 @@ impl Launcher {
                 }
                 println!("percent: {}", percent_flywheel);
                 shooter.set_velocity(MAX_FLYWHEEL_SPEED * percent_flywheel);
-                shooter.set_hood(1.75);
+                shooter.set_hood(1.5); /* og: 1.75 */
 
                 let deadzone_output = 0.0..1.0;
                 let deadzone_input = 0.05..1.0;
