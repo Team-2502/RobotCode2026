@@ -127,11 +127,8 @@ impl Ferris {
                             }
                         }
                         self.auto.move_to_target(&mut drivetrain).await;
-                    } 
-                    else if self.auto.start_time.elapsed() <= Duration::from_secs_f64(10.0) {
-                        
-                    }
-                    else if self.auto.start_time.elapsed() <= Duration::from_secs_f64(15.0) {
+                    } else if self.auto.start_time.elapsed() <= Duration::from_secs_f64(10.0) {
+                    } else if self.auto.start_time.elapsed() <= Duration::from_secs_f64(15.0) {
                         self.auto.auto_set_angle(Angle::new::<degree>(-90.0));
                         match alliance_station().blue() {
                             true => {

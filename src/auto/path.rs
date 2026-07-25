@@ -3,9 +3,9 @@ use frcrs::input::RobotState;
 use std::time::Duration;
 use tokio::fs::File;
 
+use crate::MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND;
 use crate::constants::config::MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND;
 use crate::constants::config::{HALF_FIELD_LENGTH_METERS, HALF_FIELD_WIDTH_METERS};
-use crate::MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND;
 use crate::subsystems::swerve::drivetrain::Drivetrain;
 use crate::subsystems::swerve::drivetrain::get_angle_difs;
 use crate::vec_f64;
@@ -282,11 +282,8 @@ impl Auto {
             Angle::new::<radian>(output.output),
         );
     }
-    
-    pub async fn move_to_target(
-        &mut self,
-        drivetrain: &mut Drivetrain,
-    ) {
+
+    pub async fn move_to_target(&mut self, drivetrain: &mut Drivetrain) {
         let pose = drivetrain.localization.get_state();
         let setpoint = self.pid_turn_to.setpoint;
         let error = get_angle_difs(pose.yaw, Angle::new::<radian>(setpoint));
@@ -301,7 +298,8 @@ impl Auto {
             Vector2::new(Length::new::<meter>(0.0), Length::new::<meter>(0.0))
         };
         let angle = f64::atan2(distance.y.get::<meter>(), distance.x.get::<meter>());
-        let mut speed = (vec_f64(distance).magnitude() * 2.0).clamp(0.0, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND);
+        let mut speed = (vec_f64(distance).magnitude() * 2.0)
+            .clamp(0.0, MAX_DRIVETRAIN_SPEED_METERS_PER_SECOND);
         let err = distance.x.get::<meter>().abs() + distance.y.get::<meter>().abs();
         speed = if err < 0.05 { 0.0 } else { speed };
         self.move_towards(
