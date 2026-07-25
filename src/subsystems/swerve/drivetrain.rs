@@ -69,7 +69,7 @@ impl Drivetrain {
         let turn_pid = Pid::new(0.0, MAX_DRIVETRAIN_ROTATION_SPEED_RADIANS_PER_SECOND);
 
         Drivetrain {
-            gyro: Pigeon::new(GYRO_ID, Some(SHOOTER_CANBUS.to_string())),
+            gyro: Pigeon::new(GYRO_ID, DRIVETRAIN_CANBUS),
             gyro_zero: Angle::new::<degree>(0.0),
             limelight_front,
             limelight_side,
